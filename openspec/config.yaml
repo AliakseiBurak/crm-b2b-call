@@ -1,0 +1,25 @@
+schema: intent-driven
+
+context: |
+  Stack: Symfony 6.x, PHP 8.2+, Doctrine ORM, Twig, Webpack Encore, Redis,
+  RabbitMQ/Symfony Messenger, PostgreSQL/MySQL, Elasticsearch, MinIO/S3,
+  OAuth2/JWT. Domain: B2B telemarketing CRM (B2B Call CRM).
+  Spec bodies and Gherkin step text are written in Russian; Gherkin keywords stay
+  English (Feature/Rule/Scenario/Given/When/Then). Normative verbs in Russian:
+  «ДОЛЖНА», «ДОЛЖЕН», «МОЖЕТ».
+  Access model: see adr/0001-0004. Manager has an auto-created own group and full
+  access to organizations in own + assigned custom groups; org-group membership is
+  many-to-many; do not introduce per-org ACL tiers. Admin sees everything.
+  Source docs are archived under docs/source/ (PRD.md, PRD_WORKFLOW.md).
+
+rules:
+  proposal:
+    - Must use grill-me skill
+    # - Must use adversaril-authoring skill
+    # - Must use glossary skill
+  design:
+    - Must use c4-diagrams skill
+  adr:
+    - Must use architectural-decision-records skill
+  specs:
+    - Must use gherkin-authoring skill
