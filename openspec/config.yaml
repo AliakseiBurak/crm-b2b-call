@@ -1,13 +1,14 @@
-schema: intent-driven
+schema: spec-driven
 stack: javascript
 
 context: |
   Stack: Symfony 6.x, PHP 8.2+, Doctrine ORM, Twig, Webpack Encore, Redis,
-  RabbitMQ/Symfony Messenger, PostgreSQL/MySQL, Elasticsearch, MinIO/S3,
+  RabbitMQ/Symfony Messenger, PostgreSQL/MySQL, MinIO/S3,
   OAuth2/JWT. Domain: B2B telemarketing CRM (B2B Call CRM).
-  Spec bodies and Gherkin step text are written in Russian; Gherkin keywords stay
-  English (Feature/Rule/Scenario/Given/When/Then). Normative verbs in Russian:
-  «ДОЛЖНА», «ДОЛЖЕН», «МОЖЕТ».
+  Spec-driven format: ## Purpose, ## Requirements with ### Requirement and
+  #### Scenario blocks. Scenario names and step text (- **WHEN** / - **THEN** /
+  - **AND**) are written in Russian; normative verbs in requirement text are
+  English SHALL / MUST / MAY.
   Access model: see adr/0001-0004. Manager has an auto-created own group and full
   access to organizations in own + assigned custom groups; org-group membership is
   many-to-many; do not introduce per-org ACL tiers. Admin sees everything.
@@ -20,7 +21,5 @@ rules:
     # - Must use glossary skill
   design:
     - Must use c4-diagrams skill
-  adr:
-    - Must use architectural-decision-records skill
   specs:
     - Must use gherkin-authoring skill

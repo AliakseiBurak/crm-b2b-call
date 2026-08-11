@@ -27,9 +27,13 @@ CRM для B2B‑телемаркетинга и контактного взаи
 
 ## Non-Goals
 
-- Нативное мобильное приложение (v2).
 - AI‑анализ тональности разговоров (v2).
-- Elasticsearch помимо базового поиска (v2).
+
+## Planned modules (later)
+
+- Веб‑поиск: поиск сайта организации в Google/других поисковиках и извлечение
+  сферы деятельности и контактной информации — отдельный модуль на базе LLM,
+  реализуется позже вне текущего скоупа.
 
 ## Principles
 
@@ -63,7 +67,7 @@ CRM для B2B‑телемаркетинга и контактного взаи
 ## Technology Stack
 
 Symfony 6.x, PHP 8.2+, Doctrine ORM, Twig, Webpack Encore, Redis,
-RabbitMQ/Symfony Messenger, PostgreSQL/MySQL, Elasticsearch, MinIO/S3,
+RabbitMQ/Symfony Messenger, PostgreSQL/MySQL, MinIO/S3,
 OAuth2/JWT.
 
 ## References

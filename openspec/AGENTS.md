@@ -4,9 +4,11 @@ Project-specific conventions for agents working in this OpenSpec workspace.
 
 ## Language
 
-- Spec bodies and Gherkin step text: **Russian**.
-- Gherkin keywords: **English** (`Feature`, `Rule`, `Scenario`, `Given/When/Then`).
-- Normative verbs in Russian: «ДОЛЖНА», «ДОЛЖЕН», «МОЖЕТ» (not English SHALL/MUST).
+- Spec-driven format: `## Purpose`, `## Requirements` with `### Requirement` and
+  `#### Scenario` blocks.
+- Scenario names and step text (`- **WHEN**`/`- **THEN**`/`- **AND**`): **Russian**.
+- Normative verbs in requirement text: **English** `SHALL`, `MUST`, `MAY`
+  (required by `openspec validate`; Russian «ДОЛЖНА» is not recognized).
 - If scenarios become executable acceptance tests, step definitions must match
   the Russian step text (Russian regexes or the `# language: ru` dialect).
 
@@ -35,12 +37,11 @@ Do not rename inconsistently.
 
 ## Tooling caveats
 
-- `openspec` CLI 1.8.0 is installed. Caveat: `openspec validate` uses the default
-  spec-driven format and does not validate the intent-driven fenced-Gherkin specs;
-  use the acceptance-test-authoring extractor for structural checks.
+- `openspec` CLI 1.8.0 is installed. Specs use the spec-driven format;
+  `openspec validate <capability> --type spec` works out of the box.
 - git repo exists (add `safe.directory` exception if needed).
 
 ## Workflow
 
-intent-driven schema: proposal → specs → design → adr → tasks. Skill gates in
+spec-driven schema: proposal → specs → design → tasks. Skill gates in
 `openspec/config.yaml` must be honored.
