@@ -24,7 +24,6 @@ Accredited without asking the user; keep consistent:
 - Org ↔ group is **many-to-many** (`OrganizationGroupMembership`); one group can be assigned to many managers (`GroupAssignment`).
 - Managers get **full access** to orgs in own + all assigned groups.
 - **Admin sees everything**, manages groups and assignments.
-- **Operator** accesses only through assigned groups.
 - Do not re-introduce per-org ACL tiers.
 
 ## Common task traps

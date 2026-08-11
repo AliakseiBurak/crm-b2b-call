@@ -17,8 +17,7 @@ Do not re-introduce per-org ACL tiers. See `adr/0001–0004`:
 - ADR-0001: own group auto-created per manager; manager's orgs land there.
 - ADR-0002: org ↔ group many-to-many (`OrganizationGroupMembership`); one group
   assignable to many managers (`GroupAssignment`).
-- ADR-0003: manager gets full access to own + assigned groups; operator only
-  through assigned groups.
+- ADR-0003: manager gets full access to own + assigned groups.
 - ADR-0004: admin sees everything, manages groups and assignments.
 
 ## Terminology
