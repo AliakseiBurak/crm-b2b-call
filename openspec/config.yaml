@@ -11,7 +11,7 @@ context: |
   Access model: see adr/0001-0004. Manager has an auto-created own group and full
   access to organizations in own + assigned custom groups; org-group membership is
   many-to-many; do not introduce per-org ACL tiers. Admin sees everything.
-  Source docs are archived under docs/source/ (PRD.md, PRD_WORKFLOW.md).
+  OpenSpec is the single source of truth (ADR-0006); the original PRD is removed.
 
 rules:
   proposal:
