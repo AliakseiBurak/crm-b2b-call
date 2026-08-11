@@ -1,4 +1,5 @@
 schema: intent-driven
+stack: javascript
 
 context: |
   Stack: Symfony 6.x, PHP 8.2+, Doctrine ORM, Twig, Webpack Encore, Redis,
