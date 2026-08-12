@@ -13,18 +13,23 @@
 ## Requirements
 
 ### Requirement: Управление шаблонами коммуникаций
-The system SHALL allow creating, viewing, and modifying communication templates
-that store the letter structure (subject and body) with tokens and optional
-embedded courses.
+The system SHALL allow the administrator and managers to create, view, and
+modify communication templates that store the letter structure (subject and
+body) with tokens and optional embedded courses. Templates SHALL be shared
+across the system and SHALL NOT be scoped to organizations or groups.
 
-#### Scenario: Создание шаблона
-- **WHEN** аутентифицированный пользователь создаёт шаблон "Знакомство с курсами" с темой и телом письма
+#### Scenario: Создание шаблона менеджером
+- **WHEN** аутентифицированный менеджер создаёт шаблон "Знакомство с курсами" с темой и телом письма
 - **THEN** шаблон "Знакомство с курсами" появляется в списке шаблонов
+
+#### Scenario: Создание шаблона администратором
+- **WHEN** аутентифицированный администратор создаёт шаблон "Напоминание о звонке" с темой и телом письма
+- **THEN** шаблон "Напоминание о звонке" появляется в списке шаблонов
 
 #### Scenario: Просмотр списка шаблонов
 - **WHEN** в системе есть шаблоны "Знакомство с курсами" и "Напоминание о звонке"
-- **AND** пользователь открывает список шаблонов коммуникаций
-- **THEN** он видит оба шаблона
+- **AND** пользователь с ролью manager открывает список шаблонов коммуникаций
+- **THEN** он видит оба шаблона, включая созданные другими менеджерами и администратором
 
 ### Requirement: Токены в шаблоне
 The system SHALL fill template tokens with the contact name and the
