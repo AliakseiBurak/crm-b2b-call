@@ -44,17 +44,24 @@ for an administrator SHALL skip groups entirely.
 
 ### Requirement: Администратор управляет custom-группами
 The administrator SHALL be able to create, modify, and delete custom groups
-with a name and a slug, assign them to managers, and move organizations between
-groups.
+with a name and a slug, assign them to managers, and add organizations to
+groups. Adding an organization to a group SHALL NOT remove it from other
+groups: an organization MAY belong to several groups at once.
 
 #### Scenario: Админ создаёт custom-группу и назначает её менеджеру
 - **WHEN** аутентифицированный администратор создаёт custom-группу "Минский регион" с slug `minsk-region-group` и назначает её менеджеру "Иван Петров"
 - **THEN** менеджер "Иван Петров" получает доступ к организациям группы "Минский регион"
 
-#### Scenario: Админ переносит организацию между группами
+#### Scenario: Админ добавляет организацию в несколько групп
 - **WHEN** организация "ООО Ромашка" состоит в группе "Минский регион"
-- **AND** администратор переносит её в группу "Южный регион"
+- **AND** администратор добавляет её в группу "Южный регион"
 - **THEN** организация "ООО Ромашка" состоит в группах "Минский регион" и "Южный регион"
+- **AND** организация "ООО Ромашка" видна менеджерам обеих групп
+
+#### Scenario: Удаление организации из группы не влияет на другие группы
+- **WHEN** организация "ООО Ромашка" состоит в группах "Минский регион" и "Южный регион"
+- **AND** администратор удаляет её из группы "Минский регион"
+- **THEN** организация "ООО Ромашка" продолжает состоять в группе "Южный регион"
 
 ### Requirement: Членство организации в группах является many-to-many
 An organization SHALL be able to belong to several groups at once through
