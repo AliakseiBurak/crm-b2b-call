@@ -16,7 +16,8 @@
 The system SHALL let the administrator manage courses with a name, a category
 (IT, Маркетинг, Менеджмент), a base price, a description, and an optional PDF
 material used in campaign letters (see `communication-templates`,
-`campaigns`).
+`campaigns`). Catalog management SHALL be restricted to the administrator;
+managers SHALL NOT create, modify, or delete courses.
 
 #### Scenario: Создание курса
 - **WHEN** аутентифицированный администратор создаёт курс "Python для анализа данных" с категорией "IT" и базовой ценой 50000
@@ -31,9 +32,17 @@ material used in campaign letters (see `communication-templates`,
 - **WHEN** администратор добавляет курсу "Python для анализа данных" описание и прикрепляет PDF
 - **THEN** описание и PDF сохраняются в карточке курса
 
+#### Scenario: Менеджер не может изменить каталог курсов
+- **WHEN** в каталоге существует курс "Python для анализа данных"
+- **AND** менеджер пытается создать, изменить или удалить курс
+- **THEN** система отклоняет запрос с ошибкой 403
+- **AND** каталог курсов не изменяется
+
 ### Requirement: Расчёт цены и создание предложения курса
 The system SHALL calculate the price with a discount and SHALL create a
 current course offer (`CourseOffer`) for an organization on a given date.
+A manager SHALL create `CourseOffer` only for organizations in their access
+scope (`adr/0007`).
 
 #### Scenario: Создание предложения курса с учётом скидки
 - **WHEN** для организации "ООО Ромашка" выбран курс "Python для анализа данных" с базовой ценой 50000
@@ -44,6 +53,17 @@ current course offer (`CourseOffer`) for an organization on a given date.
 - **WHEN** существует курс "Python для анализа данных"
 - **AND** система создаёт предложение для организации "ООО Ромашка"
 - **THEN** предложение связано с организацией "ООО Ромашка" и курсом "Python для анализа данных"
+
+#### Scenario: Менеджер создаёт предложение для своей организации
+- **WHEN** организация "ООО Ромашка" входит в область доступа менеджера
+- **AND** менеджер создаёт для неё предложение по курсу "Python для анализа данных"
+- **THEN** предложение создаётся и связано с организацией "ООО Ромашка"
+
+#### Scenario: Менеджер не может создать предложение для недоступной организации
+- **WHEN** в системе существует организация "ООО Конкурент", отсутствующая в области доступа менеджера
+- **AND** менеджер пытается создать для неё предложение по курсу
+- **THEN** система отклоняет запрос с ошибкой 403
+- **AND** предложение не создаётся
 
 ### Requirement: Отслеживание пройденных курсов и сертификатов
 The system SHALL store an organization's completed courses, including the end
