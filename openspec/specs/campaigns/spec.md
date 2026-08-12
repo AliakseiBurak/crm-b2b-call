@@ -28,7 +28,8 @@ A campaign SHALL NOT be bound to a single organization.
 ### Requirement: Формирование адресатов
 The system SHALL form campaign recipients from organizations marked with the
 campaign result during calls and/or from organizations selected manually for a
-standalone campaign.
+standalone campaign. A manager SHALL add only organizations from their access
+scope as recipients (`adr/0007`).
 
 #### Scenario: Адресаты из обзвона
 - **WHEN** организации "ООО Ромашка" и "ООО А" отмечены рассылкой "Новые курсы" во время обзвона
@@ -38,6 +39,12 @@ standalone campaign.
 - **WHEN** менеджер создаёт standalone-рассылку "Акция"
 - **AND** вручную выбирает организации "ООО Ромашка" и "ООО Б"
 - **THEN** получателями рассылки являются только выбранные организации
+
+#### Scenario: Менеджер не может добавить недоступную организацию адресатом
+- **WHEN** в системе существует организация "ООО Конкурент", отсутствующая в области доступа менеджера
+- **AND** менеджер пытается добавить её адресатом standalone-рассылки
+- **THEN** система отклоняет запрос с ошибкой 403
+- **AND** организация не включается в получатели
 
 ### Requirement: Генерация письма по шаблону
 The system SHALL generate each email from the campaign template by filling
@@ -91,6 +98,12 @@ of the campaign.
 - **WHEN** в рассылке "Новые курсы" 10 писем и 7 из них отправлено
 - **AND** менеджер открывает карточку рассылки
 - **THEN** он видит статус каждого письма и прогресс "7 из 10"
+
+#### Scenario: Менеджер видит статусы только писем своего доступа
+- **WHEN** в рассылке есть письма организации, отсутствующей в области доступа менеджера
+- **AND** менеджер открывает карточку рассылки
+- **THEN** он не видит письма и статусы недоступной организации
+- **AND** прогресс рассылки рассчитывается по видимым менеджеру письмам
 
 ### Requirement: Обработка отписки
 The system SHALL process unsubscribe requests and SHALL exclude unsubscribed
