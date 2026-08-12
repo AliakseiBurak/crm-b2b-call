@@ -61,6 +61,7 @@ CRM для B2B‑телемаркетинга и контактного взаи
 | `calls` | Планирование, обзвон по группам, результат (рассылка/сделка/будущий звонок) |
 | `campaigns` | Рассылки (из обзвона/standalone), шаблон с токенами, статусы писем и отписки |
 | `organization-groups` | Группы организаций, членство, назначения менеджерам |
+| `authentication` | Сессионный вход (form_login, remember_me), stateless API, проверка доступа через `Security::getUser()` |
 | `access-control` | Роли (admin/manager) и правила доступа |
 
 ## Technology Stack
