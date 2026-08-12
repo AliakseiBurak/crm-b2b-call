@@ -14,7 +14,9 @@
 
 ### Requirement: Управление каталогом курсов
 The system SHALL let the administrator manage courses with a name, a category
-(IT, Маркетинг, Менеджмент), and a base price.
+(IT, Маркетинг, Менеджмент), a base price, a description, and an optional PDF
+material used in campaign letters (see `communication-templates`,
+`campaigns`).
 
 #### Scenario: Создание курса
 - **WHEN** аутентифицированный администратор создаёт курс "Python для анализа данных" с категорией "IT" и базовой ценой 50000
@@ -24,6 +26,10 @@ The system SHALL let the administrator manage courses with a name, a category
 - **WHEN** существует курс с категорией "IT"
 - **AND** администратор указывает курсу категорию "Маркетинг"
 - **THEN** категория курса становится "Маркетинг"
+
+#### Scenario: Описание и PDF курса
+- **WHEN** администратор добавляет курсу "Python для анализа данных" описание и прикрепляет PDF
+- **THEN** описание и PDF сохраняются в карточке курса
 
 ### Requirement: Расчёт цены и создание предложения курса
 The system SHALL calculate the price with a discount and SHALL create a

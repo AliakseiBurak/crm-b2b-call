@@ -2,17 +2,20 @@ schema: spec-driven
 stack: javascript
 
 context: |
-  Stack: Symfony 6.x, PHP 8.2+, Doctrine ORM, Twig, Webpack Encore, Redis,
-  RabbitMQ/Symfony Messenger, PostgreSQL/MySQL, MinIO/S3,
-  OAuth2/JWT. Domain: B2B telemarketing CRM (B2B Call CRM).
+  Stack: Symfony 6.x, PHP 8.2+, Doctrine ORM, Twig, Webpack Encore,
+  MySQL, OAuth2/JWT. Domain: B2B telemarketing CRM (B2B Call CRM).
   Spec-driven format: ## Purpose, ## Requirements with ### Requirement and
   #### Scenario blocks. Scenario names and step text (- **WHEN** / - **THEN** /
   - **AND**) are written in Russian; normative verbs in requirement text are
   English SHALL / MUST / MAY.
-  Access model: see adr/0001-0004. Manager has an auto-created own group and full
-  access to organizations in own + assigned custom groups; org-group membership is
-  many-to-many; do not introduce per-org ACL tiers. Admin sees everything.
-  OpenSpec is the single source of truth (ADR-0006); the original PRD is removed.
+  Access model: see adr/0005-0008. Manager has an auto-created user-<id>-group
+  and full access to organizations in it + assigned custom groups; org-group
+  membership is many-to-many; do not introduce per-org ACL tiers. Admin has no
+  personal group and sees everything (groups are not checked for admin).
+  Calls model (adr/0004): one Call entity, result = at most one campaign, a
+  deal, and/or a next call. Email via SMTP/outbox with per-letter statuses
+  (adr/0010).
+  OpenSpec is the single source of truth; the original PRD is removed.
 
 rules:
   proposal:

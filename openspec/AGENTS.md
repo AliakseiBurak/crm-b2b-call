@@ -14,26 +14,28 @@ Project-specific conventions for agents working in this OpenSpec workspace.
 
 ## Access model (hard constraints)
 
-Do not re-introduce per-org ACL tiers. See `adr/0001–0004`:
+Do not re-introduce per-org ACL tiers. See `adr/0005–0008`:
 
-- ADR-0001: own group auto-created per manager; manager's orgs land there.
-- ADR-0002: org ↔ group many-to-many (`OrganizationGroupMembership`); one group
+- ADR-0005: `user-<id>-group` auto-created per manager; manager's orgs land there.
+- ADR-0006: org ↔ group many-to-many (`OrganizationGroupMembership`); one group
   assignable to many managers (`GroupAssignment`).
-- ADR-0003: manager gets full access to own + assigned groups.
-- ADR-0004: admin sees everything, manages groups and assignments.
+- ADR-0007: manager gets full access to own (`user-<id>-group`) + assigned groups.
+- ADR-0008: admin sees everything, manages groups and assignments; admin has no
+  personal group, groups are not checked for admin.
 
 ## Terminology
 
-- `ContactGroup` (singular) — contacts grouping.
+- `Contact` — contact entity bound to an organization.
 - `OrganizationGroup` — organizations grouping.
 Do not rename inconsistently.
 
 ## Source of truth
 
-- OpenSpec — единственный источник истины (ADR-0006). Исходный PRD удалён.
-- `openspec/specs/` — спецификации возможностей; `adr/` — архитектурные решения.
-- Пробелы, сознательно отложенные (управление пользователями, NFR, CSRF), —
-  в реестре ADR-0006, реализуются будущими изменениями.
+- OpenSpec — единственный источник истины. Исходный PRD удалён.
+- `openspec/specs/` — спецификации возможностей; `adr/0000–0010` —
+  архитектурные решения (инфраструктура, организация, контакты, модель
+  взаимодействия/обзвон, группы `user-<id>-group`/custom, M2M членство,
+  область доступа, фиксированные роли, e-mail/рассылки).
 
 ## Tooling caveats
 
