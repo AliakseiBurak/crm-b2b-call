@@ -31,6 +31,34 @@ organizations, and SHALL return organization details by identifier.
 - **AND** администратор удаляет её
 - **THEN** организация "ООО Ромашка" больше не отображается в списке
 
+### Requirement: Менеджер управляет видимыми организациями
+The system SHALL let the manager create organizations, and SHALL let the
+manager view, update, and delete only the organizations visible to them
+(organizations of own `user-<id>-group` and assigned custom groups). The
+system SHALL deny the manager access to organizations outside this scope.
+
+#### Scenario: Менеджер создаёт организацию
+- **WHEN** аутентифицированный менеджер создаёт организацию с названием "ООО Ромашка"
+- **THEN** организация "ООО Ромашка" появляется в списке менеджера
+- **AND** организация "ООО Ромашка" попадает в группу менеджера `user-<id>-group`
+
+#### Scenario: Менеджер изменяет видимую организацию
+- **WHEN** в системе существует организация "ООО Ромашка", видимая менеджеру
+- **AND** менеджер изменяет её отрасль на "Маркетинг"
+- **THEN** отрасль организации становится "Маркетинг"
+- **AND** изменения видны всем, у кого эта организация в области доступа
+
+#### Scenario: Менеджер не может изменить невидимую организацию
+- **WHEN** в системе существует организация "ООО Завод", отсутствующая в области доступа менеджера
+- **AND** менеджер пытается изменить или удалить её
+- **THEN** система отклоняет запрос
+- **AND** запись об организации не изменяется
+
+#### Scenario: Менеджер удаляет видимую организацию
+- **WHEN** в системе существует организация "ООО Ромашка", видимая менеджеру
+- **AND** менеджер удаляет её
+- **THEN** организация "ООО Ромашка" больше не отображается в списке менеджера
+
 ### Requirement: Поиск организаций по названию и отрасли
 The system SHALL search organizations by name and industry, and search results
 SHALL be returned in less than 500 ms.
