@@ -2,12 +2,14 @@
 
 ## 1. Docker-инфраструктура
 
-- [ ] 1.1 Создать `compose.yaml` с сервисами `php`, `nginx`, `mysql`, `mailpit` (сеть compose, фиксированные теги образов)
-- [ ] 1.2 Создать `Dockerfile` от `php:8.2-fpm`: расширения `pdo_mysql`, `intl`, `zip`, `opcache`; бинарь Composer; фиксированный uid приложения
-- [ ] 1.3 Создать конфиг `nginx` (default.conf): root на `public/`, fastcgi-проксирование на `php:9000`, обработка статики
+- [ ] 1.1 Создать `compose.yaml` с сервисами `php`, `nginx`, `mysql`, `mailpit`, `e2e` (сеть compose, фиксированные теги образов)
+- [ ] 1.2 Создать `Dockerfile` от `php:8.2-fpm`: расширения `pdo_mysql`, `intl`, `zip`, `opcache`; бинарь Composer; `COPY docker/gen-certs.sh` и entrypoint; фиксированный uid приложения
+- [ ] 1.3 Создать конфиг `nginx` (default.conf): root на `public/`, fastcgi-прокирование на `php:9000`, **TLS-only на порту 8443** (серверный сертификат из volume `/certs`, без HTTP-локации)
 - [ ] 1.4 Настроить сервис `mysql` (MySQL 8.x, конкретный тег): healthcheck, named volume для `/var/lib/mysql`, `MYSQL_DATABASE/USER/PASSWORD` из `.env`
 - [ ] 1.5 Настроить сервис `mailpit`: SMTP `:1025`, web UI `:8025`
-- [ ] 1.6 Создать `.env` (локально, вне git) и `.env.example` (в git): порты хоста, креды БД, `DATABASE_URL`, `MAILER_DSN`; проброшенные порты читаются из переменных
+- [ ] 1.6 Создать `.env` (локально, вне git) и `.env.example` (в git): порты хоста (8443 и др.), креды БД, `DATABASE_URL`, `MAILER_DSN`
+- [ ] 1.7 Создать `docker/gen-certs.sh`: генерация CA (`ca.crt`/`ca.key`) и серверного сертификата с SAN `b2b-crm.loc, localhost, 127.0.0.1, host.docker.internal`, срок 10 лет; идемпотентно (не перезаписывает существующие файлы)
+- [ ] 1.8 Подключить named volume `/certs` к `php` (генерация) и `nginx` (использование); генерация при первом старте через entrypoint
 
 ## 2. Symfony-приложение и зависимости
 
@@ -19,13 +21,15 @@
 ## 3. Схема БД, fixtures и запуск
 
 - [ ] 3.1 Создать начальную миграцию со схемой ядра (users, organization_groups, organizations, contacts, calls, join-таблицы членства/назначений — по `openspec/design/er.md`)
-- [ ] 3.2 Создать fixtures: admin и менеджеры (с автосозданием `user-<id>-group`), custom-группы, организации, контакты, запланированные звонки
-- [ ] 3.3 Создать entrypoint-скрипт `php`-контейнера: `composer install` → `doctrine:migrations:migrate --no-interaction` → опционально `doctrine:fixtures:load` (идемпотентно)
-- [ ] 3.4 Создать Makefile-таргеты: `up`, `migrate`, `fixtures`, `down`
-- [ ] 3.5 Написать README: `docker compose up` как единственная команда запуска, порядок пересоздания окружения
+- [ ] 3.2 Создать fixtures: admin и менеджеры (с автосозданием `user-<id>-group`), custom-группы, организации, контакты, запланированные звонки; учётные данные `admin@b2b-crm.loc`/`admin123` и `manager@b2b-crm.loc`/`manager123`
+- [ ] 3.3 Создать entrypoint-скрипт `php`-контейнера: `composer install` → `gen-certs.sh` (при первом старте) → `doctrine:migrations:migrate --no-interaction` → опционально `doctrine:fixtures:load` (идемпотентно)
+- [ ] 3.4 Создать Makefile-таргеты: `up`, `migrate`, `fixtures`, `down`, `e2e`
+- [ ] 3.5 Написать README: точные инструкции — запись `127.0.0.1 b2b-crm.loc` в `/etc/hosts` (Linux), копирование `ca.crt` в `/usr/local/share/ca-certificates/` + `update-ca-certificates`, адрес `https://b2b-crm.loc:8443`, порядок пересоздания окружения и предупреждение о `down -v` (потеря сертификатов → переустановка CA)
 
-## 4. Проверка окружения
+## 4. Проверка окружения (Playwright e2e)
 
-- [ ] 4.1 Проверить подъём окружения с чистого клона одной командой; повторный запуск миграций/fixtures идемпотентен
-- [ ] 4.2 Проверить отправку тестового письма через Symfony Mailer и его отображение в Mailpit UI (`:8025`)
-- [ ] 4.3 Проверить fixtures: вход под admin и менеджером, наличие групп, организаций, контактов и запланированных звонков
+- [ ] 4.1 Создать `e2e/` с зависимостями (@playwright/test, TypeScript) и `playwright.config.ts` (baseURL из `BASE_URL`, по умолчанию `https://b2b-crm.loc:8443`; `ignoreHTTPSErrors: true` всегда)
+- [ ] 4.2 Настроить сервис `e2e` в compose (образ Playwright, резолвит `b2b-crm.loc` через Docker DNS, mount `e2e/`) и таргет `make e2e`
+- [ ] 4.3 Написать smoke-тесты: главная страница отвечает 200; вход администратором (`admin@b2b-crm.loc`); вход менеджером (`manager@b2b-crm.loc`); неверный пароль → ошибка и отсутствие сессии
+- [ ] 4.4 Обеспечить запуск из контейнера OpenCode: `B2B_CRM_BASE_URL=https://host.docker.internal:8443 make e2e` (DNS/хостов нет, порт 8443 проброшен)
+- [ ] 4.5 Проверить оба способа запуска (`make e2e` и из OpenCode), повторный запуск миграций/fixtures идемпотентен

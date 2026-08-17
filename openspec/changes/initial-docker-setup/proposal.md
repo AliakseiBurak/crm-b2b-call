@@ -7,8 +7,9 @@
 
 ## What Changes
 
-- Добавляется `docker-compose.yml` с контейнерами: `php` (Symfony), `mysql`
-  (БД), `mailpit` (dev-SMTP для приёма писем), при необходимости `nginx`.
+- Добавляется `compose.yaml` с контейнерами: `php` (Symfony), `mysql`
+  (БД), `mailpit` (dev-SMTP для приёма писем), `nginx` и `e2e`
+  (Playwright-тесты проверки окружения).
 - Создаётся пустой проект Symfony (версия, совместимая с PHP 8.2+),
   подключаются Doctrine ORM и Symfony Mailer; зависимости ставятся через
   Composer.
@@ -16,6 +17,16 @@
 - Загружаются фейковые данные (fixtures): пользователи (admin, менеджеры),
   группы организаций (`user-<id>-group`, custom), организации, контакты и
   запланированные звонки — для ручной проверки сценариев обзвона и рассылок.
+- Сайт доступен по имени `https://b2b-crm.loc:8443` (только HTTPS, без
+  HTTP): запись в `/etc/hosts` хоста и самоподписанный CA + серверный
+  сертификат с SAN `b2b-crm.loc`, генерируемые скриптом в образе при первом
+  старте и хранящиеся в named volume (пересборки сертификат не меняют).
+- Самоподписанный CA устанавливается в доверенные сертификаты хост-машины
+  (Linux) — браузер и curl не ругаются на сертификат.
+- Добавляются Playwright-тесты (smoke): сайт отвечает, вход администратором
+  и менеджером (`admin@b2b-crm.loc`/`admin123`,
+  `manager@b2b-crm.loc`/`manager123`); запуск из сервиса `e2e` и из
+  контейнера OpenCode (через `host.docker.internal`).
 - Добавляется локальная конфигурация окружения (`.env`/`.env.local`) и
   инструкция по запуску.
 
@@ -34,11 +45,17 @@
 
 ## Impact
 
-- Корень репозитория: `docker-compose.yml`, `Dockerfile` (при необходимости),
-  `.env`, `.env.local`, README с инструкцией запуска.
+- Корень репозитория: `compose.yaml`, `Dockerfile`, `nginx/` (TLS-конфиг),
+  `docker/` (скрипты генерации сертификатов, entrypoint), `e2e/`
+  (Playwright-конфиг и тесты), `.env`, `.env.example`, README с инструкциями
+  запуска, `/etc/hosts` и установки CA.
 - Зависимости: обновляется `composer.json` (Doctrine ORM, Symfony Mailer,
-  fixtures-пакеты для разработки).
+  fixtures-пакеты для разработки); dev-зависимость Playwright (@playwright/
+  test) живёт в `e2e/` вне composer.
 - Dev-окружение: `docker compose up` поднимает окружение одной командой;
   письма в dev уходят в Mailpit, реальный SMTP настраивается позже (ADR-0010).
+- Хост-машина: запись `127.0.0.1 b2b-crm.loc` в `/etc/hosts`; установка CA в
+  системное хранилище доверенных сертификатов; доступ по
+  `https://b2b-crm.loc:8443`.
 - Прод: не затрагивается; инфраструктурные версии фиксируются в
-  `docker-compose.yml` и `composer.json`.
+  `compose.yaml` и `composer.json`.
