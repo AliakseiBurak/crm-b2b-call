@@ -14,25 +14,25 @@ class Organization
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    public private(set) ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    private string $name;
+    public private(set) string $name;
 
     #[ORM\Column(length: 255)]
-    private string $industry;
+    public private(set) string $industry;
 
     #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
-    private \DateTimeImmutable $createdAt;
+    public private(set) \DateTimeImmutable $createdAt;
 
     #[ORM\Column(name: 'updated_at', type: 'datetime_immutable')]
-    private \DateTimeImmutable $updatedAt;
+    public private(set) \DateTimeImmutable $updatedAt;
 
     #[ORM\OneToMany(mappedBy: 'organization', targetEntity: Contact::class)]
-    private Collection $contacts;
+    public private(set) Collection $contacts;
 
     #[ORM\OneToMany(mappedBy: 'organization', targetEntity: OrgGroupMembership::class)]
-    private Collection $groupMemberships;
+    public private(set) Collection $groupMemberships;
 
     public function __construct()
     {
@@ -43,16 +43,6 @@ class Organization
         $this->groupMemberships = new ArrayCollection();
     }
 
-    public function getId(): ?int
-    {
-        return $this->id;
-    }
-
-    public function getName(): string
-    {
-        return $this->name;
-    }
-
     public function setName(string $name): self
     {
         $this->name = $name;
@@ -60,26 +50,11 @@ class Organization
         return $this;
     }
 
-    public function getIndustry(): string
-    {
-        return $this->industry;
-    }
-
     public function setIndustry(string $industry): self
     {
         $this->industry = $industry;
 
         return $this;
-    }
-
-    public function getCreatedAt(): \DateTimeImmutable
-    {
-        return $this->createdAt;
-    }
-
-    public function getUpdatedAt(): \DateTimeImmutable
-    {
-        return $this->updatedAt;
     }
 
     public function touch(): self

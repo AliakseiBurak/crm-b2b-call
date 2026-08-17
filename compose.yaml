@@ -5,7 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: b2b-crm-php:8.2-fpm
+    image: b2b-crm-php:8.5-fpm
     restart: unless-stopped
     working_dir: /app
     volumes:

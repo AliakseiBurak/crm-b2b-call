@@ -1,6 +1,6 @@
 # B2B Call CRM — локальное окружение (Docker)
 
-Docker-окружение для разработки: PHP 8.2 FPM, nginx (TLS), MySQL 8.4, Mailpit,
+Docker-окружение для разработки: PHP 8.5 FPM, nginx (TLS), MySQL 8.4, Mailpit,
 Playwright e2e. Приложение доступно только по HTTPS: `https://b2b-crm.loc:8443`.
 
 Учётные данные fixtures:

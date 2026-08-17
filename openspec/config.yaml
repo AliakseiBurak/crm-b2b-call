@@ -2,7 +2,7 @@ schema: spec-driven
 stack: javascript
 
 context: |
-  Stack: Symfony 6.x, PHP 8.2+, Doctrine ORM, Twig, Webpack Encore,
+  Stack: Symfony 7.x, PHP 8.5, Doctrine ORM 3.x, Twig, Webpack Encore,
   MySQL, OAuth2/JWT. Domain: B2B telemarketing CRM (B2B Call CRM).
   Spec-driven format: ## Purpose, ## Requirements with ### Requirement and
   #### Scenario blocks. Scenario names and step text (- **WHEN** / - **THEN** /

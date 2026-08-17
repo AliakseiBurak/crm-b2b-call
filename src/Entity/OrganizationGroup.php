@@ -15,45 +15,35 @@ class OrganizationGroup
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    private ?int $id = null;
+    public private(set) ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    private string $name;
+    public private(set) string $name;
 
     #[ORM\Column(length: 255, unique: true)]
-    private string $slug;
+    public private(set) string $slug;
 
     #[ORM\Column(type: 'string', enumType: GroupType::class)]
-    private GroupType $type;
+    public private(set) GroupType $type;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(name: 'owner_user_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
-    private ?User $ownerUser = null;
+    public private(set) ?User $ownerUser = null;
 
     #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
-    private \DateTimeImmutable $createdAt;
+    public private(set) \DateTimeImmutable $createdAt;
 
     #[ORM\OneToMany(mappedBy: 'group', targetEntity: GroupAssignment::class)]
-    private Collection $assignments;
+    public private(set) Collection $assignments;
 
     #[ORM\OneToMany(mappedBy: 'group', targetEntity: OrgGroupMembership::class)]
-    private Collection $memberships;
+    public private(set) Collection $memberships;
 
     public function __construct()
     {
         $this->createdAt = new \DateTimeImmutable();
         $this->assignments = new ArrayCollection();
         $this->memberships = new ArrayCollection();
-    }
-
-    public function getId(): ?int
-    {
-        return $this->id;
-    }
-
-    public function getName(): string
-    {
-        return $this->name;
     }
 
     public function setName(string $name): self
@@ -63,21 +53,11 @@ class OrganizationGroup
         return $this;
     }
 
-    public function getSlug(): string
-    {
-        return $this->slug;
-    }
-
     public function setSlug(string $slug): self
     {
         $this->slug = $slug;
 
         return $this;
-    }
-
-    public function getType(): GroupType
-    {
-        return $this->type;
     }
 
     public function setType(GroupType $type): self
@@ -87,20 +67,10 @@ class OrganizationGroup
         return $this;
     }
 
-    public function getOwnerUser(): ?User
-    {
-        return $this->ownerUser;
-    }
-
     public function setOwnerUser(?User $ownerUser): self
     {
         $this->ownerUser = $ownerUser;
 
         return $this;
-    }
-
-    public function getCreatedAt(): \DateTimeImmutable
-    {
-        return $this->createdAt;
     }
 }

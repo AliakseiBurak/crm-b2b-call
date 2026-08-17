@@ -53,7 +53,7 @@ CRM для B2B‑телемаркетинга и контактного взаи
 
 ## Technology Stack
 
-Symfony 6.x, PHP 8.2+, Doctrine ORM, Twig, Webpack Encore, MySQL, OAuth2/JWT.
+Symfony 7.x LTS, PHP 8.5, Doctrine ORM 3.x, Twig, Webpack Encore, MySQL, OAuth2/JWT.
 Отправка писем — SMTP via Symfony Mailer (ADR-0010).
 
 ## Development Roadmap

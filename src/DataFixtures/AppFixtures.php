@@ -45,8 +45,8 @@ class AppFixtures extends Fixture
         $manager2 = $this->makeUser($manager, self::SECOND_MANAGER_EMAIL, self::SECOND_MANAGER_PASSWORD, UserRole::Manager);
         $manager->flush();
 
-        $personal1 = $this->makeGroup($manager, 'user-' . $manager1->getId() . '-group', $manager1, GroupType::User);
-        $personal2 = $this->makeGroup($manager, 'user-' . $manager2->getId() . '-group', $manager2, GroupType::User);
+        $personal1 = $this->makeGroup($manager, 'user-' . $manager1->id . '-group', $manager1, GroupType::User);
+        $personal2 = $this->makeGroup($manager, 'user-' . $manager2->id . '-group', $manager2, GroupType::User);
         $custom = $this->makeGroup($manager, 'custom-partners', null, GroupType::Custom);
         $manager->flush();
 
@@ -113,7 +113,7 @@ class AppFixtures extends Fixture
     private function makeGroup(ObjectManager $manager, string $slug, ?User $owner, GroupType $type): OrganizationGroup
     {
         $group = (new OrganizationGroup())
-            ->setName($owner ? 'Личная группа ' . $owner->getEmail() : 'Клиенты-партнёры')
+            ->setName($owner ? 'Личная группа ' . $owner->email : 'Клиенты-партнёры')
             ->setSlug($slug)
             ->setType($type)
             ->setOwnerUser($owner);
