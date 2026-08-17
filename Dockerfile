@@ -3,6 +3,9 @@ FROM php:8.5-fpm-bookworm
 ARG APP_UID=1000
 ARG APP_GID=1000
 
+# Fail fast with clear logs; isolate apt from extension compilation for cacheability.
+SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         libicu-dev \
@@ -10,8 +13,9 @@ RUN apt-get update \
         unzip \
         git \
         curl \
-        ca-certificates \
-    && docker-php-ext-install -j$(nproc) \
+        ca-certificates
+
+RUN docker-php-ext-install -j$(nproc) \
         pdo_mysql \
         intl \
         zip \
