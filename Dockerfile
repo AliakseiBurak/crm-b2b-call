@@ -15,7 +15,7 @@ RUN apt-get update \
         curl \
         ca-certificates
 
-RUN docker-php-ext-install -j$(nproc) \
+RUN docker-php-ext-install \
         pdo_mysql \
         intl \
         zip \
