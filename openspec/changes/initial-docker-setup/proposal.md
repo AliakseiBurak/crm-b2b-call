@@ -10,9 +10,9 @@
 - Добавляется `compose.yaml` с контейнерами: `php` (Symfony), `mysql`
   (БД), `mailpit` (dev-SMTP для приёма писем), `nginx` и `e2e`
   (Playwright-тесты проверки окружения).
-- Создаётся пустой проект Symfony (версия, совместимая с PHP 8.2+),
-  подключаются Doctrine ORM и Symfony Mailer; зависимости ставятся через
-  Composer.
+- Создаётся пустой проект Symfony 7.4 LTS (текущий LTS-релиз; стек PHP 8.5,
+  Doctrine ORM 3.x), подключаются Doctrine ORM и Symfony Mailer; зависимости
+  ставятся через Composer.
 - Выполняется начальная миграция — создание схемы БД.
 - Загружаются фейковые данные (fixtures): пользователи (admin, менеджеры),
   группы организаций (`user-<id>-group`, custom), организации, контакты и

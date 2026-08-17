@@ -3,16 +3,16 @@
 ## Context
 
 Репозиторий пустой — кода и окружения нет (ADR-0000). Целевой стек:
-Symfony 6.x, PHP 8.2+, Doctrine ORM, Twig, Webpack Encore, MySQL. Мотивация и
-скоуп — в `proposal.md`. Дизайн ограничивается локальным dev-окружением:
-прод-деплой, CI и реальный SMTP выходят за рамки (ADR-0010).
+Symfony 7.4 LTS, PHP 8.5, Doctrine ORM 3.x, Twig, Webpack Encore, MySQL.
+Мотивация и скоуп — в `proposal.md`. Дизайн ограничивается локальным
+dev-окружением: прод-деплой, CI и реальный SMTP выходят за рамки (ADR-0010).
 
 ## Goals / Non-Goals
 
 **Goals:**
 - Воспроизводимое локальное окружение одной командой (`docker compose up`).
-- Рабочее Symfony-приложение (PHP 8.2+), подключённые Doctrine ORM и
-  Symfony Mailer, зависимости через Composer.
+- Рабочее Symfony-приложение (Symfony 7.4 LTS, PHP 8.5, Doctrine ORM 3.x),
+  подключённые Doctrine ORM и Symfony Mailer, зависимости через Composer.
 - MySQL с начальной миграцией схемы; отдельный контейнер dev-SMTP (Mailpit)
   с веб-интерфейсом просмотра писем.
 - Fixtures: пользователи (admin, менеджеры), группы (`user-<id>-group`,
@@ -43,13 +43,19 @@ php-fpm), `mysql` (БД с volume для персистентности), `mailp
   образ `symfony/skeleton` — отклонено: меньше контроля над версиями PHP
   и расширений.
 
-### D2. Базовый образ: официальный `php:8.2-fpm`, расширения для Symfony/Doctrine
+### D2. Базовый образ: официальный `php:8.5-fpm`, расширения для Symfony/Doctrine
 
-Один `Dockerfile` от `php:8.2-fpm` (debian bookworm): `pdo_mysql`,
+Один `Dockerfile` от `php:8.5-fpm` (debian bookworm): `pdo_mysql`,
 `intl`, `zip`, `opcache` (dev — отключена/лёгкая), `composer` (официальный
 образ, копируется бинарём), а также скрипты `docker/gen-certs.sh`
 (генерация сертификатов, см. D6) и entrypoint (см. D5). Код монтируется
 bind-mount'ом, `composer install` выполняется при старте контейнера.
+
+- **Почему Symfony 7.4 LTS + ORM 3.x на PHP 8.5:** текущий LTS-релейз
+  (bugfix до 2028, security до 2029); асимметричная видимость свойств
+  (`public private(set)`) в сущностях безопасно работает только со стеком
+  Symfony 7/ORM 3 (вариант с ORM 2.x падает на lazy-прокси, doctrine/orm#11872).
+  Приложение на этапе инициализации крошечное — 6.4 → 7.4 миграция тривиальна.
 
 - **Почему не multi-stage и не сборка на build:** dev-режим — код меняется
   непрерывно; bind-mount + `composer install` в entrypoint'е даёт «поднял →
@@ -161,7 +167,7 @@ TLS-ошибки тесты **всегда игнорируют** (`ignoreHTTPSE
 ```mermaid
 flowchart LR
     Dev[Разработчик] -->|HTTPS :8443| Nginx[Nginx TLS :8443]
-    Nginx -->|fastcgi| Php[PHP-FPM 8.2: Symfony app]
+    Nginx -->|fastcgi| Php[PHP-FPM 8.5: Symfony app]
     Php -->|SQL| MySQL[(MySQL 8: named volume)]
     Php -->|SMTP :1025| Mailpit[Mailpit SMTP :1025]
     Dev -->|HTTP :8025| MailpitUI[Mailpit Web UI :8025]

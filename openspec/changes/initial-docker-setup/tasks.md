@@ -3,7 +3,7 @@
 ## 1. Docker-инфраструктура
 
 - [x] 1.1 Создать `compose.yaml` с сервисами `php`, `nginx`, `mysql`, `mailpit`, `e2e` (сеть compose, фиксированные теги образов)
-- [x] 1.2 Создать `Dockerfile` от `php:8.2-fpm`: расширения `pdo_mysql`, `intl`, `zip`, `opcache`; бинарь Composer; `COPY docker/gen-certs.sh` и entrypoint; фиксированный uid приложения
+- [x] 1.2 Создать `Dockerfile` от `php:8.5-fpm`: расширения `pdo_mysql`, `intl`, `zip`, `opcache`; бинарь Composer; `COPY docker/gen-certs.sh` и entrypoint; фиксированный uid приложения
 - [x] 1.3 Создать конфиг `nginx` (default.conf): root на `public/`, fastcgi-прокирование на `php:9000`, **TLS-only на порту 8443** (серверный сертификат из volume `/certs`, без HTTP-локации)
 - [x] 1.4 Настроить сервис `mysql` (MySQL 8.x, конкретный тег): healthcheck, named volume для `/var/lib/mysql`, `MYSQL_DATABASE/USER/PASSWORD` из `.env`
 - [x] 1.5 Настроить сервис `mailpit`: SMTP `:1025`, web UI `:8025`
@@ -13,9 +13,10 @@
 
 ## 2. Symfony-приложение и зависимости
 
-- [x] 2.1 Инициализировать пустой проект Symfony (совместимый с PHP 8.2+), добавить реквизиты в `composer.json`
+- [x] 2.1 Инициализировать пустой проект Symfony 7.4 LTS (PHP 8.5, Doctrine ORM 3.x), добавить реквизиты в `composer.json`
 - [x] 2.2 Подключить Doctrine ORM, `doctrine/doctrine-migrations-bundle`, Symfony Mailer; настроить `DATABASE_URL` и `MAILER_DSN` в `.env`
 - [x] 2.3 Подключить `doctrine/doctrine-fixtures-bundle` (dev)
+- [ ] 2.5 Перевести сущности на асимметричную видимость свойств (`public private(set)`, запись только из класса; геттеры убраны, мутабельные поля — методы-сеттеры; интерфейсные методы Security остаются)
 - [ ] 2.4 Убедиться, что приложение отвечает через `nginx` (health-роут, страница без ошибок)
 
 ## 3. Схема БД, fixtures и запуск
