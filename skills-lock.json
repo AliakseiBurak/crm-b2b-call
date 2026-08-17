@@ -1,11 +1,221 @@
 {
   "version": 1,
   "skills": {
+    "code-review": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/code-review/SKILL.md",
+      "computedHash": "f3b4a7f337455dc365ba8e3923930b067a362c9662779137170ea700cb4328cb"
+    },
+    "diagnosing-bugs": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/diagnosing-bugs/SKILL.md",
+      "computedHash": "0354227d4242b8fecbde670d96cadb9703a771e6056cde888a11f12605e594dd"
+    },
+    "domain-modeling": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/domain-modeling/SKILL.md",
+      "computedHash": "683744795bdc9fbfb6c0c2122c4b8119c950e2fe5bcbbf44237dd28aaea34b67"
+    },
     "grill-me": {
       "source": "mattpocock/skills",
       "sourceType": "github",
       "skillPath": "skills/productivity/grill-me/SKILL.md",
       "computedHash": "784f0dbb7403b0f00324bce9a112f715342777a0daee7bbb7385f9c6f0a170ea"
+    },
+    "implement": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/implement/SKILL.md",
+      "computedHash": "2139cfedf24791adbc839aaab6019cff158af1e28bfead020ec6e0ce01b3e74d"
+    },
+    "loop-me": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/in-progress/loop-me/SKILL.md",
+      "computedHash": "1001228c475a89d565d0059ebd64b3e922f93a87aad29becb8e358c0399880a7"
+    },
+    "prototype": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/prototype/SKILL.md",
+      "computedHash": "73862de6cd32acf30799bfb2220357b96c1a58ab0e3d01126b769fd659d6555a"
+    },
+    "research": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/research/SKILL.md",
+      "computedHash": "bd3e2c6826671d82c86ed0da3dac3370ebcf63b0fe847f91bb444e1fb7dac21b"
+    },
+    "symfony-ux": {
+      "source": "smnandre/symfony-ux-skills",
+      "sourceType": "github",
+      "skillPath": "skills/symfony-ux/SKILL.md",
+      "computedHash": "e83ff63e2aa70164b90d8809744b2f726f1f905673d4b97b693382b51694a243"
+    },
+    "symfony:config-env-parameters": {
+      "source": "dev-toolings/superpowers-symfony",
+      "sourceType": "github",
+      "skillPath": "skills/config-env-parameters/SKILL.md",
+      "computedHash": "29c30ab73cf591f6940991e1e297836499e1760d390d0fea4faffbf9bc0d42d0"
+    },
+    "symfony:cqrs-and-handlers": {
+      "source": "dev-toolings/superpowers-symfony",
+      "sourceType": "github",
+      "skillPath": "skills/cqrs-and-handlers/SKILL.md",
+      "computedHash": "eae9fd4fb0ba0e470e460c5bd5c64064a4a06b64b52398d199c54eb58fe283bc"
+    },
+    "symfony:doctrine-batch-processing": {
+      "source": "dev-toolings/superpowers-symfony",
+      "sourceType": "github",
+      "skillPath": "skills/doctrine-batch-processing/SKILL.md",
+      "computedHash": "1c25ad982501efe1e1284f94e89661e83eaf67e60f6e9a86e021c2c8b8c65885"
+    },
+    "symfony:doctrine-events": {
+      "source": "dev-toolings/superpowers-symfony",
+      "sourceType": "github",
+      "skillPath": "skills/doctrine-events/SKILL.md",
+      "computedHash": "0543f6b3a9077b53624fb034cf88a5aadc57e14b37138c82beaa13fdad155fe9"
+    },
+    "symfony:doctrine-fetch-modes": {
+      "source": "dev-toolings/superpowers-symfony",
+      "sourceType": "github",
+      "skillPath": "skills/doctrine-fetch-modes/SKILL.md",
+      "computedHash": "8020117b42ddc00e9165ca9cf9cd7e1e2d0cf688fb5fdd10a82b05a91bd0fe5e"
+    },
+    "symfony:doctrine-fixtures-foundry": {
+      "source": "dev-toolings/superpowers-symfony",
+      "sourceType": "github",
+      "skillPath": "skills/doctrine-fixtures-foundry/SKILL.md",
+      "computedHash": "dbaa95893400a1be733ff779539986ba52fdd8431e9c5298fcaad1d69c9053a7"
+    },
+    "symfony:doctrine-migrations": {
+      "source": "dev-toolings/superpowers-symfony",
+      "sourceType": "github",
+      "skillPath": "skills/doctrine-migrations/SKILL.md",
+      "computedHash": "f567cc35a98fe8ac6e6632d4da5990f974d4028c9517672586c42a3528861425"
+    },
+    "symfony:doctrine-relations": {
+      "source": "dev-toolings/superpowers-symfony",
+      "sourceType": "github",
+      "skillPath": "skills/doctrine-relations/SKILL.md",
+      "computedHash": "cecba41492de5efed7b2b0d53c3d198c79c063d5232e18e3ce7b6342cecac69d"
+    },
+    "symfony:doctrine-transactions": {
+      "source": "dev-toolings/superpowers-symfony",
+      "sourceType": "github",
+      "skillPath": "skills/doctrine-transactions/SKILL.md",
+      "computedHash": "1682b0b3fa1dc53db39471751467528d132bd72842b9d9e5d4c1dcb28bfcd1a2"
+    },
+    "symfony:form-types-validation": {
+      "source": "dev-toolings/superpowers-symfony",
+      "sourceType": "github",
+      "skillPath": "skills/form-types-validation/SKILL.md",
+      "computedHash": "3c1264ac1883e8d332181128b9bf620ed32ddd443ade6c42abc35eee178dfd03"
+    },
+    "symfony:functional-tests": {
+      "source": "dev-toolings/superpowers-symfony",
+      "sourceType": "github",
+      "skillPath": "skills/functional-tests/SKILL.md",
+      "computedHash": "fe487c7a86acc172e4d2d9130d04f7377f3950ce654d095f64a25829b9811435"
+    },
+    "symfony:messenger-retry-failures": {
+      "source": "dev-toolings/superpowers-symfony",
+      "sourceType": "github",
+      "skillPath": "skills/messenger-retry-failures/SKILL.md",
+      "computedHash": "760b7115b9c1c7c4ec0042b21d91bdd6a58ba9b451452485eae71e5057332e29"
+    },
+    "symfony:symfony-cache": {
+      "source": "dev-toolings/superpowers-symfony",
+      "sourceType": "github",
+      "skillPath": "skills/symfony-cache/SKILL.md",
+      "computedHash": "92bfade421c2190100ba603b9d0d05d260594be3b4725ba98a9c8963433d7a97"
+    },
+    "symfony:symfony-messenger": {
+      "source": "dev-toolings/superpowers-symfony",
+      "sourceType": "github",
+      "skillPath": "skills/symfony-messenger/SKILL.md",
+      "computedHash": "4f7d3772433a2a03d570a3957d0a84f7f3d86782b273c14a8a75dae3aceb1e4d"
+    },
+    "symfony:symfony-scheduler": {
+      "source": "dev-toolings/superpowers-symfony",
+      "sourceType": "github",
+      "skillPath": "skills/symfony-scheduler/SKILL.md",
+      "computedHash": "8978979cf09c166b3a68dc6f64f47f38ce805ef654f55c3e913e41fbee502096"
+    },
+    "symfony:symfony-voters": {
+      "source": "dev-toolings/superpowers-symfony",
+      "sourceType": "github",
+      "skillPath": "skills/symfony-voters/SKILL.md",
+      "computedHash": "c9e782244caedf9787041d001ba90383b02a6a0e03f4645a699f6cbc204637f6"
+    },
+    "symfony:tdd-with-phpunit": {
+      "source": "dev-toolings/superpowers-symfony",
+      "sourceType": "github",
+      "skillPath": "skills/tdd-with-phpunit/SKILL.md",
+      "computedHash": "484f05f7a16bf1e161eb4d2770b693526eb156f2a7502ea5833f64f5ef83e233"
+    },
+    "symfony:test-doubles-mocking": {
+      "source": "dev-toolings/superpowers-symfony",
+      "sourceType": "github",
+      "skillPath": "skills/test-doubles-mocking/SKILL.md",
+      "computedHash": "943d6a81a333d1a3a454510cf972c38181428a6d6186d1a19cfbe99ea7ffe3e1"
+    },
+    "symfony:twig-components": {
+      "source": "dev-toolings/superpowers-symfony",
+      "sourceType": "github",
+      "skillPath": "skills/twig-components/SKILL.md",
+      "computedHash": "ee7c1f99558ff8d28bbbb92fe47c41abc772ac76ef512ce645dbb88956cc20e5"
+    },
+    "symfony:value-objects-and-dtos": {
+      "source": "dev-toolings/superpowers-symfony",
+      "sourceType": "github",
+      "skillPath": "skills/value-objects-and-dtos/SKILL.md",
+      "computedHash": "6db6bab1d41959b7e31ca3f5793548e057765b0bd1768b3f584357f49b7a92bb"
+    },
+    "tdd": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/tdd/SKILL.md",
+      "computedHash": "3ba0443442024d075ea30205faa586511d526534f7cbfcb9e6bfacbbeacec739"
+    },
+    "to-spec": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/to-spec/SKILL.md",
+      "computedHash": "e0d6ed875f646b788ea710714ca92b138adad59e18a12a2c045244b9364ca259"
+    },
+    "to-tickets": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/to-tickets/SKILL.md",
+      "computedHash": "6d018d31ba390aeaf14ae65e7b3bb5bd693b03d635762e535a71446715780743"
+    },
+    "triage": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/triage/SKILL.md",
+      "computedHash": "ad1b4d93e5995ffbc0f143fc716c8c3afb45cd13c8a1fd027a43852eb59544c7"
+    },
+    "twig-component": {
+      "source": "smnandre/symfony-ux-skills",
+      "sourceType": "github",
+      "skillPath": "skills/twig-component/SKILL.md",
+      "computedHash": "9fbcd5f1623339f798aa4c772fcd776fddbcda0624b55c3f369a48f56362a88a"
+    },
+    "wayfinder": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/wayfinder/SKILL.md",
+      "computedHash": "8f610a50e8e8044571d918088160a9657e23f1268080728bf92009db48f6c22f"
+    },
+    "writing-for-agents": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/productivity/writing-for-agents/SKILL.md",
+      "computedHash": "ccfa1e94d8f6ab5c6a1edd55293ca477faf93c39207771331efdb1e798ed21d6"
     }
   }
 }
