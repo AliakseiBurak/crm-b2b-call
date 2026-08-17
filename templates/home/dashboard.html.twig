@@ -1,0 +1,9 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Панель{% endblock %}
+
+{% block body %}
+    <h1>Панель</h1>
+    <p>Вы вошли как <strong>{{ app.user.email }}</strong> ({{ app.user.role.value }}).</p>
+    <p><a href="{{ path('app_home') }}">На главную</a> · <a href="{{ path('app_logout') }}">Выйти</a></p>
+{% endblock %}

@@ -1,0 +1,12 @@
+{
+  "name": "b2b-crm-e2e",
+  "private": true,
+  "description": "Smoke-тесты окружения B2B Call CRM (Playwright)",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.47.0",
+    "typescript": "^5.5.4"
+  }
+}

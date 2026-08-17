@@ -1,0 +1,17 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}B2B Call CRM — приветствие{% endblock %}
+
+{% block body %}
+    <h1>B2B Call CRM</h1>
+    <p>Окружение работает.</p>
+    <p>
+        {% if app.user %}
+            Вы вошли как <strong>{{ app.user.email }}</strong>.
+            <a href="{{ path('app_dashboard') }}">Панель</a> ·
+            <a href="{{ path('app_logout') }}">Выйти</a>
+        {% else %}
+            <a href="{{ path('app_login') }}">Войти</a>
+        {% endif %}
+    </p>
+{% endblock %}
