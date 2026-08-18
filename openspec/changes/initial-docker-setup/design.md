@@ -178,19 +178,19 @@ flowchart LR
     Php -->|SMTP :1025| Mailpit[Mailpit SMTP :1025]
     Dev -->|HTTP :8025| MailpitUI[Mailpit Web UI :8025]
     Nginx -.->|server.crt/key| Certs[(certs volume: CA + server cert)]
-    E2e[Playwright e2e: smoke-тесты] -->|HTTPS :8443| Nginx
-    OC[Контейнер OpenCode] -->|BASE_URL=host.docker.internal:8443| Nginx
+    E2e[Playwright e2e: smoke-тесты] -->|HTTPS :443| Nginx
+    OC[Контейнер OpenCode] -->|BASE_URL=host.docker.internal| Nginx
 ```
 
 Границы: контейнеры `php`, `nginx`, `mysql`, `mailpit`, `e2e` — dev-окружение
-(`docker compose up`), изоляция по сети compose. `b2b-crm.loc` резолвится
+(`docker compose up`), изоляция по сети compose. `b2b-crm.local` резолвится
 через Docker DNS внутри сети; на хосте — запись в `/etc/hosts`. OpenCode —
-внешний контейнер, ходит через хост (`host.docker.internal:8443`).
-Предположение: порты хоста `8443/8025/3306` конфигурируются через `.env`.
+внешний контейнер, ходит через хост (`host.docker.internal`).
+Предположение: порты хоста `443/8025/3306` конфигурируются через `.env`.
 
 ## Risks / Trade-offs
 
-- [Конфликт портов на хост-машине (в т.ч. 8443)] → все проброшенные порты
+- [Конфликт портов на хост-машине (в т.ч. 443)] → все проброшенные порты
   вынесены в `.env` (переопределяются без правки файлов).
 - [Права/пермишены bind-mount'а (uid контейнера vs пользователя)] →
   фиксированный uid в `Dockerfile` + инструкция в README; при проблемах —
@@ -219,7 +219,7 @@ flowchart LR
 compose up --build` поднимает окружение, entrypoint выполняет `composer
 install` → генерацию сертификатов → миграции → fixtures. Первоначальная
 настройка хоста (одноразово, точные команды в README): запись
-`127.0.0.1 b2b-crm.loc` в `/etc/hosts`, установка `ca.crt` в
+`127.0.0.1 b2b-crm.local` в `/etc/hosts`, установка `ca.crt` в
 `/usr/local/share/ca-certificates/` + `update-ca-certificates`. Откат:
 `docker compose down -v` (удаляет volume с БД и сертификатами; после —
 переустановка CA) + `git revert` при необходимости. Прод не затрагивается.
