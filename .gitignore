@@ -13,6 +13,9 @@
 /e2e/test-results/
 /e2e/.env
 
+# IDE
+.idea/
+
 # Misc
 .DS_Store
 
