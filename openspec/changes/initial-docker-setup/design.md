@@ -148,7 +148,11 @@ Playwright-тесты (TypeScript, `e2e/`) проверяют, что сайт �
 
 1. **Сервис `e2e` в compose** (образ `mcr.microsoft.com/playwright`, сеть
    compose — `https://b2b-crm.local` резолвится через Docker DNS, свой
-   volume/кэш браузера). Запуск: `make e2e`.
+   volume/кэш браузера). Запуск: `make e2e`. `node_modules` лежит в named
+   volume `e2e-node-modules`; сервис выполняет `npm ci` при его отсутствии
+   (volume пустеет после `docker compose down -v`) — версия
+   `@playwright/test` в `package.json` зафиксирована равной версии образа,
+   поэтому браузеры из образа переиспользуются без скачивания.
 2. **Из контейнера OpenCode:** `BASE_URL=https://host.docker.internal`
    переопределяет целевой URL (`make e2e-host`) — стандартный HTTPS-порт
    проброшен на хост, `/etc/hosts` контейнеру OpenCode не нужен.

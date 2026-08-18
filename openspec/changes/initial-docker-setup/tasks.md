@@ -31,7 +31,7 @@
 ## 4. Проверка окружения (Playwright e2e)
 
 - [x] 4.1 Создать `e2e/` с зависимостями (@playwright/test, TypeScript) и `playwright.config.ts` (baseURL из `BASE_URL`, по умолчанию `https://b2b-crm.local`; `ignoreHTTPSErrors: true` всегда)
-- [x] 4.2 Настроить сервис `e2e` в compose (образ Playwright, резолвит `b2b-crm.local` через Docker DNS, mount `e2e/`) и таргет `make e2e`
+- [x] 4.2 Настроить сервис `e2e` в compose (образ Playwright, резолвит `b2b-crm.local` через Docker DNS, mount `e2e/`) и таргет `make e2e`; `node_modules` в named volume, при отсутствии — авто-`npm ci` перед тестами (volume переживает контейнер, но удаляется `down -v`)
 - [x] 4.3 Написать smoke-тесты: главная страница отвечает 200; вход администратором (`admin@b2b-crm.loc`); вход менеджером (`manager@b2b-crm.loc`); неверный пароль → ошибка и отсутствие сессии
 - [x] 4.4 Обеспечить запуск из контейнера OpenCode: `BASE_URL=https://host.docker.internal make e2e` (DNS/хостов нет, стандартный HTTPS-порт проброшен)
 - [ ] 4.5 Проверить оба способа запуска (`make e2e` и из OpenCode), повторный запуск миграций/fixtures идемпотентен
