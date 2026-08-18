@@ -28,6 +28,9 @@
   и менеджером (`admin@b2b-crm.loc`/`admin123`,
   `manager@b2b-crm.loc`/`manager123`); запуск из сервиса `e2e` и из
   контейнера OpenCode (через `host.docker.internal`).
+- Добавляется PHPMyAdmin (web-клиент БД, `http://localhost:8080`): работает
+  внутри сети compose с `mysql` (`PMA_HOST`), порт хоста вынесен в `.env`
+  (`PMA_PORT`), вход по кредам из `.env`.
 - Добавляется локальная конфигурация окружения (`.env`/`.env.local`) и
   инструкция по запуску.
 

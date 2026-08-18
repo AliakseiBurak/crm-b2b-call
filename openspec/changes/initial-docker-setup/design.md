@@ -168,11 +168,27 @@ TLS-ошибки тесты **всегда игнорируют** (`ignoreHTTPSE
   возможности проверять окружение; Playwright на хосте — отклонено:
   требует Node/npm на хосте, против «одной команды».
 
+### D8. PHPMyAdmin как dev-инструмент просмотра БД
+
+Сервис `phpmyadmin` (образ `phpmyadmin/phpmyadmin:5.2`, пин тега) в сети
+compose: `PMA_HOST=mysql` (внутренний DNS), `PMA_PORT=3306`,
+`UPLOAD_LIMIT=64M`. Проброс на хост `${PMA_PORT:-8080}:80` (порт из `.env`,
+как у mailpit). Стартует после healthy-`mysql` (server auth: логин по
+`MYSQL_USER`/`MYSQL_PASSWORD` из `.env`, авто-логина нет — секреты не
+дублируются в конфиге). Только HTTP на собственном порту — сайт остаётся
+TLS-only, PMA не цепляется к nginx (изоляция сервисов, ноль ручных
+nginx-правок).
+
+- **Почему PHPMyAdmin, а не альтернатива:** наглядный просмотр схемы и
+  данных без CLI; dev-only инструмент, в прод-скоуп не входит.
+- **Почему отдельный порт/сервис, а не маршрут nginx:** не смешивает dev-порт
+  с TLS-сайтом; default.conf не трогается.
+
 ## Диаграмма (C4, уровень container; Mermaid)
 
 ```mermaid
 flowchart LR
-    Dev[Разработчик] -->|HTTPS :8443| Nginx[Nginx TLS :8443]
+    Dev[Разработчик] -->|HTTPS :443| Nginx[Nginx TLS :443]
     Nginx -->|fastcgi| Php[PHP-FPM 8.5: Symfony app]
     Php -->|SQL| MySQL[(MySQL 8: named volume)]
     Php -->|SMTP :1025| Mailpit[Mailpit SMTP :1025]

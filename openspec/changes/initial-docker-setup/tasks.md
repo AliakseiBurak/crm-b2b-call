@@ -10,6 +10,7 @@
 - [x] 1.6 Создать `.env` (локально, вне git) и `.env.example` (в git): порты хоста (443 и др.), креды БД, `DATABASE_URL`, `MAILER_DSN`
 - [x] 1.7 Создать `docker/gen-certs.sh`: генерация CA (`ca.crt`/`ca.key`) и серверного сертификата с SAN `b2b-crm.local, localhost, 127.0.0.1, host.docker.internal`, срок 10 лет; идемпотентно (не перезаписывает существующие файлы)
 - [x] 1.8 Подключить named volume `/certs` к `php` (генерация) и `nginx` (использование); генерация при первом старте через entrypoint
+- [x] 1.9 Добавить сервис `phpmyadmin` (образ `phpmyadmin/phpmyadmin:5.2`): `PMA_HOST=mysql`, web UI на `${PMA_PORT:-8080}:80`, старт после healthy-`mysql`
 
 ## 2. Symfony-приложение и зависимости
 
