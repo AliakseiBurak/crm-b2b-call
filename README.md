@@ -1,7 +1,8 @@
 # B2B Call CRM — локальное окружение (Docker)
 
 Docker-окружение для разработки: PHP 8.5 FPM, nginx (TLS), MySQL 8.4, Mailpit,
-Playwright e2e. Приложение доступно только по HTTPS: `https://b2b-crm.local`.
+PHPMyAdmin, Playwright e2e. Приложение доступно только по HTTPS: `https://b2b-crm.local`.
+БД удобно смотреть в PHPMyAdmin: `http://localhost:8080`.
 
 Учётные данные fixtures:
 
@@ -13,7 +14,8 @@ Playwright e2e. Приложение доступно только по HTTPS: `
 ## Требования
 
 - Linux, Docker с Compose v2 (`docker compose version`), `make`
-- Порты: 443 (HTTPS), 3306 (MySQL), 8025 (Mailpit UI) — свободны
+- Порты: 443 (HTTPS), 3306 (MySQL), 8025 (Mailpit UI), 8080 (PHPMyAdmin) —
+  свободны
 
 ## Первый запуск
 
@@ -47,7 +49,8 @@ Playwright e2e. Приложение доступно только по HTTPS: `
    «Управление сертификатами»).
 
 4. Открыть `https://b2b-crm.local` (логин см. выше). Mailpit UI —
-   `http://localhost:8025`.
+   `http://localhost:8025`. PHPMyAdmin — `http://localhost:8080` (логин:
+   `MYSQL_USER`/`MYSQL_PASSWORD` из `.env`).
 
    > Про `.local`: Chrome/Edge используют mDNS-резолвер для `*.local`; на
    > Linux запись в `/etc/hosts` имеет приоритет, но если браузер не
@@ -58,7 +61,7 @@ Playwright e2e. Приложение доступно только по HTTPS: `
 
 | Команда                 | Действие                                           |
 |-------------------------|----------------------------------------------------|
-| `make up`               | Поднять все сервисы (`php`, `nginx`, `mysql`, `mailpit`) |
+| `make up`               | Поднять все сервисы (`php`, `nginx`, `mysql`, `mailpit`, `phpmyadmin`) |
 | `make down`             | Остановить сервисы (данные БД сохраняются)         |
 | `make migrate`          | Применить миграции                                 |
 | `make fixtures`         | Перезагрузить fixtures                             |
