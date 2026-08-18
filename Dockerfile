@@ -15,12 +15,11 @@ RUN apt-get update \
         curl \
         ca-certificates
 
-# PHP 8.5: OPcache встроен в образ статически (RFC "Make OPcache required"),
-# отдельный .so не собирается — docker-php-ext-install opcache падает на install-modules.
-RUN docker-php-ext-install -j$(nproc) \
+RUN docker-php-ext-install \
         pdo_mysql \
         intl \
         zip \
+        bcmath \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

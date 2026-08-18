@@ -23,7 +23,7 @@ php bin/console doctrine:migrations:migrate --no-interaction
 
 if [ "${ENABLE_FIXTURES:-1}" = "1" ]; then
     echo "[entrypoint] Fixtures..."
-#    php bin/console doctrine:fixtures:load --no-interaction
+    php bin/console doctrine:fixtures:load --no-interaction
 else
     echo "[entrypoint] ENABLE_FIXTURES != 1, fixtures пропущены."
 fi

@@ -1,4 +1,4 @@
-.PHONY: up down migrate fixtures e2e
+.PHONY: up down migrate fixtures e2e logs
 
 up:
 	docker compose up -d
@@ -14,3 +14,6 @@ fixtures:
 
 e2e:
 	docker compose --profile e2e run --rm e2e
+
+logs:
+	docker compose logs -f
