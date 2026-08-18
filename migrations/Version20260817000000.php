@@ -52,6 +52,15 @@ final class Version20260817000000 extends AbstractMigration
         $this->addSql('ALTER TABLE group_assignment ADD CONSTRAINT FK_9F0C5C12A76ED395 FOREIGN KEY (user_id) REFERENCES `user` (id) ON DELETE CASCADE');
         $this->addSql('ALTER TABLE group_assignment ADD CONSTRAINT FK_9F0C5C12FE54D947 FOREIGN KEY (group_id) REFERENCES organization_group (id) ON DELETE CASCADE');
 
+        $this->addSql('CREATE TABLE organization (
+            id BIGINT AUTO_INCREMENT NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            industry VARCHAR(255) NOT NULL,
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL,
+            PRIMARY KEY(id)
+        ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
+
         $this->addSql('CREATE TABLE org_group_membership (
             organization_id BIGINT NOT NULL,
             group_id BIGINT NOT NULL,
@@ -63,15 +72,6 @@ final class Version20260817000000 extends AbstractMigration
 
         $this->addSql('ALTER TABLE org_group_membership ADD CONSTRAINT FK_3F7A5F0B32C8A3DE FOREIGN KEY (organization_id) REFERENCES organization (id) ON DELETE CASCADE');
         $this->addSql('ALTER TABLE org_group_membership ADD CONSTRAINT FK_3F7A5F0BFE54D947 FOREIGN KEY (group_id) REFERENCES organization_group (id) ON DELETE CASCADE');
-
-        $this->addSql('CREATE TABLE organization (
-            id BIGINT AUTO_INCREMENT NOT NULL,
-            name VARCHAR(255) NOT NULL,
-            industry VARCHAR(255) NOT NULL,
-            created_at DATETIME NOT NULL,
-            updated_at DATETIME NOT NULL,
-            PRIMARY KEY(id)
-        ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
 
         $this->addSql('CREATE TABLE contact (
             id BIGINT AUTO_INCREMENT NOT NULL,
