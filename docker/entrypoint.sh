@@ -3,6 +3,11 @@ set -euo pipefail
 
 cd /app
 
+if [ -z "${DATABASE_URL:-}" ]; then
+    echo "[entrypoint] ОШИБКА: DATABASE_URL не задан. Скопируйте .env.example в .env и пересоздайте контейнер: docker compose up -d --force-recreate php" >&2
+    exit 1
+fi
+
 echo "[entrypoint] Установка зависимостей..."
 if [ -f vendor/autoload.php ]; then
     echo "[entrypoint] vendor/ уже установлен, composer install пропущен."
@@ -18,7 +23,7 @@ php bin/console doctrine:migrations:migrate --no-interaction
 
 if [ "${ENABLE_FIXTURES:-1}" = "1" ]; then
     echo "[entrypoint] Fixtures..."
-    php bin/console doctrine:fixtures:load --no-interaction
+#    php bin/console doctrine:fixtures:load --no-interaction
 else
     echo "[entrypoint] ENABLE_FIXTURES != 1, fixtures пропущены."
 fi
