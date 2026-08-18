@@ -7,7 +7,7 @@ export default defineConfig({
   workers: 1,
   reporter: [['list']],
   use: {
-    baseURL: process.env.BASE_URL ?? 'https://b2b-crm.loc:8443',
+    baseURL: process.env.BASE_URL ?? 'https://b2b-crm.local',
     ignoreHTTPSErrors: true,
     headless: true,
   },

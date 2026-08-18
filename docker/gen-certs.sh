@@ -3,8 +3,8 @@ set -euo pipefail
 
 CERTS_DIR="${CERTS_DIR:-/certs}"
 CA_CN="${CA_CN:-B2B CRM Dev CA}"
-SERVER_CN="${SERVER_CN:-b2b-crm.loc}"
-SAN="${SAN:-DNS:b2b-crm.loc,DNS:localhost,IP:127.0.0.1,DNS:host.docker.internal}"
+SERVER_CN="${SERVER_CN:-b2b-crm.local}"
+SAN="${SAN:-DNS:b2b-crm.local,DNS:localhost,IP:127.0.0.1,DNS:host.docker.internal}"
 DAYS=3650
 
 mkdir -p "${CERTS_DIR}"

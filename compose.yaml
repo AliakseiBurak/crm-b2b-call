@@ -30,7 +30,7 @@ services:
     image: nginx:1.27-alpine
     restart: unless-stopped
     ports:
-      - "${HTTPS_PORT:-8443}:8443"
+      - "${HTTPS_PORT:-443}:443"
     volumes:
       - .:/app
       - certs:/certs:ro
@@ -39,7 +39,7 @@ services:
       php:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "https://localhost:8443", "--no-check-certificate"]
+      test: ["CMD", "wget", "-q", "--spider", "https://localhost:443", "--no-check-certificate"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -79,7 +79,7 @@ services:
       - ./e2e:/e2e
       - e2e-node-modules:/e2e/node_modules
     environment:
-      BASE_URL: ${BASE_URL:-https://b2b-crm.loc:8443}
+      BASE_URL: ${BASE_URL:-https://b2b-crm.local}
     command: ["npm", "run", "test"]
 
 volumes:
