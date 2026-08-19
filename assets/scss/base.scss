@@ -87,3 +87,38 @@ a {
     padding: 0 1rem;
     width: 100%;
 }
+
+main {
+    flex: 1 0 auto;
+    width: 100%;
+}
+
+// Сообщения об ошибках (единый стиль: красный градиент, белый текст)
+.alert {
+    padding: 0.9rem 1.2rem;
+    border-radius: $radius-modal;
+    margin-bottom: 1.5rem;
+}
+
+.alert-error {
+    background: $gradient-red;
+    color: #fff;
+}
+
+// Согласие на обработку данных (в формах)
+.field__consent {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6em;
+    font-size: 0.95em;
+    color: $color-text-body;
+    margin: 1em 0;
+
+    input[type='checkbox'] {
+        width: 20px;
+        height: 20px;
+        accent-color: $color-action-orange;
+        flex: 0 0 auto;
+        margin-top: 0.15em;
+    }
+}
