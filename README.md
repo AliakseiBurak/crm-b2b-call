@@ -66,6 +66,7 @@ PHPMyAdmin, Playwright e2e. Приложение доступно только �
 | `make migrate`          | Применить миграции                                 |
 | `make fixtures`         | Перезагрузить fixtures                             |
 | `make e2e`              | Запустить Playwright smoke-тесты (профиль `e2e`)   |
+| `make exec`             | Войти в контейнер `php` пользователем `app` (`docker compose exec --user app php bash`) |
 
 ## E2E-тесты
 
@@ -124,6 +125,6 @@ make up
 ## Полезное
 
 - Логи: `docker compose logs -f php nginx`
-- Оболочка в контейнере: `docker compose exec php bash`
+- Оболочка в контейнере (пользователь `app`, uid/gid 1000 — как на хосте): `make exec`
 - Включить/выключить fixtures при старте: `ENABLE_FIXTURES=0/1` в `.env`
   (после изменения — `docker compose up -d --force-recreate php`)
