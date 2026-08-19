@@ -1,0 +1,68 @@
+@use '../tokens' as *;
+
+// Поле с нижним подчёркиванием (spec: без рамок и фона, линия 2px,
+// утолщение до 4px при фокусе без смены цвета)
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3em;
+    margin-bottom: 1.2em;
+}
+
+.field__label {
+    font-family: $font-heading;
+    font-size: $font-size-body;
+    color: $color-text-body;
+}
+
+.field__input {
+    width: 100%;
+    padding: 0.5em 0;
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid $color-action-orange;
+    border-radius: 0;
+    font-family: $font-heading;
+    font-size: $font-size-table;
+    color: $color-action-orange;
+    outline: 0;
+    transition: border-bottom-width 0.15s ease;
+
+    &::placeholder {
+        color: $color-action-orange;
+        opacity: 1;
+    }
+
+    &:focus {
+        border-bottom-width: 4px;
+        border-bottom-color: $color-action-orange;
+    }
+
+    &:focus-visible {
+        box-shadow: none;
+        outline: 0;
+    }
+}
+
+// Вариант для цветных лент: белая линия и белый текст
+.field--on-band .field__input {
+    border-bottom-color: #fff;
+    color: #fff;
+
+    &::placeholder {
+        color: #fff;
+    }
+
+    &:focus {
+        border-bottom-color: #fff;
+    }
+}
+
+.field--on-band .field__label {
+    color: #fff;
+}
+
+.field__error {
+    font-size: 0.9em;
+    color: $color-action-orange;
+}

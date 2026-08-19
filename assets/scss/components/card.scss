@@ -1,0 +1,46 @@
+@use '../tokens' as *;
+
+// Контактная карточка (spec): белая, без рамок/скруглений/теней, без иконок;
+// мин. ширина 300px, высота по контенту; акцент — имя и телефон.
+.card {
+    background: #fff;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding: 1.5rem;
+    min-width: 300px;
+    display: flex;
+    flex-direction: column;
+    height: fit-content;
+}
+
+.card__name {
+    font-family: $font-heading;
+    font-size: $font-size-card-title;
+    font-weight: 700;
+    color: $color-info-blue;
+    border-left: 3px solid $color-info-blue;
+    padding-left: 0.6em;
+    margin-bottom: 0.5em;
+}
+
+.card__phone {
+    display: inline-block;
+    font-family: $font-heading;
+    font-size: $font-size-card-title;
+    font-weight: 700;
+    color: $color-action-orange;
+    text-decoration: none;
+    margin-bottom: 0.5em;
+}
+
+.card__meta {
+    color: $color-text-body;
+    font-size: $font-size-body;
+    margin: 0.15em 0;
+}
+
+.card__footer {
+    margin-top: auto;
+    padding-top: 1rem;
+}

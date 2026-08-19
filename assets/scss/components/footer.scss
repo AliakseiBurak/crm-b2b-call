@@ -1,0 +1,58 @@
+@use '../tokens' as *;
+
+// Подвал (spec): зелёный градиент, белый текст, блок компании, меню, контакты.
+.footer {
+    background: $gradient-green;
+    color: #fff;
+    margin-top: auto;
+}
+
+.footer__inner {
+    max-width: $container-max;
+    margin: 0 auto;
+    padding: 2.5rem 1rem;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 2rem;
+}
+
+.footer__title {
+    font-family: $font-heading;
+    font-size: $font-size-card-title;
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 0.6em;
+}
+
+.footer__text {
+    margin: 0.2em 0;
+    color: #fff;
+}
+
+.footer a {
+    color: #fff;
+    text-decoration: none;
+
+    &:hover {
+        color: $color-hover-menu;
+    }
+}
+
+.footer__menu {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+
+    li {
+        margin-bottom: 0.4em;
+    }
+}
+
+.footer__note {
+    border-top: 1px solid rgb(255 255 255 / 0.25);
+    text-align: center;
+    padding: 1rem;
+    font-size: 0.9em;
+    color: #fff;
+}

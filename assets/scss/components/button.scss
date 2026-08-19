@@ -1,0 +1,72 @@
+@use '../tokens' as *;
+
+// Кнопки-«пилюли» (spec: radius 30px)
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.8em 1.8em;
+    border-radius: $radius-pill;
+    font-family: $font-heading;
+    font-size: $font-size-btn;
+    font-weight: 700;
+    line-height: 1.2;
+    text-decoration: none;
+    cursor: pointer;
+    border: 0;
+    min-height: 44px;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+
+    &:focus-visible {
+        outline: 2px solid $color-info-blue;
+        outline-offset: 2px;
+    }
+}
+
+// Primary: оранжевый градиент, белый текст, без hover-изменений (spec)
+.btn--primary {
+    background: $gradient-cta;
+    color: #fff;
+
+    &:hover {
+        background: $gradient-cta;
+        color: #fff;
+    }
+}
+
+// Secondary: белая, оранжевый текст, рамка 2px; hover — инверсия
+.btn--secondary {
+    background: #fff;
+    color: $color-action-orange;
+    border: 2px solid $color-action-orange;
+
+    &:hover,
+    &:focus-visible {
+        background: $color-action-orange;
+        color: #fff;
+        border-color: $color-action-orange;
+    }
+}
+
+// Ссылка «все элементы >>>»
+.btn--all {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3em;
+    font-family: $font-heading;
+    font-size: $font-size-btn;
+    font-weight: 700;
+    color: $color-action-orange;
+    text-decoration: none;
+    padding: 0.4em 0;
+    min-height: 44px;
+
+    &::after {
+        content: '>>>';
+        letter-spacing: 0.05em;
+    }
+
+    &:hover {
+        color: $color-info-blue;
+    }
+}

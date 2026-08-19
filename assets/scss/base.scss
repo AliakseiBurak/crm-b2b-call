@@ -1,0 +1,89 @@
+@use 'tokens' as *;
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    margin: 0;
+    font-family: $font-body;
+    font-size: $font-size-body;
+    line-height: 1.55;
+    color: $color-text-body;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    margin: 0 0 0.6em;
+    font-family: $font-heading;
+    font-weight: 700;
+    color: $color-text-body;
+    line-height: 1.2;
+}
+
+h1 {
+    font-size: $font-size-h1;
+}
+
+h2 {
+    font-size: $font-size-h2;
+    border-left: 0.19em solid $color-info-blue;
+    padding-left: 0.3em;
+    color: $color-info-blue;
+
+    @media (max-width: bp('sm')) {
+        font-size: $font-size-h2-mobile;
+    }
+}
+
+h3 {
+    font-size: $font-size-h3;
+
+    @media (max-width: bp('sm')) {
+        font-size: $font-size-h3-mobile;
+    }
+}
+
+// Модификаторы цвета заголовков (spec: семантика зелёного — только статусы,
+// поэтому зелёный модификатор допускается исключительно на статусных блоках)
+.heading-green {
+    color: $color-success-green;
+}
+
+.heading-orange {
+    color: $color-action-orange;
+}
+
+.heading-blue {
+    color: $color-info-blue;
+}
+
+a {
+    color: $color-info-blue;
+
+    &:focus-visible {
+        outline: 2px solid $color-action-orange;
+        outline-offset: 2px;
+    }
+}
+
+.container {
+    max-width: $container-max;
+    margin: 0 auto;
+    padding: 0 1rem;
+    width: 100%;
+}

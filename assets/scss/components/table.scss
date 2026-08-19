@@ -1,0 +1,61 @@
+@use '../tokens' as *;
+
+// Зебра-таблица (spec): 100% ширины, Roboto Condensed 16px,
+// без рамок и hover-эффектов, отступ снизу 3rem.
+.table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    margin-bottom: 3rem;
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+    border-spacing: 0;
+    font-family: $font-heading;
+    font-size: $font-size-table;
+    color: $color-text-body;
+
+    th,
+    td {
+        text-align: left;
+        padding: 0.7em 0.9em;
+        border: 0;
+    }
+
+    th {
+        font-weight: 700;
+        color: $color-text-body;
+        padding-bottom: 1em;
+    }
+
+    tbody tr {
+        &:nth-child(odd) {
+            background: $color-table-stripe-1;
+        }
+
+        &:nth-child(even) {
+            background: $color-table-stripe-2;
+        }
+
+        &:hover {
+            background: transparent; // spec: без hover-эффектов (строки не подсвечиваются)
+        }
+    }
+}
+
+.table__name {
+    font-weight: 700;
+    color: $color-text-body;
+}
+
+.table__phone {
+    color: $color-action-orange;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.table__status-success {
+    color: $color-success-green;
+    font-weight: 700;
+}

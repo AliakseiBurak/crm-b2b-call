@@ -1,0 +1,52 @@
+@use 'tokens' as *;
+
+// Цветные ленты — только парадные блоки (герой, статистика, модалка, подвал):
+// полновесны (на весь viewport), контент живёт внутри контейнера.
+.band {
+    width: 100%;
+}
+
+.band-green {
+    background: $gradient-green;
+}
+
+.band-blue {
+    background: $gradient-blue;
+}
+
+.band-red {
+    background: $gradient-red;
+}
+
+// Рабочие секции (списки, таблицы, формы) — на белом.
+.section {
+    padding: 3rem 0;
+}
+
+.section--white {
+    background: #fff;
+}
+
+// Секции карточек — на подложке.
+.section--cards {
+    background: $color-bg-card-section;
+}
+
+// Адаптивные отступы секций
+@media (max-width: bp('sm')) {
+    .section {
+        padding: 2rem 0;
+    }
+}
+
+// Утилита сетки карточек: min-width 300px у контактных карточек (spec),
+// колонки заполняют строку.
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.grid--pairs {
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+}

@@ -1,0 +1,63 @@
+@use 'sass:map';
+
+// Палитра (мягкая, семантические роли — зеркалит требования web-interface spec)
+$color-action-orange: #d66a2b; // действие: кнопки, телефоны, акценты CTA
+$color-action-orange-light: #e09a68; // верхняя точка градиента CTA
+$color-success-green: #5e9e47; // статусы/успех — ТОЛЬКО статусы, не заголовки
+$color-info-blue: #20799e; // заголовки, навигация, ссылки
+$color-info-blue-light: #419cbe; // верхняя точка синей ленты
+
+// Зелёные градиенты
+$gradient-cta: linear-gradient(180deg, #d66a2b 0%, #e09a68 100%);
+$gradient-green: linear-gradient(180deg, #55964a 0%, #478540 100%);
+$gradient-green-menu: linear-gradient(180deg, #478540 0%, #5e9e47 100%);
+$gradient-blue: linear-gradient(180deg, #20799e 0%, #419cbe 100%);
+$gradient-red: linear-gradient(180deg, #d9554f 0%, #c13f3a 100%); // скидки/ошибки
+
+// Серые и подложки
+$color-text-body: #5a5a5a;
+$color-text-secondary: #b5b5b5;
+$color-bg-card-section: #f5f6f6;
+$color-bg-band-light: #f2b08d;   // рамки/полосы оранжевого семейства
+$color-bg-band-green: #b7dea0;   // рамки/полосы зелёного семейства
+$color-bg-band-blue: #7ebfd5;    // рамки/полосы синего семейства
+$color-bg-secondary-btn: #e8e8e7;
+
+// Зебра
+$color-table-stripe-1: #e3f1f6;
+$color-table-stripe-2: #e5f5fb;
+
+// Hover
+$color-hover-menu: #8fc46f;
+
+// Типографика
+$font-body: 'Roboto', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+$font-heading: 'Roboto Condensed', 'Roboto', Arial, sans-serif;
+$font-size-body: 15px;
+$font-size-h1: 32px;
+$font-size-h2: 28px;
+$font-size-h2-mobile: 24px;
+$font-size-h3: 22px;
+$font-size-h3-mobile: 20px;
+$font-size-table: 16px;
+$font-size-card-title: 20px;
+$font-size-stat: 56px;
+$font-size-btn: 18px;
+
+// Радиусы
+$radius-pill: 30px;
+$radius-modal: 10px;
+
+// Компоновка
+$container-max: 1360px;
+$breakpoints: (
+    'sm': 576px,
+    'md': 768px,
+    'lg': 992px,
+    'xl': 1200px,
+    'xxl': 1400px,
+);
+
+@function bp($name) {
+    @return map.get($breakpoints, $name);
+}

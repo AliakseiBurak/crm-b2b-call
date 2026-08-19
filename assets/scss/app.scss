@@ -1,2 +1,14 @@
-// Design system styles (_tokens.scss, base styles, component styles)
-// are added by the web-interface-design change.
+// Design system: tokens, base styles, layout, components
+// (_tokens.scss и компоненты живут в web-interface-design change).
+@use 'tokens';
+@use 'base';
+@use 'layout';
+@use 'components/button';
+@use 'components/form-field';
+@use 'components/card';
+@use 'components/offer-card';
+@use 'components/table';
+@use 'components/modal';
+@use 'components/header';
+@use 'components/footer';
+@use 'pages/welcome';

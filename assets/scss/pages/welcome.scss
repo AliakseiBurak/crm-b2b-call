@@ -1,0 +1,116 @@
+@use '../tokens' as *;
+
+// Welcome page (spec: герой-баннер, слоган, статистика 56px, промо, карточки)
+.hero {
+    position: relative;
+    color: #fff;
+    background-size: cover;
+    background-position: center;
+}
+
+.hero__inner {
+    max-width: $container-max;
+    margin: 0 auto;
+    padding: 4.5rem 1rem 4rem;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+    align-items: flex-start;
+}
+
+.hero__title {
+    font-family: $font-heading;
+    font-size: 3rem;
+    font-weight: 700;
+    color: #22505f;
+    line-height: 1.15;
+    max-width: 12em;
+
+    @media (max-width: bp('sm')) {
+        font-size: 2.2rem;
+    }
+}
+
+.hero__slogan {
+    display: inline-block;
+    text-transform: uppercase;
+    background: $gradient-green;
+    color: #fff;
+    font-family: $font-heading;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 0.6em 1.4em;
+}
+
+.hero__actions {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+// Блок статистики на зелёной ленте
+.stats {
+    background: $gradient-green;
+    color: #fff;
+}
+
+.stats__inner {
+    max-width: $container-max;
+    margin: 0 auto;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 2rem;
+    padding: 2.5rem 1rem;
+}
+
+.stats__item {
+    text-align: center;
+}
+
+.stats__figure {
+    font-family: $font-heading;
+    font-size: $font-size-stat;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.1;
+}
+
+.stats__caption {
+    font-family: $font-heading;
+    font-size: $font-size-card-title;
+    font-weight: 700;
+    color: #fff;
+}
+
+// Промо-блок: строки иконка + текст на белом
+.promo__item {
+    display: flex;
+    gap: 1.2rem;
+    align-items: flex-start;
+    margin-bottom: 1.6rem;
+}
+
+.promo__icon {
+    flex: 0 0 auto;
+    width: 3.5rem;
+    height: 3.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.promo__title {
+    font-family: $font-heading;
+    font-size: $font-size-card-title;
+    font-weight: 700;
+    color: $color-info-blue;
+    margin-bottom: 0.2em;
+}
+
+.promo__text {
+    color: $color-text-body;
+    font-size: $font-size-body;
+}
