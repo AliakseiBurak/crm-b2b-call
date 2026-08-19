@@ -1,0 +1,27 @@
+{
+    "name": "b2b-crm",
+    "private": true,
+    "description": "Frontend assets of B2B Call CRM (Webpack Encore)",
+    "license": "proprietary",
+    "type": "module",
+    "engines": {
+        "node": ">=20"
+    },
+    "dependencies": {
+        "@fontsource/roboto": "^5.3.0",
+        "@fontsource/roboto-condensed": "^5.3.0"
+    },
+    "devDependencies": {
+        "@symfony/webpack-encore": "^7.2.0",
+        "sass": "^1.102.0",
+        "sass-loader": "^17.0.0",
+        "webpack": "^5.109.2",
+        "webpack-cli": "^7.2.2",
+        "webpack-dev-server": "^6.0.0"
+    },
+    "scripts": {
+        "dev": "encore dev-server",
+        "watch": "encore dev --watch",
+        "build": "encore production"
+    }
+}
