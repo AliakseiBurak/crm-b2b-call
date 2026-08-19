@@ -3,7 +3,7 @@
 Единый визуальный язык интерфейса B2B Call CRM как рабочего инструмента:
 мягкая палитра (та же цветовая гамма, приглушённые тона), типографика для
 продолжительной работы, адаптивная компоновка и компоненты (welcome page,
-формы, кнопки, контактные карточки, таблицы, модальные окна) с
+формы, кнопки, контактные карточки, таблицы) с
 проверяемыми значениями стилей. Цвета имеют фиксированные семантические
 роли. Доменные сущности и правила доступа не затрагиваются.
 
@@ -11,7 +11,7 @@
 
 Единый визуальный язык интерфейса B2B Call CRM: мягкая палитра,
 типографика, адаптивная компоновка и компоненты (welcome page, формы,
-кнопки, контактные карточки, таблицы, модальные окна) с проверяемыми
+кнопки, контактные карточки, таблицы) с проверяемыми
 значениями стилей.
 
 ## Requirements
@@ -53,7 +53,7 @@ SHALL render in Roboto Condensed bold: `h1` 32px, `h2` 28px (24px below
 576px viewport) with a blue left border of `0.19em` in color `#20799e` and
 left padding `0.3em`, `h3` 22px (20px below 576px). Table text SHALL
 render at 16px Roboto Condensed. Card titles SHALL render at 20px Roboto
-Condensed bold. Welcome page statistics SHALL use figures of 56px bold.
+Condensed bold. Dashboard statistics SHALL use figures of 56px bold.
 Heading color modifiers SHALL be available: green `#5e9e47`, orange
 `#d66a2b`, blue `#20799e`.
 
@@ -64,7 +64,7 @@ Heading color modifiers SHALL be available: green `#5e9e47`, orange
 - **AND** текст заголовка окрашен в `#20799e`
 
 #### Scenario: Крупные числа статистики
-- **WHEN** на welcome page отображается блок статистики (например, «Обзвонено сегодня», «Договорённостей»)
+- **WHEN** на дашборде отображается блок статистики (например, «Обзвонено сегодня», «Ждут обзвона»)
 - **THEN** число набрано 56px bold белым цветом
 - **AND** подпись к числу набрана 20px bold белым цветом
 
@@ -76,7 +76,7 @@ SHALL be rendered as colored bands spanning the entire viewport, while
 their content stays inside the container. Working sections (lists, tables,
 forms) SHALL sit on a white background; card sections SHALL sit on the
 light background `#f5f6f6`; colored bands SHALL be reserved for the
-welcome page hero and statistics, the dashboard statistics band and the
+welcome page hero, the dashboard statistics band and the
 footer.
 
 #### Scenario: Ширина контейнера на широком экране
@@ -91,20 +91,13 @@ footer.
 ### Requirement: Welcome page
 The system SHALL render the welcome page with a hero banner: background
 image, primary headline, an uppercase accent slogan on a colored band, and
-a call-to-action button «Начать работу» that opens the dashboard. Below
-the hero SHALL be a statistics block with 56px figures and captions on the
-green gradient band.
+a call-to-action button «Начать работу» that opens the dashboard.
 
 #### Scenario: Герой-баннер welcome page
 - **WHEN** пользователь открывает welcome page
 - **THEN** в верхней части отображается баннер с фоновым изображением
 - **AND** под заголовком отображается слоган прописными буквами на цветной ленте
 - **AND** ниже отображается кнопка «Начать работу» с оранжевым градиентом
-
-#### Scenario: Статистический блок welcome page
-- **WHEN** пользователь открывает welcome page
-- **THEN** под героем отображается блок статистики с числами 56px bold на зелёном градиенте
-- **AND** блок статистики содержит подписи к числам
 
 ### Requirement: Кнопки
 The system SHALL render primary action buttons as pills with border-radius
