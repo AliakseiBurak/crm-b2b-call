@@ -1,0 +1,50 @@
+import { expect, test } from '@playwright/test';
+
+// 4.6 Скриншот-сверка страниц (в общем стиле) + отсутствие ошибок консоли.
+test.use({ viewport: { width: 1440, height: 900 } });
+
+for (const path of ['/', '/login']) {
+  test(`скриншот ${path} (1440px) без ошибок консоли`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') errors.push(msg.text());
+    });
+
+    await page.goto(path);
+    await page.waitForLoadState('networkidle');
+    const name = path === '/' ? 'welcome-desktop' : 'login-desktop';
+    await page.screenshot({ path: `test-results/screenshots/${name}.png`, fullPage: true });
+
+    expect(errors).toEqual([]);
+  });
+}
+
+test('скриншот welcome (576px, мобильный)', async ({ page }) => {
+  await page.setViewportSize({ width: 576, height: 900 });
+  await page.goto('/');
+  await page.waitForLoadState('networkidle');
+  await page.screenshot({ path: 'test-results/screenshots/welcome-mobile.png', fullPage: true });
+  await expect(page.locator('.hero__slogan')).toBeVisible();
+});
+
+test('страница входа использует общий шаблон (шапка и подвал)', async ({ page }) => {
+  await page.goto('/login');
+  await expect(page.locator('.header__logo')).toBeVisible();
+  await expect(page.locator('.header__menu-link').first()).toBeVisible();
+  await expect(page.locator('.footer')).toBeVisible();
+  await expect(page.locator('input[name="_username"]')).toBeVisible();
+  await expect(page.locator('form[action="/login"] button[type="submit"]')).toHaveText('Войти');
+});
+
+test('страница панели использует общий шаблон', async ({ page }) => {
+  await page.goto('/login');
+  await page.fill('input[name="_username"]', 'admin@b2b-crm.loc');
+  await page.fill('input[name="_password"]', 'admin123');
+  await page.click('button[type="submit"]');
+  await page.goto('/dashboard');
+
+  await expect(page.locator('.header__logo')).toBeVisible();
+  await expect(page.locator('.footer')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Панель' })).toBeVisible();
+  await page.screenshot({ path: 'test-results/screenshots/dashboard-desktop.png', fullPage: true });
+});
