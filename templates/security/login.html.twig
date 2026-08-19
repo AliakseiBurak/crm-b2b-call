@@ -12,8 +12,8 @@
             {% endif %}
 
             <form method="post" action="{{ path('app_login') }}">
-                {{ include('components/form_field.html.twig', { name: '_username', label: 'Email', type: 'email', value: last_username|default(''), required: true, autofocus: true }) }}
-                {{ include('components/form_field.html.twig', { name: '_password', label: 'Пароль', type: 'password', required: true }) }}
+                {{ include('components/form_field.html.twig', { name: '_username', label: 'Email', type: 'email', value: last_username|default(''), required: true, autofocus: true }, with_context = false) }}
+                {{ include('components/form_field.html.twig', { name: '_password', label: 'Пароль', type: 'password', required: true }, with_context = false) }}
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
                 <label class="field__consent">
                     <input type="checkbox" name="_remember_me">

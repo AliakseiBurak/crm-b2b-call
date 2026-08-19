@@ -1,6 +1,6 @@
 @use '../tokens' as *;
 
-// Welcome page (spec: герой-баннер, слоган, статистика 56px, промо, карточки)
+// Welcome page (spec: герой-баннер, слоган, CTA) и дашборд (статистика 56px)
 .hero {
     position: relative;
     color: #fff;
@@ -50,6 +50,23 @@
     flex-wrap: wrap;
 }
 
+// Дашборд: заголовок страницы и приветствие
+.dashboard-head {
+    padding: 3rem 1rem 0;
+    max-width: $container-max;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.dashboard-head h1 {
+    margin-bottom: 0.3em;
+}
+
+.dashboard-head__greeting {
+    margin: 0 0 0.6em;
+    color: $color-text-secondary;
+}
+
 // Блок статистики на зелёной ленте
 .stats {
     background: $gradient-green;
@@ -85,32 +102,20 @@
     color: #fff;
 }
 
-// Промо-блок: строки иконка + текст на белом
-.promo__item {
-    display: flex;
-    gap: 1.2rem;
-    align-items: flex-start;
-    margin-bottom: 1.6rem;
+// Дашборд: виджеты «Ждут обзвона» на белой секции
+.stats--plain {
+    background: transparent;
+    color: inherit;
 }
 
-.promo__icon {
-    flex: 0 0 auto;
-    width: 3.5rem;
-    height: 3.5rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
+.stats--plain .stats__inner {
+    padding: 2rem 0 0;
 }
 
-.promo__title {
-    font-family: $font-heading;
-    font-size: $font-size-card-title;
-    font-weight: 700;
+.stats__figure--accent {
+    color: $color-action-orange;
+}
+
+.stats__caption--dark {
     color: $color-info-blue;
-    margin-bottom: 0.2em;
-}
-
-.promo__text {
-    color: $color-text-body;
-    font-size: $font-size-body;
 }

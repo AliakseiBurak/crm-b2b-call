@@ -30,6 +30,7 @@ class AppFixtures extends Fixture
         ['ООО "Ромашка"', 'Ритейл'],
         ['АО "Вектор"', 'Логистика'],
         ['ИП Сидоров', 'Услуги'],
+        ['ООО "Конкурент"', 'Производство'],
     ];
 
     private const POSITIONS = ['Генеральный директор', 'Руководитель отдела закупок'];
@@ -68,6 +69,7 @@ class AppFixtures extends Fixture
         $manager->persist(new OrgGroupMembership($organizations[1], $custom));
         $manager->persist(new OrgGroupMembership($organizations[2], $personal2));
         $manager->persist(new OrgGroupMembership($organizations[2], $custom));
+        $manager->persist(new OrgGroupMembership($organizations[3], $personal2));
 
         $contacts = [];
         $index = 0;
@@ -86,7 +88,40 @@ class AppFixtures extends Fixture
             }
         }
 
+        // Звонки-факты: сегодня/вчера/6 дней/30 дней (статистика дашборда)
+        $today = new \DateTimeImmutable('today');
+        $make = function (Organization $org, Contact $contact, \DateTimeImmutable $madeAt) use ($manager, $manager1): void {
+            $manager->persist((new Call())
+                ->setOrganization($org)
+                ->setContact($contact)
+                ->setMadeAt($madeAt)
+                ->setMadeBy($manager1)
+                ->setNotes('Факт обзвона из fixtures'));
+        };
+        $make($organizations[0], $contacts[0], $today->setTime(10, 0));
+        $make($organizations[0], $contacts[1], $today->modify('-1 day')->setTime(11, 0));
+        $make($organizations[0], $contacts[0], $today->modify('-10 days')->setTime(12, 0));
+        $make($organizations[0], $contacts[1], $today->modify('-28 days')->setTime(13, 0));
+
+        // Вне области менеджера (ООО "Конкурент" — только в группе manager2)
+        $manager->persist((new Call())
+            ->setOrganization($organizations[3])
+            ->setContact($contacts[6])
+            ->setMadeAt($today->setTime(10, 0))
+            ->setMadeBy($manager2)
+            ->setNotes('Факт обзвона вне области'));
+        $manager->persist((new Call())
+            ->setOrganization($organizations[3])
+            ->setContact($contacts[7])
+            ->setScheduledAt($today->setTime(12, 0))
+            ->setMadeBy($manager2)
+            ->setNotes('Запланированный обзвон вне области'));
+
+        // Запланированные обзвоны в периодах дашборда
         foreach ($organizations as $index => $organization) {
+            if ($index === 3) {
+                continue;
+            }
             $call = (new Call())
                 ->setOrganization($organization)
                 ->setContact($contacts[$index * 2])
@@ -95,6 +130,24 @@ class AppFixtures extends Fixture
                 ->setNotes('Запланированный обзвон из fixtures');
             $manager->persist($call);
         }
+        $manager->persist((new Call())
+            ->setOrganization($organizations[0])
+            ->setContact($contacts[0])
+            ->setScheduledAt($today->setTime(15, 0))
+            ->setMadeBy($manager1)
+            ->setNotes('Запланированный обзвон на сегодня'));
+        $manager->persist((new Call())
+            ->setOrganization($organizations[0])
+            ->setContact($contacts[1])
+            ->setScheduledAt($today->modify('+3 days')->setTime(10, 0))
+            ->setMadeBy($manager1)
+            ->setNotes('Запланированный обзвон через 3 дня'));
+        $manager->persist((new Call())
+            ->setOrganization($organizations[0])
+            ->setContact($contacts[0])
+            ->setScheduledAt($today->modify('+20 days')->setTime(10, 0))
+            ->setMadeBy($manager1)
+            ->setNotes('Запланированный обзвон через 20 дней'));
 
         $manager->flush();
     }

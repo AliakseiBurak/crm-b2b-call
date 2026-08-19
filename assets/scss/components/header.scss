@@ -1,7 +1,7 @@
 @use '../tokens' as *;
 
-// Шапка (spec): белый фон, логотип слева, CTA-пара «Позвонить»/«Создать»
-// с цветной полосой, полоса меню с зелёным градиентом.
+// Шапка (spec): белый фон, логотип слева, навигация в верхней строке,
+// справа для вошедших — кнопки «Создать организацию»/«Создать контакт».
 .header {
     background: #fff;
 }
@@ -10,21 +10,15 @@
     border-bottom: 1px solid $color-bg-band-blue;
 }
 
-.header__top-inner,
-.header__inner {
+.header__top-inner {
     max-width: $container-max;
     margin: 0 auto;
-    padding: 0 1rem;
+    padding: 0.8rem 1rem;
     width: 100%;
-}
-
-.header__top-inner {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    padding-top: 0.8rem;
-    padding-bottom: 0.8rem;
 }
 
 .header__logo {
@@ -35,78 +29,39 @@
     text-decoration: none;
 }
 
-.header__cta {
+.header__nav {
     display: flex;
-    gap: 1.2rem;
+    gap: 1.5rem;
     flex-wrap: wrap;
-}
-
-.cta-bar {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4em;
-    font-family: $font-heading;
-    font-size: $font-size-btn;
-    font-weight: 700;
-    color: $color-info-blue;
-    text-decoration: none;
-    min-height: 44px;
-    padding: 0 0.2em;
-
-    &::before {
-        content: '';
-        display: inline-block;
-        width: 0.4em;
-        align-self: stretch;
-    }
-
-    &:hover {
-        color: $color-action-orange;
-    }
-}
-
-.cta-bar--call {
-    color: $color-action-orange;
-
-    &::before {
-        background: $color-action-orange;
-    }
-}
-
-.cta-bar--create {
-    color: $color-info-blue;
-
-    &::before {
-        background: $color-info-blue;
-    }
-}
-
-.header__menu {
-    background: $gradient-green-menu;
-}
-
-.header__menu-inner {
-    display: flex;
-    gap: 1.8rem;
-    flex-wrap: wrap;
-    padding-top: 0.55rem;
-    padding-bottom: 0.55rem;
 }
 
 .header__menu-link {
-    color: #fff;
+    color: $color-info-blue;
     text-decoration: none;
     font-family: $font-heading;
     font-size: $font-size-body;
     font-weight: 700;
-    padding: 0.35em 0.1em;
+    padding: 0.35em 0.85em;
     min-height: 44px;
+    min-width: 44px;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
+    text-align: center;
 
     &:hover {
-        color: $color-hover-menu;
+        color: $color-action-orange;
     }
+
+    &[aria-current='page'] {
+        color: $color-action-orange;
+    }
+}
+
+.header__create {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
 }
 
 @media (max-width: bp('sm')) {
@@ -114,5 +69,10 @@
         flex-direction: column;
         align-items: flex-start;
         gap: 0.4rem;
+    }
+
+    .header__nav,
+    .header__create {
+        gap: 0.8rem;
     }
 }
