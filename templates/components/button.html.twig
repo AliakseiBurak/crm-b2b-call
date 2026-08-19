@@ -1,0 +1,17 @@
+{#
+    Кнопка-«пилюля» (spec 2.1).
+    Параметры:
+      - variant: 'primary' | 'secondary' | 'all'
+      - text: надпись (для variant 'all' — без суффикса, '>>>' добавляется стилем)
+      - href: если задан — ссылка, иначе <button>
+      - type, attr: атрибуты для <button>
+#}
+{% if variant == 'all' %}
+    <a class="btn btn--all" href="{{ href|default('#') }}">{{ text }}</a>
+{% else %}
+    {% if href is defined and href %}
+        <a class="btn btn--{{ variant|default('primary') }}" href="{{ href }}">{{ text }}</a>
+    {% else %}
+        <button class="btn btn--{{ variant|default('primary') }}" type="{{ type|default('submit') }}" {% for k,v in attr|default({}) %}{{ k }}="{{ v }}" {% endfor %}>{{ text }}</button>
+    {% endif %}
+{% endif %}

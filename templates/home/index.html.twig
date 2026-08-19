@@ -1,17 +1,79 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}B2B Call CRM — приветствие{% endblock %}
+{% block title %}B2B Call CRM — обзвон, который приводит к договорённостям{% endblock %}
 
 {% block body %}
-    <h1>B2B Call CRM</h1>
-    <p>Окружение работает.</p>
-    <p>
-        {% if app.user %}
-            Вы вошли как <strong>{{ app.user.email }}</strong>.
-            <a href="{{ path('app_dashboard') }}">Панель</a> ·
-            <a href="{{ path('app_logout') }}">Выйти</a>
-        {% else %}
-            <a href="{{ path('app_login') }}">Войти</a>
-        {% endif %}
-    </p>
+    <section class="hero" style="background-image: url('{{ asset('images/hero.svg') }}');">
+        <div class="hero__inner">
+            <h1 class="hero__title">B2B Call CRM — обзвон, который приводит к договорённостям</h1>
+            <div class="hero__slogan">Управляйте обзвоном — растите договорённости</div>
+            <div class="hero__actions">
+                {% include 'components/button.html.twig' with { variant: 'primary', text: 'Начать работу', href: path('app_dashboard') } %}
+                {% include 'components/button.html.twig' with { variant: 'secondary', text: 'Заказать звонок', attr: { 'data-modal-open': 'modal-call' } } %}
+            </div>
+        </div>
+    </section>
+
+    <section class="stats">
+        <div class="stats__inner">
+            <div class="stats__item">
+                <div class="stats__figure">1 287</div>
+                <div class="stats__caption">Обзвонено сегодня</div>
+            </div>
+            <div class="stats__item">
+                <div class="stats__figure">342</div>
+                <div class="stats__caption">Договорённостей</div>
+            </div>
+            <div class="stats__item">
+                <div class="stats__figure">26%</div>
+                <div class="stats__caption">Конверсия в договорённость</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section section--white">
+        <div class="container">
+            <h2>Как это работает</h2>
+            <div class="promo">
+                <div class="promo__item">
+                    <span class="promo__icon">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#20799e" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.9.3 1.9.6 2.9.7a2 2 0 0 1 1.7 2Z"/></svg>
+                    </span>
+                    <div>
+                        <div class="promo__title">Планируйте обзвон</div>
+                        <p class="promo__text">Базы организаций и контактов, задачи на звонок и приоритеты — всё в одном рабочем списке.</p>
+                    </div>
+                </div>
+                <div class="promo__item">
+                    <span class="promo__icon">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#55964a" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+                    </span>
+                    <div>
+                        <div class="promo__title">Фиксируйте результаты</div>
+                        <p class="promo__text">Результат каждого звонка — договорённость, отказ или перезвон: понятная история по каждому клиенту.</p>
+                    </div>
+                </div>
+                <div class="promo__item">
+                    <span class="promo__icon">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#d66a2b" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/></svg>
+                    </span>
+                    <div>
+                        <div class="promo__title">Контролируйте команду</div>
+                        <p class="promo__text">Руководитель видит активность менеджеров и конверсию по каждому менеджеру и группе.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section section--cards">
+        <div class="container">
+            <h2>Программы обучения команды продаж</h2>
+            <div class="grid grid--pairs">
+                {% include 'components/offer_card.html.twig' with { title: 'Продажи по телефону', description: 'Скрипты, этапы и аргументы для холодных звонков — от рампы до стабильной конверсии.', price: 'от 49 000 ₽' } %}
+                {% include 'components/offer_card.html.twig' with { title: 'Работа с возражениями', description: 'Отработка частых возражений и техник удержания внимания собеседника.', price: 'от 29 000 ₽' } %}
+            </div>
+            <p><a class="btn btn--all" href="#">все элементы</a></p>
+        </div>
+    </section>
 {% endblock %}

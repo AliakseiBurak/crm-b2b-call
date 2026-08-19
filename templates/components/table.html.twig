@@ -1,0 +1,34 @@
+{#
+    Зебра-таблица (spec 2.5).
+    Параметры:
+      - headers: список заголовков столбцов
+      - rows: список строк; ячейка = { value, kind: 'name'|'phone'|'text'|'status-success' }
+#}
+<div class="table-wrap">
+    <table class="table">
+        {% if headers is defined and headers %}
+            <thead>
+                <tr>
+                    {% for h in headers %}<th scope="col">{{ h }}</th>{% endfor %}
+                </tr>
+            </thead>
+        {% endif %}
+        <tbody>
+            {% for row in rows|default([]) %}
+                <tr>
+                    {% for cell in row %}
+                        {% if cell.kind == 'name' %}
+                            <td class="table__name">{{ cell.value }}</td>
+                        {% elseif cell.kind == 'phone' %}
+                            <td><a class="table__phone" href="tel:{{ cell.value|replace({' ': '', '(': '', ')': '', '-': ''}) }}">{{ cell.value }}</a></td>
+                        {% elseif cell.kind == 'status-success' %}
+                            <td class="table__status-success">{{ cell.value }}</td>
+                        {% else %}
+                            <td>{{ cell.value }}</td>
+                        {% endif %}
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

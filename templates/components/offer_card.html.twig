@@ -1,0 +1,16 @@
+{#
+    Карточка предложения курса (spec 2.4): бейдж цены на зелёном градиенте.
+    Параметры: title, description, price, action_text, action_href
+#}
+<article class="offer-card">
+    <div class="offer-card__body">
+        <h3 class="offer-card__title">{{ title }}</h3>
+        <p class="offer-card__description">{{ description }}</p>
+    </div>
+    <div class="offer-card__footer">
+        <span class="offer-card__price-badge">{{ price }}</span>
+    </div>
+    <div class="offer-card__footer">
+        {% include 'components/button.html.twig' with { variant: 'primary', text: action_text|default('Подробнее'), href: action_href|default('#') } %}
+    </div>
+</article>

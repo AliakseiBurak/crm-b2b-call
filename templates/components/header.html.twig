@@ -1,0 +1,25 @@
+{#
+    Шапка (spec 2.7): белый фон, логотип, CTA-пара «Позвонить»/«Создать»
+    с цветной полосой, полоса меню с зелёным градиентом.
+    Параметры: menu — массив {label, href, active}
+#}
+<header class="header">
+    <div class="header__top">
+        <div class="header__top-inner">
+            <a class="header__logo" href="{{ path('app_home') }}">B2B Call CRM</a>
+            <div class="header__cta">
+                <a class="cta-bar cta-bar--call" href="tel:+74950000000">Позвонить</a>
+                <button class="cta-bar cta-bar--create" type="button" data-modal-open="modal-call">Создать</button>
+            </div>
+        </div>
+    </div>
+    {% if menu %}
+        <nav class="header__menu" aria-label="Основное меню">
+            <div class="header__menu-inner">
+                {% for item in menu %}
+                    <a class="header__menu-link" href="{{ item.href }}"{% if item.active is defined and item.active %} aria-current="page"{% endif %}>{{ item.label }}</a>
+                {% endfor %}
+            </div>
+        </nav>
+    {% endif %}
+</header>

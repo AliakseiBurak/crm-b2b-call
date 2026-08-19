@@ -1,0 +1,27 @@
+{#
+    Подвал (spec 2.8): зелёный градиент, белый текст:
+    блок компании, меню, контакты.
+    Параметры: menu — массив {label, href}
+#}
+<footer class="footer">
+    <div class="footer__inner">
+        <div class="footer__col">
+            <div class="footer__title">B2B Call CRM</div>
+            <p class="footer__text">Обзвон, клиенты и договорённости в одном рабочем инструменте.</p>
+        </div>
+        <div class="footer__col">
+            <div class="footer__title">Разделы</div>
+            <ul class="footer__menu">
+                {% for item in menu %}
+                    <li><a href="{{ item.href }}">{{ item.label }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="footer__col">
+            <div class="footer__title">Контакты</div>
+            <p class="footer__text">Телефон: <a href="tel:+74950000000">+7 (495) 000-00-00</a></p>
+            <p class="footer__text">Почта: <a href="mailto:hello@b2b-crm.loc">hello@b2b-crm.loc</a></p>
+        </div>
+    </div>
+    <div class="footer__note">&copy; {{ 'now'|date('Y') }} B2B Call CRM</div>
+</footer>

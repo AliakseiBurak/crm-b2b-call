@@ -1,0 +1,21 @@
+{#
+    Поле формы с нижним подчёркиванием (spec 2.2).
+    Параметры:
+      - name, type, label, value, placeholder, required, autofocus
+      - on_band: цветная лента (белая линия/текст)
+      - error: сообщение
+#}
+<div class="field{% if on_band is defined and on_band %} field--on-band{% endif %}">
+    {% if label is defined and label %}<label class="field__label" for="{{ name }}">{{ label }}</label>{% endif %}
+    <input
+        class="field__input"
+        type="{{ type|default('text') }}"
+        id="{{ name }}"
+        name="{{ name }}"
+        {% if value is defined and value %}value="{{ value }}"{% endif %}
+        {% if placeholder is defined and placeholder %}placeholder="{{ placeholder }}"{% endif %}
+        {% if required is defined and required %}required{% endif %}
+        {% if autofocus is defined and autofocus %}autofocus{% endif %}
+    >
+    {% if error is defined and error %}<span class="field__error" role="alert">{{ error }}</span>{% endif %}
+</div>
