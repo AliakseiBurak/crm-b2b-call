@@ -25,7 +25,8 @@ Symfony 7.x + Twig приложение без фронтенд-сборки: `p
 ## Decisions
 
 ### D1. Webpack Encore как обёртка webpack
-Используется `@symfony/webpack-encore` (v2) — штатный инструмент стека
+Используется `@symfony/webpack-encore` (v7, ESM — `package.json` со
+`"type": "module"`, конфиг `webpack.config.js`) — штатный инструмент стека
 (заявлен в `project.md`), дающий предсказуемую конфигурацию: хэши
 имён, entrypoints-манифест, единый runtime-чанк. Альтернатива — голый
 webpack/vite: отклонена, Encore декларирован стеком и генерирует
@@ -44,7 +45,9 @@ mini-css-extract в проде, HMR в dev). Все страницы испол�
 
 ### D4. Шрифты через @fontsource
 `@fontsource/roboto` и `@fontsource/roboto-condensed` (woff2, подмножества
-cyrillic/latin), импортируются в SCSS, `font-display: swap`. Альтернатива —
+cyrillic/latin, начертания 400/700) импортируются в `assets/app.js`
+(wepback-css, а не через sass-loader — надёжнее для css-файлов пакета),
+`font-display: swap`, font-face генерирует пакет. Альтернатива —
 ручные `@font-face` с локальными woff2: отклонена, @fontsource даёт
 готовые подмножества и переменные начертания.
 
@@ -54,11 +57,20 @@ cyrillic/latin), импортируются в SCSS, `font-display: swap`. Ал�
 отдают `<link>`/`<script>` с абсолютными путями `/build/...` и корректно
 работают и в production (entrypoints.json), и в dev (`encore dev-server`).
 
-### D6. Node в окружении разработки
-`npm ci` и сборка выполняются в php-контейнере compose (Node добавляется
-в образ) либо на хосте с Node LTS. Версии фиксируются в
-`package-lock.json`; сборка при каждом старте окружения — `npm run build`
-в entrypoint/команде запуска.
+### D6. Контейнер несёт ответственность за сборку
+Сборка живёт в php-контейнере: Node.js 24 (LTS, совместим с Encore 7)
+добавляется в образ multistage-copy из `node:24-bookworm-slim` (та же
+база — debian bookworm, бинарно совместимо, php:8.5-fpm-bookworm), а
+entrypoint при старте выполняет `npm ci` (если `node_modules` ещё нет)
+и `npm run build` — по аналогии с composer install и миграциями. Хост
+от сборки освобождён; версии фиксируются в `package-lock.json` и в теге
+node-образа. Dev-режим (`encore dev-server`/`watch`, hot reload)
+остаётся опцией хоста разработчика. Интерактивный вход — `make exec`
+(`docker compose exec --user app php bash`, пользователь `app`, uid/gid
+1000 как на хосте); после сборки entrypoint приводит права
+`node_modules`/`public/build` к `app` (`chown -R app:app`), чтобы
+артефакты были записываемы из интерактивной сессии и принадлежали
+хост-пользователю.
 
 ### D7. Разделение каркаса и дизайн-системы
 Каркас (`app.js`, пустой `app.scss`) создаётся здесь; `_tokens.scss`,
@@ -89,7 +101,7 @@ Container-level (ASCII, lightweight C4; предположения: проект
 |                                                                |
 |  Шрифты: @fontsource/roboto{, -condensed} пакетам = woff2       |
 |  (cyrillic+latin) в SCSS, font-display: swap                   |
-|  Сборка: npm ci && npm run build (php-контейнер или хост)       |
+|  Сборка (start, php-контейнер): npm ci && npm run build         |
 +----------------------------------------------------------------+
 ```
 
@@ -106,16 +118,19 @@ Container-level (ASCII, lightweight C4; предположения: проект
   каталога перед сборкой.
 - [Пути активов при другом публичном пути] → `/build` соответствует
   корню сайта; при смене хоста/подпапки правится `setPublicPath` + .env.
+- [Сборка на каждом старте контейнера замедляет подъём] → Encore
+  компилирует инкрементально (секунды); на хосте сборка не требуется
+  вообще — это и есть мотивация решения D6.
 - [base.html.twig без сборки] → без `npm run build` страница отдаётся
   без стилей, но не падает (хелперы рендерят пустоту) — порядок
-  «сборка → запуск» фиксируется в tasks.
+  «сборка → запуск» гарантирован entrypoint.
 - [Конфликт с web-interface-design в assets/] → граница по файлам (D7):
   каркас здесь, дизайн-файлы там.
 
 ## Migration Plan
 
-1. `package.json`, зависимости, `webpack.config.js`.
-2. Каркас `assets/` (app.js, app.scss), Node в окружении.
+1. `package.json` (в т.ч. `"type": "module"`), зависимости, `webpack.config.js`.
+2. Каркас `assets/` (app.js, app.scss), Node 24 в php-образ (D6).
 3. Подключение в `base.html.twig` (D5).
 4. Верификация dev + production сборок.
 5. Откат: git-revert; без бандла страницы работают без стилей (функциональность CRM не затронута).
