@@ -28,5 +28,18 @@ else
     echo "[entrypoint] ENABLE_FIXTURES != 1, fixtures пропущены."
 fi
 
+echo "[entrypoint] Установка npm-зависимостей..."
+if [ -d node_modules ]; then
+    echo "[entrypoint] node_modules уже установлен, npm ci пропущен."
+else
+    npm ci --no-audit --no-fund
+fi
+
+echo "[entrypoint] Сборка фронтенд-активов (Webpack Encore)..."
+npm run build
+
+echo "[entrypoint] Приведение прав npm-артефактов к пользователю app..."
+chown -R app:app node_modules public/build
+
 echo "[entrypoint] Готово, запускаю: $*"
 exec "$@"
