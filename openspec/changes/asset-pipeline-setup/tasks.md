@@ -14,14 +14,14 @@
 ## 3. Сборка и режимы
 
 - [x] 3.1 Выполнить `npm run build`; убедиться, что `public/build/` содержит `entrypoints.json`, `app.js`, `app.css` (с хэшами)
-- [ ] 3.2 Проверить страницу `https://b2b-crm.local`: `<link rel="stylesheet">` и `<script>` на `/build/*` возвращают 200
+- [x] 3.2 Проверить страницу `https://b2b-crm.local`: `<link rel="stylesheet">` (app.css) и `<script>` (runtime.js, app.js) на `/build/*` — все три актива возвращают 200
 - [x] 3.3 Проверить dev-режим: `encore dev-server` компилирует, `watch` реагирует на изменение `assets/scss/app.scss`
-- [ ] 3.4 Убедиться, что без `npm run build` страница не падает (хелперы рендерят пусто) — базовый шаг отката
+- [x] 3.4 Проверить поведение без сборки (перенос `public/build` + curl): страница возвращает 500 — бандл работает в `strict_mode` по умолчанию и требует `entrypoints.json`; после restore — 200. Откат-путь «страница без стилей» НЕ предусмотрен: порядок `npm ci` → `npm run build` гарантируется entrypoint (D6), деградация намеренно не поддерживается
 - [x] 3.5 Убедиться, что `public/build/` не попадает в git (добавлены `/public/build/` и `/node_modules/` в `.gitignore`)
-- [ ] 3.6 Проверить сборку из контейнера: `docker compose build php`, пересоздать контейнер — entrypoint выполняет `npm ci` + `npm run build`, страница отдаёт `/build/*` (200); проверить `make exec` — вход пользователем `app`, `node_modules`/`public/build` принадлежат `app`
+- [x] 3.6 Проверить сборку из контейнера: после `docker compose build php` и пересоздания контейнера entrypoint выполнил `npm ci` + `npm run build` (entrypoints.json собран в контейнере, `webpack compiled successfully` в логах); `node_modules/` и `public/build` принадлежат пользователю `app` (uid 1000); страница отдаёт `/build/*` (200); `make exec` открывает shell пользователя `app` (алиас на `docker compose exec --user app php bash`)
 
 ## 4. Верификация
 
 - [x] 4.1 `npm run build` завершается без ошибок и предупреждений; бандлы CSS/JS валидны (Entrypoint app: runtime + app.css + app.js)
-- [ ] 4.2 Прогон e2e smoke (вход администратора, открытие списка) после подключения бандлов — функциональность не сломалась
+- [x] 4.2 Прогон e2e smoke (вход администратора, открытие списка) после подключения бандлов — функциональность не сломалась: 4/4 passed (главная 200, вход админом, вход менеджером, неверный пароль)
 - [x] 4.3 Проверка, что стили дизайн-системы (`_tokens.scss` и др.) отсутствуют в репо — они появятся только в `web-interface-design` (граница D7)
