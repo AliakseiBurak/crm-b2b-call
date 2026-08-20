@@ -31,9 +31,50 @@ class AppFixtures extends Fixture
         ['АО "Вектор"', 'Логистика'],
         ['ИП Сидоров', 'Услуги'],
         ['ООО "Конкурент"', 'Производство'],
+        ['ООО "Горизонт"', 'Строительство'], // без контактов и без звонков
+        ['ООО "Закат"', 'Туризм'], // с контактом, без звонков
     ];
 
-    private const POSITIONS = ['Генеральный директор', 'Руководитель отдела закупок'];
+    private const POSITIONS = ['Генеральный директор', 'Руководитель отдела закупок', 'Руководитель отдела кадров'];
+
+    /** Число контактов на каждую организацию (Ромашка, Вектор, Сидоров, Конкурент, Горизонт, Закат).
+     *  У Вектора 4 — чтобы карточки переносились на новую строку (влияет на вид). */
+    private const CONTACTS_PER_ORGANIZATION = [2, 4, 1, 2, 0, 1];
+
+    /** Имена контактов: ключ — глобальный индекс контакта (0..9).
+     *  Имена не обязаны быть уникальными ни в организации, ни глобально. */
+    private const CONTACT_NAMES = [
+        'Иван Петрович Иванов',
+        'Иван Иванович Петров',
+        'Пётр Иванович',
+        'Наталья Павловна Сидоровна',
+        'Мария Сергеевна Петровна',
+        'Марина Александровна',
+        'Анна Сергеевна Иванова',
+        'Дмитрий Николаевич',
+        'Марина Александровна',
+        'Ольга Викторовна',
+    ];
+
+    /** Должности: ключ — глобальный индекс контакта; для всех контактов разные. */
+    private const POSITION_BY_INDEX = [
+        0 => 'Генеральный директор',
+        1 => 'Руководитель отдела кадров',
+        2 => 'Директор по логистике',
+        3 => 'Руководитель отдела закупок',
+        4 => 'Приёмная',
+        5 => 'Менеджер по логистике',
+        6 => 'Директор',
+        7 => 'Главный инженер',
+        8 => 'Начальник производства',
+        9 => 'Руководитель отдела продаж',
+    ];
+
+    /** Заметки контактов: ключ — локальный индекс контакта в организации. */
+    private const CONTACT_NOTES = [
+        0 => 'Предпочитает звонки после 14:00',
+        2 => 'Запись через приёмную',
+    ];
 
     public function __construct(private readonly UserPasswordHasherInterface $passwordHasher)
     {
@@ -70,84 +111,99 @@ class AppFixtures extends Fixture
         $manager->persist(new OrgGroupMembership($organizations[2], $personal2));
         $manager->persist(new OrgGroupMembership($organizations[2], $custom));
         $manager->persist(new OrgGroupMembership($organizations[3], $personal2));
+        $manager->persist(new OrgGroupMembership($organizations[4], $personal1)); // Горизонт — без контактов
+        $manager->persist(new OrgGroupMembership($organizations[5], $personal1)); // Закат — с контактом, без звонков
 
         $contacts = [];
         $index = 0;
-        foreach ($organizations as $organization) {
-            foreach (self::POSITIONS as $position) {
+        foreach ($organizations as $orgIndex => $organization) {
+            $count = self::CONTACTS_PER_ORGANIZATION[$orgIndex];
+            for ($i = 0; $i < $count; ++$i) {
+                $isReception = $orgIndex === 1 && $index === 4; // «Приёмная» — Мария (3-й контакт Вектора)
                 $contact = (new Contact())
                     ->setOrganization($organization)
-                    ->setName('Контакт ' . ($index + 1))
+                    ->setName(self::CONTACT_NAMES[$index])
                     ->setPhone('+7 900 000-00-' . str_pad((string) $index, 2, '0', STR_PAD_LEFT))
                     ->setEmail('contact' . $index . '@example.ru')
-                    ->setPosition($position)
-                    ->setContactType(ContactType::Person);
+                    ->setPosition($isReception ? 'Приёмная' : self::POSITION_BY_INDEX[$index] ?? self::POSITIONS[0])
+                    ->setContactType(ContactType::Person)
+                    ->setNotes(self::CONTACT_NOTES[$i] ?? null);
                 $manager->persist($contact);
                 $contacts[] = $contact;
                 ++$index;
             }
         }
 
-        // Звонки-факты: сегодня/вчера/6 дней/30 дней (статистика дашборда)
+        // Звонки. ООО "Ромашка" — три звонка с разными наборами данных:
+        // первый без заметки и без контакта (только дата), следующий только
+        // с заметкой (без контакта), следующий только с контактом (без
+        // заметки). ООО "Горизонт" — без звонков вовсе. Вектор/Конкурент —
+        // факты и планы с заметками; заметки — рабочие формулировки менеджера.
         $today = new \DateTimeImmutable('today');
-        $make = function (Organization $org, Contact $contact, \DateTimeImmutable $madeAt) use ($manager, $manager1): void {
-            $manager->persist((new Call())
+        $make = function (Organization $org, ?Contact $contact, \DateTimeImmutable $madeAt, ?string $notes) use ($manager, $manager1): void {
+            $call = (new Call())
                 ->setOrganization($org)
-                ->setContact($contact)
                 ->setMadeAt($madeAt)
                 ->setMadeBy($manager1)
-                ->setNotes('Факт обзвона из fixtures'));
+                ->setNotes($notes);
+            if (null !== $contact) {
+                $call->setContact($contact);
+            }
+            $manager->persist($call);
         };
-        $make($organizations[0], $contacts[0], $today->setTime(10, 0));
-        $make($organizations[0], $contacts[1], $today->modify('-1 day')->setTime(11, 0));
-        $make($organizations[0], $contacts[0], $today->modify('-10 days')->setTime(12, 0));
-        $make($organizations[0], $contacts[1], $today->modify('-28 days')->setTime(13, 0));
+        $make($organizations[0], null, $today->modify('-10 days')->setTime(12, 0), null); // Ромашка: только дата
+        $make($organizations[0], null, $today->modify('-3 days')->setTime(12, 0), 'Нет ответа, перезвонить завтра'); // Ромашка: только заметка
+        $make($organizations[1], $contacts[2], $today->modify('-3 days')->setTime(12, 0), 'Уточнить состав группы');
 
         // Вне области менеджера (ООО "Конкурент" — только в группе manager2)
         $manager->persist((new Call())
             ->setOrganization($organizations[3])
-            ->setContact($contacts[6])
+            ->setContact($contacts[7])
             ->setMadeAt($today->setTime(10, 0))
             ->setMadeBy($manager2)
-            ->setNotes('Факт обзвона вне области'));
+            ->setNotes('Нет ответа'));
         $manager->persist((new Call())
             ->setOrganization($organizations[3])
-            ->setContact($contacts[7])
+            ->setContact($contacts[8])
             ->setScheduledAt($today->setTime(12, 0))
             ->setMadeBy($manager2)
-            ->setNotes('Запланированный обзвон вне области'));
+            ->setNotes('Перезвонить утром'));
 
-        // Запланированные обзвоны в периодах дашборда
-        foreach ($organizations as $index => $organization) {
-            if ($index === 3) {
-                continue;
-            }
+        // Запланированные обзвоны (scheduled) по периодам дашборда:
+        // неделя (+1д) / месяц (+20д у Конкурента) / более месяца (+45д);
+        // -2д — просроченный план (без заметки).
+        $plan = function (Organization $org, ?Contact $contact, \DateTimeImmutable $at, ?string $notes) use ($manager, $manager1): void {
             $call = (new Call())
-                ->setOrganization($organization)
-                ->setContact($contacts[$index * 2])
-                ->setScheduledAt((new \DateTimeImmutable('+1 day'))->setTime(10, 0))
+                ->setOrganization($org)
+                ->setScheduledAt($at)
                 ->setMadeBy($manager1)
-                ->setNotes('Запланированный обзвон из fixtures');
+                ->setNotes($notes);
+            if (null !== $contact) {
+                $call->setContact($contact);
+            }
             $manager->persist($call);
-        }
-        $manager->persist((new Call())
-            ->setOrganization($organizations[0])
-            ->setContact($contacts[0])
-            ->setScheduledAt($today->setTime(15, 0))
-            ->setMadeBy($manager1)
-            ->setNotes('Запланированный обзвон на сегодня'));
-        $manager->persist((new Call())
-            ->setOrganization($organizations[0])
-            ->setContact($contacts[1])
-            ->setScheduledAt($today->modify('+3 days')->setTime(10, 0))
-            ->setMadeBy($manager1)
-            ->setNotes('Запланированный обзвон через 3 дня'));
-        $manager->persist((new Call())
-            ->setOrganization($organizations[0])
-            ->setContact($contacts[0])
-            ->setScheduledAt($today->modify('+20 days')->setTime(10, 0))
-            ->setMadeBy($manager1)
-            ->setNotes('Запланированный обзвон через 20 дней'));
+        };
+        $plan($organizations[0], $contacts[0], $today->modify('+1 day')->setTime(10, 0), null); // Ромашка: только контакт
+        $plan($organizations[1], $contacts[2], $today->modify('+1 day')->setTime(10, 0), 'Перезвонить после 14:00');
+        $plan($organizations[2], null, $today->modify('+45 days')->setTime(10, 0), 'План обучения будет в ноябре, уточнить состав группы'); // Сидоров: последний звонок без контакта
+        $plan($organizations[2], $contacts[6], $today->modify('-2 days')->setTime(16, 0), null);
+
+        // Звонки «только с датой»: без заметки и без контакта — у Конкурента.
+        // Даты видны в таблице; в списке «Все звонки» строки без текста
+        // (контакта тоже нет).
+        $bare = function (Organization $org, \DateTimeImmutable $at, bool $made) use ($manager, $manager1): void {
+            $call = (new Call())
+                ->setOrganization($org)
+                ->setMadeBy($manager1);
+            if ($made) {
+                $call->setMadeAt($at);
+            } else {
+                $call->setScheduledAt($at);
+            }
+            $manager->persist($call);
+        };
+        $bare($organizations[3], $today->modify('-9 days')->setTime(12, 0), true); // Конкурент: факт
+        $bare($organizations[3], $today->modify('+14 days')->setTime(11, 0), false); // Конкурент: план
 
         $manager->flush();
     }

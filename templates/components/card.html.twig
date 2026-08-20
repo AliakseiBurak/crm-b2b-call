@@ -1,6 +1,6 @@
 {#
-    Контактная карточка (spec 2.3): белая, без рамок/скруглений/теней,
-    без иконок; выделяются только имя и телефон.
+    Контактная карточка (spec: без кнопки «Позвонить» — звонок по клику
+    на номер tel:, почта по клику на email mailto:).
     Параметры: name, phone, position, email, note
 #}
 {% set card_phone = phone|default('')|replace({' ': '', '(': '', ')': '', '-': ''}) %}
@@ -11,10 +11,6 @@
     {% endif %}
     {% if position is defined and position %}<p class="card__meta">Должность: {{ position }}</p>{% endif %}
     {% if email is defined and email %}<p class="card__meta">Email: <a href="mailto:{{ email }}">{{ email }}</a></p>{% endif %}
-    {% if note is defined and note %}<p class="card__meta">{{ note }}</p>{% endif %}
-    {% if card_phone %}
-        <div class="card__footer">
-            <a class="btn btn--primary" href="tel:{{ card_phone }}">Позвонить</a>
-        </div>
-    {% endif %}
+    {% if note is defined and note %}<p class="card__meta">Заметка: {{ note }}</p>{% endif %}
+    {% block card_footer %}{% endblock %}
 </article>

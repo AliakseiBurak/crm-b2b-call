@@ -61,4 +61,42 @@ class CallRepository extends ServiceEntityRepository
             waitingMonth: (int) $row['waitingMonth'],
         );
     }
+
+    /**
+     * Все звонки выбранных организаций одним запросом: у каждого звонка —
+     * id, эффективная дата (COALESCE(made_at, scheduled_at)), заметка
+     * (nullable) и id контакта (nullable). Возвращает массив
+     * «id организации => список [id, date, notes, contactId]», строки
+     * отсортированы от новых к старым.
+     *
+     * @param int[] $organizationIds
+     *
+     * @return array<int, list<array{id: int, date: ?\DateTimeImmutable, notes: ?string, contactId: int}>>
+     */
+    public function findAllCallsByOrganizations(array $organizationIds): array
+    {
+        if ([] === $organizationIds) {
+            return [];
+        }
+
+        $rows = $this->createQueryBuilder('c')
+            ->select('c.id', 'IDENTITY(c.organization) AS organizationId', 'IDENTITY(c.contact) AS contactId', 'COALESCE(c.madeAt, c.scheduledAt) AS callDate', 'c.notes')
+            ->where('IDENTITY(c.organization) IN (:organizationIds)')
+            ->setParameter('organizationIds', $organizationIds)
+            ->orderBy('callDate', 'DESC')
+            ->getQuery()
+            ->getArrayResult();
+
+        $byOrganization = [];
+        foreach ($rows as $row) {
+            $byOrganization[(int) $row['organizationId']][] = [
+                'id' => (int) $row['id'],
+                'date' => $row['callDate'],
+                'notes' => $row['notes'],
+                'contactId' => (int) $row['contactId'],
+            ];
+        }
+
+        return $byOrganization;
+    }
 }

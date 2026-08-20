@@ -1,0 +1,252 @@
+@use '../tokens' as *;
+
+// Секция «Организации» панели (change dashboard-orgs-contacts).
+// В рамках дизайн-системы web-interface: зебра-таблица без рамок и hover,
+// карточки контактов без кнопки «Позвонить», кнопки-пилюли существующих
+// вариантов.
+
+.org-search {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+    margin-bottom: 2rem;
+
+    .btn {
+        min-height: 44px;
+        font-size: 1rem;
+    }
+}
+
+.org-search__field {
+    flex: 1 1 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4em;
+}
+
+.org-search__label {
+    font-family: $font-heading;
+    font-size: 1rem;
+    font-weight: 700;
+    color: $color-info-blue;
+}
+
+.org-search__input {
+    font-family: $font-body;
+    font-size: $font-size-body;
+    color: $color-text-body;
+    border: 0;
+    border-bottom: 2px solid $color-action-orange;
+    background: transparent;
+    padding: 0.4em 0;
+
+    &::placeholder {
+        color: $color-text-secondary;
+    }
+
+    // Гарантировать видимость нативного крестика очистки поля поиска
+    // (кнопка «Сбросить» отсутствует — очистка через крестик + авто-применение).
+    &::-webkit-search-cancel-button {
+        -webkit-appearance: auto;
+    }
+}
+
+// Дополнительная маленькая кнопка-действие (изменение организации/даты)
+.btn--sm {
+    min-height: auto;
+    padding: 0.35em 1em;
+    font-size: 0.85rem;
+    border-radius: $radius-pill;
+}
+
+.org-table__row td {
+    vertical-align: middle;
+}
+
+// Дата следующего звонка — выравнивание по правому краю ячейки
+.org-table__next-call {
+    text-align: right;
+}
+
+.org-table__name {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+// Вторая строка организации — нативный аккордеон раскрытия.
+// При наведении не подсвечивается (подсветка зебры только для данных).
+.org-details > td {
+    background: transparent;
+    padding: 0 0.9em 0.5em;
+}
+
+.org-table tbody tr.org-details:hover {
+    background: transparent;
+}
+
+.org-details__box {
+    border: 0;
+    background: $color-bg-card-section;
+    padding: 1rem 1.2rem;
+}
+
+.org-details__summary {
+    font-family: $font-heading;
+    font-size: 1rem;
+    font-weight: 700;
+    color: $color-info-blue;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+
+    &::-webkit-details-marker {
+        display: none;
+    }
+
+    &::before {
+        content: '▸';
+        display: inline-block;
+        margin-right: 0.5em;
+        color: $color-action-orange;
+        transition: transform 0.15s ease;
+    }
+}
+
+.org-details__box[open] .org-details__summary::before {
+    transform: rotate(90deg);
+}
+
+// Звонки организации: последний звонок + раскрываемый список «Все звонки»
+.org-calls {
+    margin: 1rem 0;
+
+    .org-calls__last {
+        font-size: $font-size-body;
+        color: $color-text-body;
+        background: #fff;
+        padding: 0.8em 1em;
+        margin: 0 0 0.8em;
+
+        .org-calls__contact {
+            color: $color-text-body;
+            font-style: italic;
+
+            em {
+                color: $color-info-blue;
+                font-style: normal;
+            }
+
+            a {
+                color: $color-action-orange;
+                text-decoration: none;
+                margin-inline-start: 0.3em;
+            }
+        }
+    }
+
+    .org-calls__date {
+        font-family: $font-heading;
+        font-weight: 700;
+        color: $color-info-blue;
+    }
+
+    .org-calls__all {
+        font-size: $font-size-body;
+        color: $color-text-body;
+    }
+
+    .org-calls__all-summary {
+        font-family: $font-heading;
+        font-weight: 700;
+        color: $color-info-blue;
+        cursor: pointer;
+        list-style: none;
+
+        &::-webkit-details-marker {
+            display: none;
+        }
+    }
+
+    .org-calls__list {
+        list-style: none;
+        margin: 0.6em 0 0;
+        padding: 0;
+        background: #fff;
+    }
+
+    .org-calls__item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1em;
+        padding: 0.6em 1em;
+        border-bottom: 1px solid $color-bg-card-section;
+
+        &:last-child {
+            border-bottom: 0;
+        }
+
+        .org-calls__body {
+            flex: 1 1 auto;
+        }
+
+        .org-calls__edit {
+            flex: 0 0 auto;
+            font-size: 0.95rem;
+        }
+    }
+}
+
+// Кнопка «Добавить звонок» — в раскрытой секции перед блоком звонков
+.org-calls__add {
+    font-size: 0.95rem;
+    margin-top: 0.8em;
+}
+
+// Контакты организации карточками (кнопки «Позвонить» нет — tel:/mailto:)
+.org-contacts {
+    margin-top: 1rem;
+}
+
+// Карточки не растягиваются на всю ширину ряда: фиксированный базис
+// ~280px, лишнее пространство остаётся пустым.
+.org-contacts__grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.org-contacts__card-wrap {
+    flex: 0 1 280px;
+    max-width: 100%;
+
+    .card {
+        width: 100%;
+        height: 100%;
+        transition: background-color 0.15s ease;
+
+        // При наведении — дымка зелёного семейства (отличается от зебры
+        // таблицы: в таблице hover-подсветки нет вовсе).
+        &:hover {
+            background: #e7f3dd;
+        }
+    }
+
+    .org-contacts__edit {
+        align-self: flex-start;
+    }
+}
+
+.org-contacts__add {
+    font-size: 0.95rem;
+}
+
+.org-table__empty {
+    font-size: $font-size-body;
+    color: $color-text-body;
+    padding: 2rem 0;
+}

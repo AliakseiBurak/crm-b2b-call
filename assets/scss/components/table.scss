@@ -1,7 +1,8 @@
 @use '../tokens' as *;
 
 // Зебра-таблица (spec): 100% ширины, Roboto Condensed 16px,
-// без рамок и hover-эффектов, отступ снизу 3rem.
+// без рамок, отступ снизу 3rem. Наведение подсвечивает строку
+// оттенком того же голубого семейства, не убирая зебру.
 .table-wrap {
     width: 100%;
     overflow-x: auto;
@@ -39,7 +40,7 @@
         }
 
         &:hover {
-            background: transparent; // spec: без hover-эффектов (строки не подсвечиваются)
+            background: $color-table-stripe-hover;
         }
     }
 }

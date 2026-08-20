@@ -15,4 +15,26 @@ class ContactRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Contact::class);
     }
+
+    /**
+     * Все контакты выбранных организаций одним запросом (без N+1).
+     *
+     * @param int[] $organizationIds
+     *
+     * @return Contact[]
+     */
+    public function findByOrganizations(array $organizationIds): array
+    {
+        if ([] === $organizationIds) {
+            return [];
+        }
+
+        return $this->createQueryBuilder('c')
+            ->join('c.organization', 'o')
+            ->where('o.id IN (:organizationIds)')
+            ->setParameter('organizationIds', $organizationIds)
+            ->orderBy('c.name', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }

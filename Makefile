@@ -1,4 +1,7 @@
-.PHONY: up build down migrate fixtures exec e2e logs
+.PHONY: help up build down migrate fixtures styles exec e2e logs
+
+help:
+	@echo "help up build down migrate fixtures styles exec e2e logs"
 
 up:
 	docker compose up -d
@@ -14,6 +17,9 @@ migrate:
 
 fixtures:
 	docker compose exec php php bin/console doctrine:fixtures:load --no-interaction
+
+styles:
+	npm run build
 
 exec:
 	docker compose exec --user app php bash

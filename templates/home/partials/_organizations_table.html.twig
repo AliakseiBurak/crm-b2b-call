@@ -1,0 +1,149 @@
+{#
+    Секция «Организации» панели (change dashboard-orgs-contacts):
+    поиск, зебра-таблица с сортировкой, аккордеон контактов и звонков,
+    кнопки-заглушки действий (маршруты не реализованы → 404).
+    Ожидает: organizationRows (DashboardOrganizationRow[]), contactsByOrganization,
+    callsByOrganization, search, sort, dir.
+#}
+{% macro sort_url(col, search, sort, dir) -%}
+    {{ path('app_dashboard', { q: search|default(''), sort: col, dir: sort == col and dir == 'asc' ? 'desc' : 'asc' }) }}
+{%- endmacro %}
+
+{% macro sort_header(col, label, search, sort, dir) -%}
+    {% if sort == col %}
+        <a class="table__sortable table__sortable--active" href="{{ _self.sort_url(col, search, sort, dir) }}">
+            {{ label }}{{ dir == 'desc' ? ' ↓' : ' ↑' }}
+        </a>
+    {% else %}
+        <a class="table__sortable" href="{{ _self.sort_url(col, search, sort, dir) }}">{{ label }}</a>
+    {% endif %}
+{%- endmacro %}
+
+<section class="section section--white" id="organizations">
+    <div class="container">
+        <h2>Организации</h2>
+
+        <form class="org-search" method="get" action="{{ path('app_dashboard') }}">
+            <label class="org-search__field">
+                <span class="org-search__label">Поиск по названию и контактам</span>
+                <input
+                    class="org-search__input"
+                    type="search"
+                    name="q"
+                    value="{{ search }}"
+                    placeholder="Название организации, имя, телефон или email контакта"
+                    autocomplete="off"
+                    data-dashboard-search
+                >
+            </label>
+            <button class="btn btn--primary" type="submit">Найти</button>
+        </form>
+
+        {% if organizationRows|length == 0 %}
+            <p class="org-table__empty">Ничего не найдено</p>
+        {% else %}
+            <div class="table-wrap">
+                <table class="table org-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">{{ _self.sort_header('name', 'Название', search, sort, dir) }}</th>
+                            <th scope="col">{{ _self.sort_header('industry', 'Сфера деятельности', search, sort, dir) }}</th>
+                            <th scope="col">{{ _self.sort_header('lastCall', 'Последний звонок', search, sort, dir) }}</th>
+                            <th scope="col">{{ _self.sort_header('nextCall', 'Следующий звонок', search, sort, dir) }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in organizationRows %}
+                            {% set organization = row.organization %}
+                            <tr class="org-table__row">
+                                <td class="org-table__name">
+                                    {{ organization.name }}
+                                    <a class="btn btn--secondary btn--sm org-table__edit" href="/organizations/{{ organization.id }}/edit">Изменить</a>
+                                </td>
+                                <td>{{ organization.industry }}</td>
+                                <td>{{ row.lastMadeAt ? row.lastMadeAt|date('d.m.Y') : '—' }}</td>
+                                <td class="org-table__next-call">
+                                    {{ row.nextScheduledAt ? row.nextScheduledAt|date('d.m.Y') : '—' }}
+                                </td>
+                            </tr>
+                            <tr class="org-details">
+                                <td colspan="4">
+                                    <details class="org-details__box">
+                                        <summary class="org-details__summary">Звонки и контакты организации</summary>
+
+                                        <a class="btn btn--secondary btn--sm org-calls__add" href="/organizations/{{ organization.id }}/calls/new">Добавить звонок</a>
+
+                                        {% set calls = callsByOrganization[organization.id]|default([]) %}
+                                        {% set lastCallContact = contactById[row.lastCallContactId]|default(null) %}
+                                        {% if row.lastCallNote or calls|length > 0 %}
+                                            <div class="org-calls">
+                                                {% if row.lastCallNote %}
+                                                    <p class="org-calls__last">
+                                                        <span class="org-calls__date">Последний звонок{% if row.lastCallDate %}, {{ row.lastCallDate|date('d.m.Y') }}{% endif %}:</span>
+                                                        {{ row.lastCallNote }}
+                                                        {% if lastCallContact %}
+                                                            <span class="org-calls__contact">
+                                                                контакт: <em>{{ lastCallContact.name }}</em>
+                                                                {% if lastCallContact.phone %}<a href="tel:{{ lastCallContact.phone|default('')|replace({' ': '', '(': '', ')': '', '-': ''}) }}">{{ lastCallContact.phone }}</a>{% endif %}
+                                                                {% if lastCallContact.email %}<a href="mailto:{{ lastCallContact.email }}">{{ lastCallContact.email }}</a>{% endif %}
+                                                            </span>
+                                                        {% endif %}
+                                                    </p>
+                                                {% endif %}
+                                                {% if calls|length > 0 %}
+                                                    <details class="org-calls__all">
+                                                        <summary class="org-calls__all-summary">Все звонки ({{ calls|length }})</summary>
+                                                        <ul class="org-calls__list">
+                                                            {% for call in calls %}
+                                                                {% set callContact = contactById[call.contactId]|default(null) %}
+                                                                <li class="org-calls__item">
+                                                                    <span class="org-calls__body">
+                                                                        <span class="org-calls__date">{{ call.date ? call.date|date('d.m.Y') : '—' }}</span>{% if call.notes %} — {{ call.notes }}{% endif %}
+                                                                        {% if callContact %}
+                                                                            <span class="org-calls__item-contact">
+                                                                                контакт: <em>{{ callContact.name }}</em>
+                                                                                {% if callContact.phone %}<a href="tel:{{ callContact.phone|default('')|replace({' ': '', '(': '', ')': '', '-': ''}) }}">{{ callContact.phone }}</a>{% endif %}
+                                                                                {% if callContact.email %}<a href="mailto:{{ callContact.email }}">{{ callContact.email }}</a>{% endif %}
+                                                                            </span>
+                                                                        {% endif %}
+                                                                    </span>
+                                                                    <a class="btn btn--secondary btn--sm org-calls__edit" href="/calls/{{ call.id }}/edit">Изменить</a>
+                                                                </li>
+                                                            {% endfor %}
+                                                        </ul>
+                                                    </details>
+                                                {% endif %}
+                                            </div>
+                                        {% endif %}
+
+                                        {% set contacts = contactsByOrganization[organization.id]|default([]) %}
+                                        {% if contacts|length == 0 %}
+                                            <a class="btn btn--secondary btn--sm org-contacts__add" href="/organizations/{{ organization.id }}/contacts/new">Добавить контакт</a>
+                                        {% else %}
+                                            <div class="org-contacts">
+                                                <div class="org-contacts__grid">
+                                                    {% for contact in contacts %}
+                                                        <div class="org-contacts__card-wrap">
+                                                            {% embed 'components/card.html.twig' with { name: contact.name, phone: contact.phone, email: contact.email, position: contact.position, note: contact.notes } %}
+                                                                {% block card_footer %}
+                                                                    <div class="card__footer">
+                                                                        <a class="btn btn--secondary btn--sm org-contacts__edit" href="/contacts/{{ contact.id }}/edit">Изменить</a>
+                                                                    </div>
+                                                                {% endblock %}
+                                                            {% endembed %}
+                                                        </div>
+                                                    {% endfor %}
+                                                </div>
+                                                <a class="btn btn--secondary btn--sm org-contacts__add" href="/organizations/{{ organization.id }}/contacts/new">Добавить контакт</a>
+                                            </div>
+                                        {% endif %}
+                                    </details>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% endif %}
+    </div>
+</section>
