@@ -12,7 +12,12 @@ Encore
     .enableSingleRuntimeChunk()
     .cleanupOutputBeforeBuild()
     .enableSourceMaps(!Encore.isProduction())
-    .enableSassLoader()
+    .enableSassLoader((options) => {
+        // dart-sass при не-ASCII в выводе (compressed) пишет BOM вместо @charset.
+        // BOM в середине бандла делает селектор невалидным и браузер выбрасывает
+        // правило (например, universal box-sizing) — запрещаем эмиссию BOM.
+        options.sassOptions = { ...options.sassOptions, charset: false };
+    })
     .enableVersioning(Encore.isProduction())
 ;
 
