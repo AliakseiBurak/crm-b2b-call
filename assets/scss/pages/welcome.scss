@@ -119,3 +119,77 @@
 .stats__caption--dark {
     color: $color-info-blue;
 }
+
+// Домашняя страница: статистика обзвона под hero-баннером
+.stats-home {
+    max-width: $container-max;
+    margin: 0 auto;
+    padding: 2rem 1rem 3rem;
+    width: 100%;
+}
+
+// Карточка общего числа организаций области доступа — на всю ширину
+.stats__total {
+    background: $color-bg-card-section;
+    border-radius: $radius-modal;
+    font-family: $font-heading;
+    font-size: $font-size-card-title;
+    font-weight: 700;
+    color: $color-info-blue;
+    padding: 1.1rem 1.5rem;
+}
+
+.stats-home__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 2rem;
+    margin-top: 2rem;
+}
+
+.stats-home__title {
+    font-family: $font-heading;
+    font-size: $font-size-card-title;
+    font-weight: 700;
+    color: $color-info-blue;
+    margin: 0 0 0.8em;
+}
+
+.stats-home__items {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+// Базовые .stats__figure/.stats__caption белые (зелёная лента); на белом
+// фоне домашней страницы цифры и подписи — тёмные, с акцентом по секциям.
+.stats-home .stats__figure {
+    color: $color-info-blue;
+}
+
+.stats-home .stats__caption {
+    color: $color-text-body;
+}
+
+.stats-home__section--waiting .stats__figure {
+    color: $color-action-orange;
+}
+
+.stats-home__section--overdue .stats__figure {
+    color: #d9554f; // красное семейство ($gradient-red) — просрочка
+}
+
+// Индикатор «По организациям: N» под показателем: мелкий серый текст,
+// ссылка без подчёркивания, при наведении — подчёркивание.
+.stats__orgs {
+    display: inline-block;
+    margin-top: 0.3em;
+    font-family: $font-body;
+    font-size: $font-size-body;
+    font-weight: 400;
+    color: $color-text-body;
+    text-decoration: none;
+
+    &:hover {
+        text-decoration: underline;
+    }
+}

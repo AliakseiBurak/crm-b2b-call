@@ -33,13 +33,14 @@ class AppFixtures extends Fixture
         ['ООО "Конкурент"', 'Производство'],
         ['ООО "Горизонт"', 'Строительство'], // без контактов и без звонков
         ['ООО "Закат"', 'Туризм'], // с контактом, без звонков
+        ['ООО "Парус"', 'Транспорт'], // просрочки и частичные обзвоны (dashboard-stats-by-organization)
     ];
 
     private const POSITIONS = ['Генеральный директор', 'Руководитель отдела закупок', 'Руководитель отдела кадров'];
 
-    /** Число контактов на каждую организацию (Ромашка, Вектор, Сидоров, Конкурент, Горизонт, Закат).
+    /** Число контактов на каждую организацию (Ромашка, Вектор, Сидоров, Конкурент, Горизонт, Закат, Парус).
      *  У Вектора 4 — чтобы карточки переносились на новую строку (влияет на вид). */
-    private const CONTACTS_PER_ORGANIZATION = [2, 4, 1, 2, 0, 1];
+    private const CONTACTS_PER_ORGANIZATION = [2, 4, 1, 2, 0, 1, 0];
 
     /** Имена контактов: ключ — глобальный индекс контакта (0..9).
      *  Имена не обязаны быть уникальными ни в организации, ни глобально. */
@@ -113,6 +114,7 @@ class AppFixtures extends Fixture
         $manager->persist(new OrgGroupMembership($organizations[3], $personal2));
         $manager->persist(new OrgGroupMembership($organizations[4], $personal1)); // Горизонт — без контактов
         $manager->persist(new OrgGroupMembership($organizations[5], $personal1)); // Закат — с контактом, без звонков
+        $manager->persist(new OrgGroupMembership($organizations[6], $personal1)); // Парус — просрочки/частичные обзвоны
 
         $contacts = [];
         $index = 0;
@@ -140,6 +142,7 @@ class AppFixtures extends Fixture
         // заметки). ООО "Горизонт" — без звонков вовсе. Вектор/Конкурент —
         // факты и планы с заметками; заметки — рабочие формулировки менеджера.
         $today = new \DateTimeImmutable('today');
+        $yesterday = $today->modify('-1 day');
         $make = function (Organization $org, ?Contact $contact, \DateTimeImmutable $madeAt, ?string $notes) use ($manager, $manager1): void {
             $call = (new Call())
                 ->setOrganization($org)
@@ -204,6 +207,31 @@ class AppFixtures extends Fixture
         };
         $bare($organizations[3], $today->modify('-9 days')->setTime(12, 0), true); // Конкурент: факт
         $bare($organizations[3], $today->modify('+14 days')->setTime(11, 0), false); // Конкурент: план
+
+        // Просроченные звонки (change dashboard-stats-by-organization): план
+        // в прошлом с made_at IS NULL — категория «Просроченные». Вектор:
+        // факт сегодня + план сегодня (исключается из «Ожидают сегодня») +
+        // нереализованный план вчера («Просроченные: вчера» + факт сегодня —
+        // независимые категории). Сидоров/Конкурент: просрочки глубиной
+        // 20 и 5 дней. Парус: 5 планов на вчера (3 совершены, 2 нет) —
+        // частичная реализация, плюс план на сегодня без факта сегодня.
+        $bare($organizations[1], $today->setTime(8, 0), true); // Вектор: факт сегодня
+        $bare($organizations[1], $today->setTime(9, 0), false); // Вектор: план сегодня (исключён из «Ожидают»)
+        $plan($organizations[1], null, $yesterday->setTime(11, 0), null); // Вектор: просрочка вчера
+        $bare($organizations[2], $today->modify('-20 days')->setTime(14, 0), false); // Сидоров: просрочка за 30 дней
+        $bare($organizations[3], $today->modify('-5 days')->setTime(12, 0), false); // Конкурент: просрочка вне области менеджера
+        for ($i = 0; $i < 5; ++$i) {
+            // Парус: 5 планов на вчера — 3 совершены (план + факт), 2 нет
+            $call = (new Call())
+                ->setOrganization($organizations[6])
+                ->setScheduledAt($yesterday->setTime(18, $i))
+                ->setMadeBy($manager1);
+            if ($i < 3) {
+                $call->setMadeAt($yesterday->setTime(19, $i));
+            }
+            $manager->persist($call);
+        }
+        $bare($organizations[6], $today->setTime(9, 0), false); // Парус: план сегодня без факта
 
         $manager->flush();
     }

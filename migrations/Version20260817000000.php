@@ -110,6 +110,8 @@ final class Version20260817000000 extends AbstractMigration
             PRIMARY KEY(id)
         ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
 
+        $this->addSql('CREATE INDEX IDX_call_org_made ON `call` (organization_id, made_at)');
+
         $this->addSql('ALTER TABLE `call` ADD CONSTRAINT FK_F1A6A5E032C8A3DE FOREIGN KEY (organization_id) REFERENCES organization (id) ON DELETE CASCADE');
         $this->addSql('ALTER TABLE `call` ADD CONSTRAINT FK_F1A6A5E04A4A3511 FOREIGN KEY (contact_id) REFERENCES contact (id) ON DELETE SET NULL');
         $this->addSql('ALTER TABLE `call` ADD CONSTRAINT FK_F1A6A5E0F4C6F2D0 FOREIGN KEY (made_by) REFERENCES `user` (id) ON DELETE SET NULL');
@@ -118,6 +120,7 @@ final class Version20260817000000 extends AbstractMigration
 
     public function down(Schema $schema): void
     {
+        $this->addSql('DROP INDEX IDX_call_org_made ON `call`');
         $this->addSql('ALTER TABLE `call` DROP FOREIGN KEY FK_F1A6A5E0F4C6F2D0_2');
         $this->addSql('ALTER TABLE `call` DROP FOREIGN KEY FK_F1A6A5E032C8A3DE');
         $this->addSql('ALTER TABLE `call` DROP FOREIGN KEY FK_F1A6A5E04A4A3511');

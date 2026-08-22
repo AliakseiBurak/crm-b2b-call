@@ -20,7 +20,6 @@ test('вход администратором', async ({ page }) => {
   await page.goto('/dashboard');
   await expect(page.getByRole('heading', { name: 'Панель' })).toBeVisible();
   await expect(page.locator('.dashboard-head__greeting')).toHaveText('Вы вошли как администратор admin@b2b-crm.loc');
-  await expect(page.locator('.stats__caption', { hasText: 'Обзвонено сегодня' })).toBeVisible();
 });
 
 test('вход менеджером', async ({ page }) => {
@@ -29,12 +28,13 @@ test('вход менеджером', async ({ page }) => {
   await page.fill('input[name="_password"]', 'manager123');
   await page.click(loginSubmit);
 
-  await expect(page.locator('.header__menu-link', { hasText: 'Панель' })).toBeVisible();
+  // После логина — редирект на домашнюю страницу со статистикой
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.locator('.stats__total')).toBeVisible();
 
   await page.goto('/dashboard');
   await expect(page.getByRole('heading', { name: 'Панель' })).toBeVisible();
   await expect(page.locator('.dashboard-head__greeting')).toHaveText('Вы вошли как менеджер manager@b2b-crm.loc');
-  await expect(page.locator('.stats__caption', { hasText: 'Обзвонено сегодня' })).toBeVisible();
 });
 
 test('неверный пароль: ошибка и отсутствие сессии', async ({ page }) => {

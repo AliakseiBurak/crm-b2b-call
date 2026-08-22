@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// 5.3 Дашборд: рендер статистики из реальных данных Call с учётом области
-// доступа (ADR-0007). Числовые значения не ассертируются: фикстуры
-// загружаются один раз, и количество звонков не должно валить тесты.
+// Панель организаций после change dashboard-stats-by-organization:
+// статистика перенесена на домашнюю страницу /, на /dashboard — только
+// таблица организаций (покрытие статистики — home-stats.spec.ts).
 
 const loginSubmit = 'form[action="/login"] button[type="submit"]';
 
@@ -19,27 +19,22 @@ test('гость редиректится с дашборда на вход', as
   await expect(page).toHaveURL(/\/login$/);
 });
 
-test('администратор видит блоки статистики по всем организациям', async ({ page }) => {
+test('администратор видит панель без секции статистики', async ({ page }) => {
   await login(page, 'admin@b2b-crm.loc', 'admin123');
   await page.goto('/dashboard');
 
   await expect(page.getByRole('heading', { name: 'Панель' })).toBeVisible();
   await expect(page.locator('.dashboard-head__greeting')).toHaveText('Вы вошли как администратор admin@b2b-crm.loc');
-
-  const captions = await page.locator('.stats__caption').allTextContents();
-  for (const label of ['Обзвонено сегодня', 'Обзвонено за 7 дней', 'Обзвонено за 30 дней', 'Сегодня', 'В течение недели', 'В течение месяца']) {
-    expect(captions.some((c) => c.includes(label) || c === label)).toBe(true);
-  }
-
-  const figures = await page.locator('.stats__figure').count();
-  expect(figures).toBe(6);
+  await expect(page.locator('.stats__total')).toHaveCount(0);
+  await expect(page.locator('.stats__figure')).toHaveCount(0);
 });
 
-test('менеджер видит те же блоки статистики на своей области доступа', async ({ page }) => {
+test('менеджер видит панель своей области доступа без секции статистики', async ({ page }) => {
   await login(page, 'manager@b2b-crm.loc', 'manager123');
   await page.goto('/dashboard');
 
   await expect(page.getByRole('heading', { name: 'Панель' })).toBeVisible();
   await expect(page.locator('.dashboard-head__greeting')).toHaveText('Вы вошли как менеджер manager@b2b-crm.loc');
-  await expect(page.locator('.stats__figure')).toHaveCount(6);
+  await expect(page.locator('.stats__total')).toHaveCount(0);
+  await expect(page.locator('.stats__figure')).toHaveCount(0);
 });

@@ -12,4 +12,59 @@
             </div>
         </div>
     </section>
+
+    {% if app.user %}
+        {% set stat_sections = [
+            {
+                title: 'Звонков',
+                modifier: 'called',
+                items: [
+                    { figure: stats.calledToday, caption: 'Звонков сегодня', bucket: 'called1' },
+                    { figure: stats.calledWeek, caption: 'Звонков за 7 дней', bucket: 'called7' },
+                    { figure: stats.calledMonth, caption: 'Звонков за 30 дней', bucket: 'called30' },
+                ],
+            },
+            {
+                title: 'Ожидают',
+                modifier: 'waiting',
+                items: [
+                    { figure: stats.waitingToday, caption: 'Ожидают сегодня', bucket: 'waiting1' },
+                    { figure: stats.waitingWeek, caption: 'Ожидают на неделе', bucket: 'waiting7' },
+                    { figure: stats.waitingMonth, caption: 'Ожидают в месяце', bucket: 'waiting30' },
+                ],
+            },
+            {
+                title: 'Просроченные',
+                modifier: 'overdue',
+                items: [
+                    { figure: statsByOrg['overdue1'], caption: 'Просроченные: вчера', bucket: 'overdue1' },
+                    { figure: statsByOrg['overdue7'], caption: 'Просроченные: за 7 дней', bucket: 'overdue7' },
+                    { figure: statsByOrg['overdue30'], caption: 'Просроченные: за 30 дней', bucket: 'overdue30' },
+                ],
+            },
+        ] %}
+
+        <section class="stats-home">
+            <div class="container">
+                <div class="stats__total">Доступно организаций: {{ totalOrgs }}</div>
+
+                <div class="stats-home__grid">
+                    {% for section in stat_sections %}
+                        <div class="stats-home__section stats-home__section--{{ section.modifier }}">
+                            <h2 class="stats-home__title">{{ section.title }}</h2>
+                            <div class="stats-home__items">
+                                {% for item in section.items %}
+                                    <div class="stats__item">
+                                        <div class="stats__figure">{{ item.figure }}</div>
+                                        <div class="stats__caption">{{ item.caption }}</div>
+                                        <a class="stats__orgs" href="{{ path('app_dashboard', { filter: item.bucket }) }}">По организациям: {{ statsByOrg[item.bucket] }}</a>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+    {% endif %}
 {% endblock %}

@@ -12,44 +12,5 @@
         </div>
     </section>
 
-    <section class="stats">
-        <div class="stats__inner">
-            <div class="stats__item">
-                <div class="stats__figure">{{ stats.calledToday }}</div>
-                <div class="stats__caption">Обзвонено сегодня</div>
-            </div>
-            <div class="stats__item">
-                <div class="stats__figure">{{ stats.calledWeek }}</div>
-                <div class="stats__caption">Обзвонено за 7 дней</div>
-            </div>
-            <div class="stats__item">
-                <div class="stats__figure">{{ stats.calledMonth }}</div>
-                <div class="stats__caption">Обзвонено за 30 дней</div>
-            </div>
-        </div>
-    </section>
-
-    <section class="section section--white">
-        <div class="container">
-            <h2>Ждут обзвона</h2>
-            <div class="stats stats--plain">
-                <div class="stats__inner">
-                    <div class="stats__item">
-                        <div class="stats__figure stats__figure--accent">{{ stats.waitingToday }}</div>
-                        <div class="stats__caption stats__caption--dark">Сегодня</div>
-                    </div>
-                    <div class="stats__item">
-                        <div class="stats__figure stats__figure--accent">{{ stats.waitingWeek }}</div>
-                        <div class="stats__caption stats__caption--dark">В течение недели</div>
-                    </div>
-                    <div class="stats__item">
-                        <div class="stats__figure stats__figure--accent">{{ stats.waitingMonth }}</div>
-                        <div class="stats__caption stats__caption--dark">В течение месяца</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
     {{ include('home/partials/_organizations_table.html.twig') }}
 {% endblock %}

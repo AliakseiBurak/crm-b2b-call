@@ -13,9 +13,28 @@ use Symfony\Component\Routing\Attribute\Route;
 class HomeController extends AbstractController
 {
     #[Route('/', name: 'app_home')]
-    public function index(): Response
-    {
-        return $this->render('home/index.html.twig');
+    public function index(
+        CallRepository $callRepository,
+        OrganizationRepository $organizationRepository,
+    ): Response {
+        $user = $this->getUser();
+        if (null === $user) {
+            return $this->render('home/index.html.twig');
+        }
+
+        $now = new \DateTimeImmutable();
+        $organizationIds = $organizationRepository->findAccessibleIds($user);
+        // Y — всего организаций области доступа; администратор видит все
+        // организации системы (ADR-0008).
+        $totalOrgs = null !== $organizationIds
+            ? \count($organizationIds)
+            : $organizationRepository->count([]);
+
+        return $this->render('home/index.html.twig', [
+            'stats' => $callRepository->dashboardStats($organizationIds, $now),
+            'statsByOrg' => $callRepository->organizationCounts($organizationIds, $now),
+            'totalOrgs' => $totalOrgs,
+        ]);
     }
 
     #[Route('/dashboard', name: 'app_dashboard')]
@@ -31,6 +50,7 @@ class HomeController extends AbstractController
         $search = (string) $request->query->get('q', '');
         $sort = (string) $request->query->get('sort', '');
         $dir = (string) $request->query->get('dir', 'asc');
+        $filter = (string) $request->query->get('filter', '');
 
         $organizationRows = $organizationRepository->findForDashboard($user, $search, $sort, $dir);
 
@@ -45,7 +65,6 @@ class HomeController extends AbstractController
         }
 
         return $this->render('home/dashboard.html.twig', [
-            'stats' => $callRepository->dashboardStats($organizationIds, new \DateTimeImmutable()),
             'organizationRows' => $organizationRows,
             'contactsByOrganization' => $contactsByOrganization,
             'contactById' => $contactById,
@@ -53,6 +72,7 @@ class HomeController extends AbstractController
             'search' => $search,
             'sort' => $sort,
             'dir' => $dir,
+            'filter' => $filter,
         ]);
     }
 }

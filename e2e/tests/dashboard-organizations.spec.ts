@@ -46,7 +46,7 @@ test('даты звоноков берутся из звонков; без зв�
 
   const romashka = page.locator('.org-table__row', { hasText: 'Ромашка' });
   await expect(romashka.locator('td').nth(2)).toHaveText(/\d{2}\.\d{2}\.\d{4}/);
-  await expect(romashka.locator('td').nth(3)).toHaveText(/\d{2}\.\d{2}\.\d{4}/);
+  await expect(romashka.locator('td').nth(3)).toHaveText('—');
   // Кнопки переноса даты у следующего звонка больше нет — редактирование
   // звонка выполняется из списка «Все звонки»
   await expect(romashka.locator('a', { hasText: 'Изменить дату' })).toHaveCount(0);
