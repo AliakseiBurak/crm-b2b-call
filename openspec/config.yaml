@@ -19,9 +19,7 @@ context: |
 
 rules:
   proposal:
-    - Must use grill-me skill
-    # - Must use adversaril-authoring skill
-    # - Must use glossary skill
+    - Must use grill-with-docs skill
   design:
     - Must use c4-diagrams skill
   specs:
