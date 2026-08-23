@@ -57,12 +57,6 @@ entity); only `OrganizationGroup` exists for grouping.
 
 - При создании коммитов указывай автором пользователя через `git config`,
   а себя добавляй только как `Co-authored-by:` в конце сообщения.
-- Пример формата коммита:
-  ```
-  git commit --author="User Name <user@example.com>" -m "message
-
-  Co-authored-by: opencode <opencode@opencode.ai>"
-  ```
 
 ## OpenSpec workflow
 
