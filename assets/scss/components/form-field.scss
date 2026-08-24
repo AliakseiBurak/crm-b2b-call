@@ -3,6 +3,7 @@
 // Поле с нижним подчёркиванием (spec: без рамок и фона, линия 2px,
 // утолщение до 4px при фокусе без смены цвета)
 .field {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 0.3em;

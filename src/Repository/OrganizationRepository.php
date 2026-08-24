@@ -71,6 +71,32 @@ class OrganizationRepository extends ServiceEntityRepository
     }
 
     /**
+     * Организации в области доступа пользователя для выпадающего списка
+     * формы создания контакта: администратору — все (ADR-0008), менеджеру —
+     * организации личной и назначенных групп (ADR-0007), по имени А–Я.
+     *
+     * @return Organization[]
+     */
+    public function findAccessibleOrganizations(?User $user): array
+    {
+        $accessibleIds = $this->findAccessibleIds($user);
+        // null — полный доступ (админ/гость), возвращаем ВСЕ организации;
+        // только явной пустой массив (менеджер без доступных организаций)
+        // означает «ничего».
+        if ([] === $accessibleIds) {
+            return [];
+        }
+
+        $qb = $this->createQueryBuilder('o')->orderBy('o.name', 'ASC');
+        if (null !== $accessibleIds) {
+            $qb->where('o.id IN (:organizationIds)')
+                ->setParameter('organizationIds', $accessibleIds);
+        }
+
+        return $qb->getQuery()->getResult();
+    }
+
+    /**
      * Организации панели с агрегатами звонков одним запросом:
      * - lastMadeAt      — дата последнего совершённого звонка (MAX made_at);
      * - nextScheduledAt — ближайший будущий план (MIN scheduled_at >= now);

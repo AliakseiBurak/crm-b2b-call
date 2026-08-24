@@ -1,0 +1,137 @@
+{#
+    Форма контакта: создание (contact is null) и редактирование
+    (change contacts-crud). Поля — компонент form_field и разметка .field
+    дизайн-системы (подчёркивание), ошибки валидации — под полем на русском.
+    Организация выбирается только при создании (выпадающий список доступных
+    организаций); в режиме редактирования она не меняется.
+    Ожидает: contact (?Contact), organizations (Organization[]),
+    selectedOrganizationId (?int), errors (array<string, string>).
+#}
+{% extends 'base.html.twig' %}
+
+{% set isEdit = contact and contact.id %}
+{% set typeChoices = {
+    'person': 'физическое лицо',
+    'legal_entity': 'юридическое лицо',
+} %}
+{% set currentType = isEdit ? contact.contactType.value : 'person' %}
+
+{% block title %}{{ isEdit ? 'Редактирование контакта' : 'Новый контакт' }}{% endblock %}
+
+{% block body %}
+    <section class="section section--white">
+        <div class="container">
+            <h1>{{ isEdit ? 'Редактирование контакта' : 'Новый контакт' }}</h1>
+
+            <form
+                class="contact-form"
+                method="post"
+                action="{{ isEdit
+                    ? path('app_contact_update', { id: contact.id })
+                    : path('app_contact_create') }}"
+            >
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('contact') }}">
+
+                {% if isEdit %}
+                    {# Организация фиксируется при создании и не меняется #}
+                    <div class="field">
+                        <label class="field__label" for="organization">Организация</label>
+                        <select class="field__input" id="organization" name="organization" disabled>
+                            <option value="{{ contact.organization.id }}">{{ contact.organization.name }}</option>
+                        </select>
+                    </div>
+                {% else %}
+                    <div class="field">
+                        <label class="field__label" for="organization">Организация</label>
+                        <select class="field__input" id="organization" name="organization" required data-org-combobox>
+                            <option value="">— выберите организацию —</option>
+                            {% for organization in organizations %}
+                                <option value="{{ organization.id }}"{% if organization.id == selectedOrganizationId %} selected{% endif %}>
+                                    {{ organization.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {% if errors.organization|default(null) %}<span class="field__error" role="alert">{{ errors.organization }}</span>{% endif %}
+                    </div>
+                {% endif %}
+
+                {{ include('components/form_field.html.twig', {
+                    name: 'name',
+                    label: 'Имя',
+                    value: contact.name|default(''),
+                    required: true,
+                    error: errors.name|default(null),
+                }) }}
+
+                {{ include('components/form_field.html.twig', {
+                    name: 'phone',
+                    label: 'Телефон',
+                    type: 'tel',
+                    value: contact.phone|default(''),
+                    error: errors.phone|default(null),
+                }) }}
+
+                {{ include('components/form_field.html.twig', {
+                    name: 'email',
+                    label: 'Email',
+                    type: 'email',
+                    value: contact.email|default(''),
+                    error: errors.email|default(null),
+                }) }}
+
+                {{ include('components/form_field.html.twig', {
+                    name: 'position',
+                    label: 'Должность',
+                    value: contact.position|default(''),
+                    error: errors.position|default(null),
+                }) }}
+
+                <div class="field">
+                    <label class="field__label" for="contact_type">Тип</label>
+                    <select class="field__input" id="contact_type" name="contact_type">
+                        {% for value, label in typeChoices %}
+                            <option value="{{ value }}"{% if value == currentType %} selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    {% if errors.contactType|default(null) %}<span class="field__error" role="alert">{{ errors.contactType }}</span>{% endif %}
+                </div>
+
+                {{ include('components/form_field.html.twig', {
+                    name: 'contact_person',
+                    label: 'Контактное лицо',
+                    value: contact.contactPerson|default(''),
+                    error: errors.contactPerson|default(null),
+                }) }}
+
+                <div class="field">
+                    <label class="field__label" for="notes">Заметка</label>
+                    <textarea class="field__input" id="notes" name="notes" rows="3">{{ contact.notes|default('') }}</textarea>
+                </div>
+
+                <div class="organization-form__actions">
+                    {{ include('components/button.html.twig', {
+                        variant: 'primary',
+                        text: isEdit ? 'Сохранить' : 'Создать',
+                    }) }}
+                    {{ include('components/button.html.twig', {
+                        variant: 'secondary',
+                        text: 'Отмена',
+                        href: path('app_dashboard'),
+                        type: 'button',
+                    }) }}
+                    {% if isEdit %}
+                        {{ include('components/button.html.twig', {
+                            variant: 'secondary',
+                            text: 'Удалить',
+                            href: path('app_contact_delete', { id: contact.id }),
+                            type: 'button',
+                            attr: { class: 'contact-form__delete' },
+                        }) }}
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </section>
+{% endblock %}

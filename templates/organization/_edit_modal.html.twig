@@ -4,7 +4,8 @@
     подставляются в форму JavaScript при открытии, сохранение — AJAX
     (JSON), обновление таблицы — без перезагрузки страницы.
 #}
-{% embed 'components/modal.html.twig' %}
+<div data-organization-edit-modal>
+    {% embed 'components/modal.html.twig' %}
     {% block modal_title %}
         <h2 class="modal__title">Изменение организации</h2>
     {% endblock %}
@@ -48,4 +49,5 @@
             </div>
         </form>
     {% endblock %}
-{% endembed %}
+    {% endembed %}
+</div>

@@ -1,7 +1,8 @@
 {#
     Секция «Организации» панели (change dashboard-orgs-contacts):
-    поиск, зебра-таблица с сортировкой, аккордеон контактов и звонков,
-    кнопки-заглушки действий (маршруты не реализованы → 404).
+    поиск, зебра-таблица с сортировкой, аккордеон контактов и звонков.
+    Кнопки «Изменить» карточек контактов и «Добавить контакт» ведут на
+    маршруты contacts-crud (модальное окно / форма создания).
     Ожидает: organizationRows (DashboardOrganizationRow[]), contactsByOrganization,
     callsByOrganization, search, sort, dir.
 #}
@@ -123,24 +124,14 @@
                                         {% endif %}
 
                                         {% set contacts = contactsByOrganization[organization.id]|default([]) %}
-                                        {% if contacts|length == 0 %}
-                                            <a class="btn btn--secondary btn--sm org-contacts__add" href="/organizations/{{ organization.id }}/contacts/new">Добавить контакт</a>
-                                        {% else %}
+                                        <a class="btn btn--secondary btn--sm org-contacts__add" href="{{ path('app_contact_new', { organization: organization.id }) }}" data-contact-create data-org-id="{{ organization.id }}">Добавить контакт</a>
+                                        {% if contacts|length > 0 %}
                                             <div class="org-contacts">
                                                 <div class="org-contacts__grid">
                                                     {% for contact in contacts %}
-                                                        <div class="org-contacts__card-wrap">
-                                                            {% embed 'components/card.html.twig' with { name: contact.name, phone: contact.phone, email: contact.email, position: contact.position, note: contact.notes } %}
-                                                                {% block card_footer %}
-                                                                    <div class="card__footer">
-                                                                        <a class="btn btn--secondary btn--sm org-contacts__edit" href="/contacts/{{ contact.id }}/edit">Изменить</a>
-                                                                    </div>
-                                                                {% endblock %}
-                                                            {% endembed %}
-                                                        </div>
+                                                        {% include 'contact/_card.html.twig' %}
                                                     {% endfor %}
                                                 </div>
-                                                <a class="btn btn--secondary btn--sm org-contacts__add" href="/organizations/{{ organization.id }}/contacts/new">Добавить контакт</a>
                                             </div>
                                         {% endif %}
                                     </details>

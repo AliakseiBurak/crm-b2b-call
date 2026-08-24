@@ -1,0 +1,31 @@
+{#
+    Подтверждение удаления контакта (change contacts-crud). Отмена возвращает
+    к форме контакта. Ожидает: contact (Contact).
+#}
+{% extends 'base.html.twig' %}
+
+{% block title %}Удаление контакта{% endblock %}
+
+{% block body %}
+    <section class="section section--white">
+        <div class="container">
+            <h1>Удаление контакта</h1>
+
+            <p class="organization-delete__warning">
+                Контакт «{{ contact.name }}» организации «{{ contact.organization.name }}» будет
+                удалён. Действие необратимо.
+            </p>
+
+            <form method="post" action="{{ path('app_contact_remove', { id: contact.id }) }}" class="organization-form__actions">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('contact') }}">
+                {{ include('components/button.html.twig', { variant: 'secondary', text: 'Удалить' }) }}
+                {{ include('components/button.html.twig', {
+                    variant: 'secondary',
+                    text: 'Отмена',
+                    href: path('app_contact_edit', { id: contact.id }),
+                    type: 'button',
+                }) }}
+            </form>
+        </div>
+    </section>
+{% endblock %}

@@ -16,4 +16,10 @@
 
     {# Модальное окно быстрого редактирования организации (organizations-crud) #}
     {{ include('organization/_edit_modal.html.twig') }}
+
+    {# Модальное окно быстрого редактирования контакта (contacts-crud) #}
+    {{ include('contact/_edit_modal.html.twig') }}
+
+    {# Модальное окно быстрого создания контакта (fix contacts-crud) #}
+    {{ include('contact/_create_modal.html.twig', { organizations: organizations }) }}
 {% endblock %}

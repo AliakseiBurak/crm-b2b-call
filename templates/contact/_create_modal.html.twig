@@ -1,0 +1,93 @@
+{#
+    Модальное окно быстрого создания контакта (fix contacts-crud):
+    открывается по клику на «Добавить контакт» в таблице организаций панели,
+    подставляет выбранную организацию, сохранение — AJAX (JSON); ошибки
+    валидации выводятся под полями, после успеха панель перезагружается.
+    Ожидает: organizations (Organization[]).
+#}
+<div data-contact-create-modal>
+    {% embed 'components/modal.html.twig' %}
+        {% block modal_title %}
+            <h2 class="modal__title">Новый контакт</h2>
+        {% endblock %}
+
+        {% block modal_body %}
+            <form class="contact-form contact-form--modal" method="post" action="{{ path('app_contact_create') }}" data-contact-create-form>
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('contact') }}">
+
+                <div class="field">
+                    <label class="field__label" for="modal-contact-organization">Организация</label>
+                    <select class="field__input" id="modal-contact-organization" name="organization" required data-contact-field="organization" data-org-combobox>
+                        <option value="">— выберите организацию —</option>
+                        {% for organization in organizations %}
+                            <option value="{{ organization.id }}">{{ organization.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <span class="field__error" role="alert" data-contact-error="organization" hidden></span>
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="modal-contact-name">Имя</label>
+                    <input class="field__input" type="text" id="modal-contact-name" name="name"
+                           required data-contact-field="name">
+                    <span class="field__error" role="alert" data-contact-error="name" hidden></span>
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="modal-contact-phone">Телефон</label>
+                    <input class="field__input" type="tel" id="modal-contact-phone" name="phone"
+                           data-contact-field="phone">
+                    <span class="field__error" role="alert" data-contact-error="phone" hidden></span>
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="modal-contact-email">Email</label>
+                    <input class="field__input" type="email" id="modal-contact-email" name="email"
+                           data-contact-field="email">
+                    <span class="field__error" role="alert" data-contact-error="email" hidden></span>
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="modal-contact-position">Должность</label>
+                    <input class="field__input" type="text" id="modal-contact-position" name="position"
+                           data-contact-field="position">
+                    <span class="field__error" role="alert" data-contact-error="position" hidden></span>
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="modal-contact-type">Тип</label>
+                    <select class="field__input" id="modal-contact-type" name="contact_type" data-contact-field="contact_type">
+                        <option value="person">физическое лицо</option>
+                        <option value="legal_entity">юридическое лицо</option>
+                    </select>
+                    <span class="field__error" role="alert" data-contact-error="contactType" hidden></span>
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="modal-contact-person">Контактное лицо</label>
+                    <input class="field__input" type="text" id="modal-contact-person" name="contact_person"
+                           data-contact-field="contact_person">
+                    <span class="field__error" role="alert" data-contact-error="contactPerson" hidden></span>
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="modal-contact-notes">Заметка</label>
+                    <textarea class="field__input" id="modal-contact-notes" name="notes" rows="3"
+                              data-contact-field="notes"></textarea>
+                    <span class="field__error" role="alert" data-contact-error="notes" hidden></span>
+                </div>
+
+                <div class="organization-form__actions">
+                    {{ include('components/button.html.twig', { variant: 'primary', text: 'Создать', sm: true }) }}
+                    {{ include('components/button.html.twig', {
+                        variant: 'secondary',
+                        text: 'Отмена',
+                        type: 'button',
+                        sm: true,
+                        attr: { 'data-modal-close': '' },
+                    }) }}
+                </div>
+            </form>
+        {% endblock %}
+    {% endembed %}
+</div>

@@ -67,6 +67,7 @@ class HomeController extends AbstractController
 
         return $this->render('home/dashboard.html.twig', [
             'organizationRows' => $organizationRows,
+            'organizations' => $organizationRepository->findAccessibleOrganizations($user),
             'contactsByOrganization' => $contactsByOrganization,
             'contactById' => $contactById,
             'callsByOrganization' => $callRepository->findAllCallsByOrganizations($ids),
