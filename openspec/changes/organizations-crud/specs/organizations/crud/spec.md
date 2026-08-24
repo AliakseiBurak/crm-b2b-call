@@ -12,7 +12,8 @@ The system SHALL let the administrator create an organization with name and indu
 - **AND** вводит название "ООО Ромашка" и отрасль "IT"
 - **AND** нажимает кнопку "Создать"
 - **THEN** организация "ООО Ромашка" сохраняется в системе
-- **AND** администратор перенаправляется на страницу организации
+- **AND** администратор перенаправляется на панель
+- **AND** созданная организация подсвечена в таблице организаций
 
 #### Scenario: Ошибка валидации при создании
 - **WHEN** администратор открывает форму создания организации
@@ -39,7 +40,8 @@ The system SHALL let the administrator update organization name and industry thr
 - **AND** изменяет отрасль на "Маркетинг"
 - **AND** нажимает кнопку "Сохранить"
 - **THEN** отрасль организации становится "Маркетинг"
-- **AND** администратор перенаправляется на страницу организации
+- **AND** администратор перенаправляется на панель
+- **AND** отредактированная организация подсвечена в таблице организаций
 
 #### Scenario: Ошибка валидации при редактировании
 - **WHEN** администратор открывает форму редактирования организации "ООО Ромашка"
@@ -79,12 +81,13 @@ The system SHALL let the administrator delete an organization, and SHALL cascade
 - **THEN** организация "ООО Ромашка" остаётся в системе
 
 ### Requirement: Модальное окно быстрого редактирования
-The system SHALL provide a modal window for quick organization editing from the dashboard table without page reload.
+The system SHALL provide a modal window for quick organization editing from the dashboard table without page reload. The modal SHALL contain a Delete button that navigates to the delete confirmation page.
 
 #### Scenario: Открытие модального окна
 - **WHEN** пользователь нажимает кнопку "Изменить" в строке организации на дашборде
 - **THEN** открывается модальное окно с формой редактирования организации
 - **AND** данные организации загружаются в форму
+- **AND** кнопка "Удалить" ссылается на страницу подтверждения удаления организации
 
 #### Scenario: Сохранение изменений в модальном окне
 - **WHEN** пользователь изменяет отрасль в модальном окне
@@ -111,3 +114,11 @@ The system SHALL render organization forms with the established design system: u
 - **WHEN** пользователь открывает форму организации
 - **THEN** кнопка "Создать/Сохранить" — оранжевая градиентная пилюля
 - **AND** кнопка "Отмена/Удалить" — серая пилюля
+
+### Requirement: Название организации — ссылка на страницу редактирования
+The system SHALL render the organization name in the dashboard table as a hyperlink to the organization's edit page.
+
+#### Scenario: Название организации является ссылкой
+- **WHEN** пользователь открывает панель
+- **THEN** название каждой организации в таблице отображается как ссылка
+- **AND** ссылка ведёт на страницу редактирования соответствующей организации
