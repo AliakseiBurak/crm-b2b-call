@@ -33,6 +33,9 @@ async function expectStillSamePage(page: Page) {
 async function openEditModal(page: Page) {
   await page.goto('/dashboard');
   const card = page.locator('[data-contact-card-wrap]').first();
+  // Карточка контакта внутри <details> (аккордеон) — нужно раскрыть
+  const details = card.locator('xpath=ancestor::details');
+  await details.locator('xpath=summary').first().click();
   await card.locator('[data-contact-edit]').click();
   await expect(page.locator(editModal)).toBeVisible();
 
@@ -43,6 +46,9 @@ async function openCreateModal(page: Page) {
   await page.goto('/dashboard');
   const button = page.locator('[data-contact-create]').first();
   const orgId = (await button.getAttribute('data-org-id')) ?? '';
+  // Кнопка «Добавить контакт» внутри <details> (аккордеон) — нужно раскрыть
+  const details = button.locator('xpath=ancestor::details');
+  await details.locator('xpath=summary').first().click();
   await button.click();
   await expect(page.locator(createModal)).toBeVisible();
 
