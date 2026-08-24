@@ -1,0 +1,83 @@
+@use '../tokens' as *;
+
+// Модальное окно (change organizations-crud): оверлей + окно без теней
+// дизайн-системы, радиус $radius-modal.
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+
+    &[hidden] {
+        display: none;
+    }
+}
+
+.modal__overlay {
+    position: absolute;
+    inset: 0;
+    background: rgb(90 90 90 / 60%);
+}
+
+.modal__window {
+    position: relative;
+    width: min(480px, 100%);
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 1.5rem 2rem 2rem;
+    background: #fff;
+    border-radius: $radius-modal;
+}
+
+.modal__close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.75rem;
+    border: 0;
+    background: none;
+    font-size: 1.6rem;
+    line-height: 1;
+    color: $color-text-secondary;
+    cursor: pointer;
+
+    &:hover {
+        color: $color-text-body;
+    }
+}
+
+.modal__title {
+    margin: 0 0 1rem;
+    font-family: $font-heading;
+    font-size: $font-size-h3;
+    color: $color-info-blue;
+}
+
+// Форма организации на своей странице и в модальном окне.
+.organization-form {
+    max-width: 480px;
+}
+
+.organization-form--modal {
+    max-width: none;
+}
+
+.organization-form__actions {
+    display: flex;
+    width: 100%;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+}
+
+.organization-form__actions-right {
+    display: flex;
+    gap: 0.75rem;
+    margin-left: auto;
+}
+
+.organization-delete__warning {
+    max-width: 560px;
+    color: $color-text-body;
+}

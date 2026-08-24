@@ -6,6 +6,7 @@ use App\Repository\OrganizationRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: OrganizationRepository::class)]
 #[ORM\Table(name: 'organization')]
@@ -17,9 +18,13 @@ class Organization
     public private(set) ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank(message: 'Название обязательно для заполнения')]
+    #[Assert\Length(max: 255, maxMessage: 'Название не должно превышать {{ limit }} символов')]
     public private(set) string $name;
 
     #[ORM\Column(length: 255)]
+    #[Assert\NotBlank(message: 'Отрасль обязательна для заполнения')]
+    #[Assert\Length(max: 255, maxMessage: 'Отрасль не должна превышать {{ limit }} символов')]
     public private(set) string $industry;
 
     #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]

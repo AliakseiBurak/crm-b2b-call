@@ -31,3 +31,4 @@ security:
 
     access_control:
         - { path: ^/dashboard, roles: ROLE_USER }
+        - { path: ^/organizations, roles: ROLE_USER }

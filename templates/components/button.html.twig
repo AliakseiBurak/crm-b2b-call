@@ -4,14 +4,16 @@
       - variant: 'primary' | 'secondary' | 'all'
       - text: надпись (для variant 'all' — без суффикса, '>>>' добавляется стилем)
       - href: если задан — ссылка, иначе <button>
-      - type, attr: атрибуты для <button>
+      - sm: если true — маленький размер (btn--sm)
+      - type, attr: атрибуты
 #}
 {% if variant == 'all' %}
     <a class="btn btn--all" href="{{ href|default('#') }}">{{ text }}</a>
 {% else %}
+    {% set sizeClass = sm is defined and sm ? ' btn--sm' : '' %}
     {% if href is defined and href %}
-        <a class="btn btn--{{ variant|default('primary') }}" href="{{ href }}">{{ text }}</a>
+        <a class="btn btn--{{ variant|default('primary') }}{{ sizeClass }}" href="{{ href }}" {% for k,v in attr|default({}) %}{{ k }}="{{ v }}" {% endfor %}>{{ text }}</a>
     {% else %}
-        <button class="btn btn--{{ variant|default('primary') }}" type="{{ type|default('submit') }}" {% for k,v in attr|default({}) %}{{ k }}="{{ v }}" {% endfor %}>{{ text }}</button>
+        <button class="btn btn--{{ variant|default('primary') }}{{ sizeClass }}" type="{{ type|default('submit') }}" {% for k,v in attr|default({}) %}{{ k }}="{{ v }}" {% endfor %}>{{ text }}</button>
     {% endif %}
 {% endif %}

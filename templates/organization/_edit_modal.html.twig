@@ -1,0 +1,51 @@
+{#
+    Модальное окно быстрого редактирования организации (change
+    organizations-crud). Одна копия на странице дашборда: данные строки
+    подставляются в форму JavaScript при открытии, сохранение — AJAX
+    (JSON), обновление таблицы — без перезагрузки страницы.
+#}
+{% embed 'components/modal.html.twig' %}
+    {% block modal_title %}
+        <h2 class="modal__title">Изменение организации</h2>
+    {% endblock %}
+
+    {% block modal_body %}
+        <form class="organization-form organization-form--modal" method="post" action="" data-organization-edit-form>
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('organization') }}">
+
+            <div class="field">
+                <label class="field__label" for="modal-organization-name">Название</label>
+                <input class="field__input" type="text" id="modal-organization-name" name="name"
+                       placeholder="ООО Ромашка" data-organization-field="name">
+                <span class="field__error" role="alert" data-organization-error="name" hidden></span>
+            </div>
+
+            <div class="field">
+                <label class="field__label" for="modal-organization-industry">Сфера деятельности</label>
+                <input class="field__input" type="text" id="modal-organization-industry" name="industry"
+                       placeholder="IT" data-organization-field="industry">
+                <span class="field__error" role="alert" data-organization-error="industry" hidden></span>
+            </div>
+
+            <div class="organization-form__actions">
+                {{ include('components/button.html.twig', { variant: 'primary', text: 'Сохранить', sm: true }) }}
+                <div class="organization-form__actions-right">
+                    {{ include('components/button.html.twig', {
+                        variant: 'secondary',
+                        text: 'Удалить',
+                        href: '#',
+                        sm: true,
+                        attr: { 'data-organization-delete-link': '' },
+                    }) }}
+                    {{ include('components/button.html.twig', {
+                        variant: 'secondary',
+                        text: 'Отмена',
+                        type: 'button',
+                        sm: true,
+                        attr: { 'data-modal-close': '' },
+                    }) }}
+                </div>
+            </div>
+        </form>
+    {% endblock %}
+{% endembed %}

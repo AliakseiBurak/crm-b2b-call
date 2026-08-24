@@ -55,12 +55,18 @@
                     <tbody>
                         {% for row in organizationRows %}
                             {% set organization = row.organization %}
-                            <tr class="org-table__row">
+                            <tr class="org-table__row{% if highlight == organization.id %} org-table__row--highlight{% endif %}"
+                                id="org-{{ organization.id }}"
+                                data-organization-row
+                                data-org-id="{{ organization.id }}"
+                                data-org-name="{{ organization.name }}"
+                                data-org-industry="{{ organization.industry }}">
                                 <td class="org-table__name">
-                                    {{ organization.name }}
-                                    <a class="btn btn--secondary btn--sm org-table__edit" href="/organizations/{{ organization.id }}/edit">Изменить</a>
+                                    <a class="org-table__name-link" href="{{ path('app_organization_edit', { id: organization.id }) }}"
+                                       data-organization-cell="name">{{ organization.name }}</a>
+                                    <button class="btn btn--secondary btn--sm org-table__edit" type="button" data-organization-edit>Изменить</button>
                                 </td>
-                                <td>{{ organization.industry }}</td>
+                                <td><span data-organization-cell="industry">{{ organization.industry }}</span></td>
                                 <td>{{ row.lastMadeAt ? row.lastMadeAt|date('d.m.Y') : '—' }}</td>
                                 <td class="org-table__next-call">
                                     {{ row.nextScheduledAt ? row.nextScheduledAt|date('d.m.Y') : '—' }}

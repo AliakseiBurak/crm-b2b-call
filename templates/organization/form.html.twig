@@ -1,0 +1,65 @@
+{#
+    Форма организации: создание (organization is null) и редактирование
+    (change organizations-crud). Поля — компонент form_field (подчёркивание
+    дизайн-системы), ошибки валидации — под полем на русском.
+    Ожидает: organization (?Organization), errors (array<string, string>).
+#}
+{% extends 'base.html.twig' %}
+
+{% set isEdit = organization and organization.id %}
+
+{% block title %}{{ isEdit ? 'Редактирование организации' : 'Новая организация' }}{% endblock %}
+
+{% block body %}
+    <section class="section section--white">
+        <div class="container">
+            <h1>{{ isEdit ? 'Редактирование организации' : 'Новая организация' }}</h1>
+
+            <form
+                class="organization-form"
+                method="post"
+                action="{{ isEdit
+                    ? path('app_organization_update', { id: organization.id })
+                    : path('app_organization_create') }}"
+            >
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('organization') }}">
+
+                {{ include('components/form_field.html.twig', {
+                    name: 'name',
+                    label: 'Название',
+                    value: organization.name|default(''),
+                    error: errors.name|default(null),
+                }) }}
+
+                {{ include('components/form_field.html.twig', {
+                    name: 'industry',
+                    label: 'Сфера деятельности',
+                    value: organization.industry|default(''),
+                    error: errors.industry|default(null),
+                }) }}
+
+                <div class="organization-form__actions">
+                    {{ include('components/button.html.twig', {
+                        variant: 'primary',
+                        text: isEdit ? 'Сохранить' : 'Создать',
+                    }) }}
+                    {{ include('components/button.html.twig', {
+                        variant: 'secondary',
+                        text: 'Отмена',
+                        href: path('app_dashboard'),
+                        type: 'button',
+                    }) }}
+                    {% if isEdit %}
+                        {{ include('components/button.html.twig', {
+                            variant: 'secondary',
+                            text: 'Удалить',
+                            href: path('app_organization_delete', { id: organization.id }),
+                            type: 'button',
+                            attr: { class: 'organization-form__delete' },
+                        }) }}
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </section>
+{% endblock %}

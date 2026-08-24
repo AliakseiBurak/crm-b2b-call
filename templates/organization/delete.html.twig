@@ -1,0 +1,32 @@
+{#
+    Подтверждение удаления организации (change organizations-crud).
+    Предупреждает о каскадном удалении контактов и звонков; отмена возвращает
+    к форме организации. Ожидает: organization (Organization).
+#}
+{% extends 'base.html.twig' %}
+
+{% block title %}Удаление организации{% endblock %}
+
+{% block body %}
+    <section class="section section--white">
+        <div class="container">
+            <h1>Удаление организации</h1>
+
+            <p class="organization-delete__warning">
+                Организация «{{ organization.name }}» будет удалена вместе со всеми
+                контактами и звонками. Действие необратимо.
+            </p>
+
+            <form method="post" action="{{ path('app_organization_remove', { id: organization.id }) }}" class="organization-form__actions">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('organization') }}">
+                {{ include('components/button.html.twig', { variant: 'secondary', text: 'Удалить' }) }}
+                {{ include('components/button.html.twig', {
+                    variant: 'secondary',
+                    text: 'Отмена',
+                    href: path('app_organization_edit', { id: organization.id }),
+                    type: 'button',
+                }) }}
+            </form>
+        </div>
+    </section>
+{% endblock %}

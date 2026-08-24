@@ -51,6 +51,7 @@ class HomeController extends AbstractController
         $sort = (string) $request->query->get('sort', '');
         $dir = (string) $request->query->get('dir', 'asc');
         $filter = (string) $request->query->get('filter', '');
+        $highlight = (int) $request->query->get('highlight', 0);
 
         $organizationRows = $organizationRepository->findForDashboard($user, $search, $sort, $dir);
 
@@ -73,6 +74,7 @@ class HomeController extends AbstractController
             'sort' => $sort,
             'dir' => $dir,
             'filter' => $filter,
+            'highlight' => $highlight,
         ]);
     }
 }

@@ -1,0 +1,13 @@
+{#
+    Модальное окно (change organizations-crud): затемняющий оверлей, окно
+    с крестиком. Используется через {% embed %}; блоки modal_title,
+    modal_body. Открытие/закрытие — vanilla JS по [data-modal-*].
+#}
+<div class="modal" data-modal hidden>
+    <div class="modal__overlay" data-modal-close></div>
+    <div class="modal__window" role="dialog" aria-modal="true">
+        <button class="modal__close" type="button" data-modal-close aria-label="Закрыть">&times;</button>
+        {% block modal_title %}{% endblock %}
+        {% block modal_body %}{% endblock %}
+    </div>
+</div>

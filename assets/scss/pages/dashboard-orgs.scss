@@ -76,6 +76,23 @@
     gap: 1rem;
 }
 
+.org-table__name-link {
+    color: $color-text-body;
+    text-decoration: none;
+    font-weight: inherit;
+
+    &:hover {
+        text-decoration: underline;
+        color: $color-action-orange;
+    }
+}
+
+// Подсветка строки после перенаправления (create/update).
+.org-table__row--highlight {
+    background: #fff3e0;
+    transition: background-color 0.6s ease;
+}
+
 // Вторая строка организации — нативный аккордеон раскрытия.
 // При наведении не подсвечивается (подсветка зебры только для данных).
 .org-details > td {
