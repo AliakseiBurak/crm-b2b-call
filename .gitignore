@@ -16,6 +16,7 @@
 /e2e/playwright-report/
 /e2e/test-results/
 /e2e/.env
+.last-run.json
 
 # IDE
 .idea/
@@ -39,3 +40,8 @@
 npm-debug.log
 yarn-error.log
 ###< symfony/webpack-encore-bundle ###
+
+###> phpunit/phpunit ###
+/phpunit.xml
+/.phpunit.cache/
+###< phpunit/phpunit ###
