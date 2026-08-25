@@ -10,27 +10,40 @@ The system SHALL let the manager create a call with organization, contact, and s
 #### Scenario: Успешное создание звонка
 - **WHEN** менеджер открывает форму создания звонка для организации "ООО Ромашка"
 - **AND** выбирает контакт "Иван Петров"
-- **AND** указывает дату звонка "завтра"
+- **AND** указывает запланированную дату "завтра"
 - **AND** нажимает кнопку "Создать"
 - **THEN** звонок сохраняется в системе с датой "завтра"
 - **AND** менеджер перенаправляется на страницу звонка
 
 #### Scenario: Ошибка валидации при создании
 - **WHEN** менеджер открывает форму создания звонка
-- **AND** оставляет поле "Дата звонка" пустым
+- **AND** оставляет поле "Запланированная дата звонка" пустым
 - **AND** нажимает кнопку "Создать"
 - **THEN** форма отображает ошибку "Дата звонка обязательна для заполнения"
 - **AND** звонок не сохраняется
 
 ### Requirement: Менеджер фиксирует факт звонка
-The system SHALL let the manager record the fact of the call (who made it and when) after the call takes place.
+The system SHALL let the manager record the fact of the call by filling in the actual call date; the author defaults to the current user. A call is considered made when its actual date is set.
 
-#### Scenario: Фиксация факта звонка
+#### Scenario: Фиксация факта через фактическую дату
 - **WHEN** менеджер открывает форму редактирования звонка
-- **AND** отмечает "звонок проведён"
-- **AND** указывает дату и время звонка
+- **AND** заполняет поле «Фактическая дата звонка» значением в прошлом
 - **AND** нажимает кнопку "Сохранить"
-- **THEN** в истории звонков отображается, что звонок осуществил менеджер в указанные дату и время
+- **THEN** звонок помечается проведённым с указанной датой и временем
+- **AND** автором звонка фиксируется текущий пользователь
+
+#### Scenario: Очистка фактической даты снимает факт
+- **WHEN** менеджер открывает форму редактирования проведённого звонка
+- **AND** очищает поле «Фактическая дата звонка»
+- **AND** нажимает кнопку "Сохранить"
+- **THEN** звонок считается только запланированным
+- **AND** автор звонка не сохраняется (madeBy = null)
+
+#### Scenario: Ошибка при фактической дате в будущем
+- **WHEN** менеджер указывает в поле «Фактическая дата звонка» будущие дату и время
+- **AND** нажимает кнопку "Сохранить"
+- **THEN** форма отображает ошибку «Фактическая дата звонка не может быть в будущем»
+- **AND** звонок не сохраняется
 
 ### Requirement: Результат звонка — комбинация полей
 The system SHALL let the manager record a call result as a combination of independent marks: at most one campaign, a deal, and a next call.
@@ -78,7 +91,7 @@ The system SHALL let the manager update call fields through a form.
 
 #### Scenario: Ошибка валидации при редактировании
 - **WHEN** менеджер открывает форму редактирования звонка
-- **AND** очищает поле "Дата звонка"
+- **AND** очищает поле "Запланированная дата звонка"
 - **AND** нажимает кнопку "Сохранить"
 - **THEN** форма отображает ошибку "Дата звонка обязательна для заполнения"
 - **AND** звонок не обновляется
@@ -124,9 +137,97 @@ The system SHALL render call forms with the established design system: underline
 - **WHEN** пользователь открывает форму звонка
 - **THEN** каждое текстовое поле отображается без рамки и фона
 - **AND** под полем — линия толщиной 2px цвета `#d66a2b`
-- **AND** текст и плейсхолдер поля окрашены в `#d66a2b`
+- **AND** текст поля окрашен в `#d66a2b`
 
 #### Scenario: Кнопки формы
 - **WHEN** пользователь открывает форму звонка
 - **THEN** кнопка "Создать/Сохранить" — оранжевая градиентная пилюля
 - **AND** кнопка "Отмена/Удалить" — серая пилюля
+
+### Requirement: Формат даты звонка совпадает с таблицей панели
+The system SHALL display and accept the scheduled call date as date-only `d.m.Y` and the actual call date as `d.m.Y H:i`, so both match the dashboard table presentation (`d.m.Y`). Date fields have no placeholder and their hints do not reference the table.
+
+#### Scenario: Формат полей даты в форме
+- **WHEN** менеджер открывает форму создания или редактирования звонка
+- **THEN** поле «Запланированная дата звонка» содержит и принимает только дату в формате `d.m.Y`
+- **AND** поле «Фактическая дата звонка» содержит и принимает дату и время в формате `d.m.Y H:i`
+- **AND** поля даты не содержат плейсхолдеров
+
+#### Scenario: Поле следующего звонка использует формат таблицы
+- **WHEN** менеджер открывает форму редактирования звонка
+- **THEN** поле «Следующий звонок (дата)» использует формат `d.m.Y`
+- **AND** формат совпадает с форматом даты в таблице панели
+
+### Requirement: Администратор указывает автора звонка
+The system SHALL let the administrator choose the call author from the list of all administrators and managers; the field MUST be hidden for non-administrators and MUST default to the current user.
+
+#### Scenario: Выбор автора в форме
+- **WHEN** администратор открывает форму создания или редактирования звонка
+- **AND** выбирает в списке «Кто совершил звонок» менеджера или администратора
+- **AND** сохраняет звонок с заполненной фактической датой
+- **THEN** автором звонка сохраняется выбранный менеджер или администратор
+
+#### Scenario: Поле недоступно менеджеру
+- **WHEN** менеджер открывает форму звонка
+- **THEN** поле «Кто совершил звонок» не отображается
+- **AND** при сохранении автором фиксируется сам менеджер
+
+#### Scenario: Предзаполнение автора в модальном окне
+- **WHEN** администратор открывает модальное окно быстрого редактирования проведённого звонка
+- **THEN** в списке «Кто совершил звонок» выбран автор этого звонка
+
+### Requirement: Запланированная дата не может быть в прошлом
+The system SHALL reject a scheduled call date earlier than today; the current day is allowed.
+
+#### Scenario: Дата в прошлом отклоняется
+- **WHEN** менеджер указывает запланированную дату ранее сегодняшнего дня
+- **AND** нажимает кнопку "Сохранить"
+- **THEN** форма отображает ошибку «Запланированная дата звонка не может быть в прошлом»
+- **AND** звонок не сохраняется
+
+#### Scenario: Сегодняшняя дата допустима
+- **WHEN** менеджер указывает запланированную дату, равную сегодняшнему дню
+- **AND** нажимает кнопку "Сохранить"
+- **THEN** звонок сохраняется с этой датой
+
+### Requirement: Выбор даты через календарь
+The system SHALL attach a calendar picker to every call date field in the form and the quick-edit modal, while keeping manual text input available in the same format. For datetime fields, hour and minute selectors MUST be shown. When an empty actual-date field is opened, the current date and time are preselected, but the field value stays empty until a day is chosen. Opening any picker or dropdown MUST close any other open overlay.
+
+#### Scenario: Календарь на полях дат
+- **WHEN** пользователь открывает форму звонка или модальное окно
+- **THEN** каждое поле даты открывает календарь по клику
+- **AND** значение можно ввести вручную в формате поля
+
+#### Scenario: Время только у фактической даты
+- **WHEN** пользователь открывает календарь поля «Фактическая дата звонка»
+- **THEN** под сеткой месяца отображаются селекты часов и минут
+
+#### Scenario: Предвыбор текущих даты и времени
+- **WHEN** поле «Фактическая дата звонка» пустое и пользователь открывает календарь
+- **THEN** в календаре выделены текущая дата и текущее время
+- **AND** значение поля остаётся пустым до подтверждения выбора
+
+#### Scenario: Открытие закрывает другие оверлеи
+- **WHEN** открыт календарь одного поля или выпадающий список
+- **AND** пользователь открывает другой календарь или список
+- **THEN** первый оверлей закрывается
+
+### Requirement: Запланированная дата по умолчанию
+The system SHALL prefill the scheduled date of a new call with the date three days ahead, moving to the next Monday when it falls on a weekend; the prefilled value contains only the date without time.
+
+#### Scenario: Значение по умолчанию
+- **WHEN** менеджер открывает форму создания звонка
+- **THEN** поле «Запланированная дата звонка» заполнено датой через три дня
+- **AND** поле содержит только дату без времени
+
+#### Scenario: Перенос с выходного
+- **WHEN** дата, полученная прибавлением трёх дней к текущей, выпадает на субботу или воскресенье
+- **THEN** полем «Запланированная дата звонка» по умолчанию становится ближайший понедельник
+
+### Requirement: Маркеры статуса в списке «Все звонки»
+The system SHALL mark each call row in the organization's call list with a status icon based on the presence of the actual date: a clock ⏰ with the tooltip «Запланирован» when no actual date is set, and a handset ☎️ with the tooltip «Проведён» when an actual date is set.
+
+#### Scenario: Иконки статуса строки
+- **WHEN** пользователь раскрывает список «Все звонки» организации
+- **THEN** строка звонка без фактической даты помечена часами ⏰ с подсказкой «Запланирован»
+- **AND** строка звонка с фактической датой помечена трубкой ☎️ с подсказкой «Проведён»
