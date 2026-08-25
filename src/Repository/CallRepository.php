@@ -199,13 +199,16 @@ class CallRepository extends ServiceEntityRepository
     /**
      * Все звонки выбранных организаций одним запросом: у каждого звонка —
      * id, эффективная дата (COALESCE(made_at, scheduled_at)), заметка
-     * (nullable) и id контакта (nullable). Возвращает массив
-     * «id организации => список [id, date, notes, contactId]», строки
+     * (nullable), id контакта (nullable) и поля результата для модального
+     * окна редактирования (scheduledAt/madeAt/isDeal). Возвращает массив
+     * «id организации => список [id, date, notes, contactId, ...]», строки
      * отсортированы от новых к старым.
      *
      * @param int[] $organizationIds
      *
-     * @return array<int, list<array{id: int, date: ?\DateTimeImmutable, notes: ?string, contactId: int}>>
+     * @return array<int, list<array{id: int, organizationId: int, contactId: int,
+     *     date: ?\DateTimeImmutable, scheduledAt: ?\DateTimeImmutable,
+     *     madeAt: ?\DateTimeImmutable, isDeal: bool, notes: ?string}>>
      */
     public function findAllCallsByOrganizations(array $organizationIds): array
     {
@@ -214,7 +217,7 @@ class CallRepository extends ServiceEntityRepository
         }
 
         $rows = $this->createQueryBuilder('c')
-            ->select('c.id', 'IDENTITY(c.organization) AS organizationId', 'IDENTITY(c.contact) AS contactId', 'COALESCE(c.madeAt, c.scheduledAt) AS callDate', 'c.notes')
+            ->select('c.id', 'IDENTITY(c.organization) AS organizationId', 'IDENTITY(c.contact) AS contactId', 'COALESCE(c.madeAt, c.scheduledAt) AS callDate', 'c.notes', 'c.scheduledAt', 'c.madeAt', 'c.isDeal', 'IDENTITY(c.madeBy) AS madeById')
             ->where('IDENTITY(c.organization) IN (:organizationIds)')
             ->setParameter('organizationIds', $organizationIds)
             ->orderBy('callDate', 'DESC')
@@ -225,9 +228,14 @@ class CallRepository extends ServiceEntityRepository
         foreach ($rows as $row) {
             $byOrganization[(int) $row['organizationId']][] = [
                 'id' => (int) $row['id'],
+                'organizationId' => (int) $row['organizationId'],
                 'date' => $row['callDate'],
                 'notes' => $row['notes'],
                 'contactId' => (int) $row['contactId'],
+                'scheduledAt' => $row['scheduledAt'],
+                'madeAt' => $row['madeAt'],
+                'madeById' => $row['madeById'] ? (int) $row['madeById'] : null,
+                'isDeal' => (bool) $row['isDeal'],
             ];
         }
 

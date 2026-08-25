@@ -1,0 +1,90 @@
+{#
+    Модальное окно быстрого редактирования звонка (change calls-crud).
+    Одна копия на странице дашборда: данные строки подставляются в форму
+    JavaScript при открытии, контакты организации подгружаются динамически,
+    сохранение — AJAX (JSON), обновление строки — без перезагрузки страницы.
+    Форма содержит все изменяемые поля звонка, чтобы сохранение не затирало
+    значения, скрытые за пределами окна. Организация звонка не меняется.
+#}
+<div data-call-edit-modal>
+    {% embed 'components/modal.html.twig' %}
+        {% block modal_title %}
+            <h2 class="modal__title">Изменение звонка</h2>
+        {% endblock %}
+
+        {% block modal_body %}
+            <form class="contact-form contact-form--modal" method="post" action="" data-call-edit-form>
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('call') }}">
+
+                <div class="field">
+                    <label class="field__label" for="modal-call-scheduled-at">Запланированная дата звонка</label>
+                    {# Без required: серверная валидация показывает ошибку через AJAX (spec calls/crud) #}
+                    <input class="field__input" type="text" id="modal-call-scheduled-at" name="scheduled_at"
+                           data-date-picker="date" data-call-field="scheduled_at">
+                    <span class="field__error" role="alert" data-call-error="scheduledAt" hidden></span>
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="modal-call-contact">Контакт</label>
+                    <select class="field__input" id="modal-call-contact" name="contact" data-call-field="contact">
+                        <option value="">— контакт не выбран —</option>
+                    </select>
+                    <span class="field__error" role="alert" data-call-error="contact" hidden></span>
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="modal-call-made-at">Фактическая дата звонка</label>
+                    <input class="field__input" type="text" id="modal-call-made-at" name="made_at"
+                           data-date-picker="datetime" data-call-field="made_at">
+                    <span class="field__error" role="alert" data-call-error="madeAt" hidden></span>
+                </div>
+
+                {% if isAdmin %}
+                    <div class="field">
+                        <label class="field__label" for="modal-call-made-by">Кто совершил звонок</label>
+                        <select class="field__input" id="modal-call-made-by" name="made_by" data-call-field="made_by">
+                            <option value="">— я (текущий пользователь) —</option>
+                            {% for u in users %}
+                                <option value="{{ u.id }}">{{ u.email }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endif %}
+
+                <div class="field">
+                    <label class="field__consent" for="modal-call-is-deal">
+                        <input type="checkbox" id="modal-call-is-deal" name="is_deal" value="1"
+                               data-call-field="is_deal">
+                        Сделка совершена
+                    </label>
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="modal-call-notes">Заметка</label>
+                    <textarea class="field__input" id="modal-call-notes" name="notes" rows="3"
+                              data-call-field="notes"></textarea>
+                </div>
+
+                <div class="organization-form__actions">
+                    {{ include('components/button.html.twig', { variant: 'primary', text: 'Сохранить', sm: true }) }}
+                    <div class="organization-form__actions-right">
+                        {{ include('components/button.html.twig', {
+                            variant: 'secondary',
+                            text: 'Удалить',
+                            href: '#',
+                            sm: true,
+                            attr: { 'data-call-delete-link': '' },
+                        }) }}
+                        {{ include('components/button.html.twig', {
+                            variant: 'secondary',
+                            text: 'Отмена',
+                            type: 'button',
+                            sm: true,
+                            attr: { 'data-modal-close': '' },
+                        }) }}
+                    </div>
+                </div>
+            </form>
+        {% endblock %}
+    {% endembed %}
+</div>

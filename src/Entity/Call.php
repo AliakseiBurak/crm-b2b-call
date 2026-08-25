@@ -4,6 +4,7 @@ namespace App\Entity;
 
 use App\Repository\CallRepository;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: CallRepository::class)]
 #[ORM\Table(name: '`call`')]
@@ -16,6 +17,7 @@ class Call
 
     #[ORM\ManyToOne(targetEntity: Organization::class)]
     #[ORM\JoinColumn(name: 'organization_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
+    #[Assert\NotNull(message: 'Организация обязательна для выбора')]
     public private(set) Organization $organization;
 
     #[ORM\ManyToOne(targetEntity: Contact::class)]
@@ -23,6 +25,7 @@ class Call
     public private(set) ?Contact $contact = null;
 
     #[ORM\Column(name: 'scheduled_at', type: 'datetime_immutable', nullable: true)]
+    #[Assert\NotNull(message: 'Дата звонка обязательна для заполнения')]
     public private(set) ?\DateTimeImmutable $scheduledAt = null;
 
     #[ORM\Column(name: 'made_at', type: 'datetime_immutable', nullable: true)]

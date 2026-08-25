@@ -22,4 +22,7 @@
 
     {# Модальное окно быстрого создания контакта (fix contacts-crud) #}
     {{ include('contact/_create_modal.html.twig', { organizations: organizations }) }}
+
+    {# Модальное окно быстрого редактирования звонка (calls-crud) #}
+    {{ include('call/_edit_modal.html.twig', { isAdmin: isAdmin, users: users }) }}
 {% endblock %}

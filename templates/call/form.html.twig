@@ -1,0 +1,153 @@
+{#
+    Форма звонка: создание (call is null) и редактирование (change calls-crud).
+    Поля — разметка .field дизайн-системы (подчёркивание), ошибки валидации —
+    под полем на русском. Организация выбирается только при создании
+    (выпадающий список доступных организаций); в режиме редактирования она
+    не меняется. Контакты подгружаются динамически при выборе организации.
+    Результат звонка (spec calls/crud): факт (кто/когда), сделка,
+    следующий звонок — независимые поля.
+    Ожидает: call (?Call), organizations (Organization[]),
+    selectedOrganizationId (?int), contacts (Contact[]), errors (array<string, string>).
+#}
+{% extends 'base.html.twig' %}
+
+{% set isEdit = call and call.id %}
+{% set currentContactId = isEdit and call.contact ? call.contact.id : null %}
+{% set scheduledAtValue = isEdit and call.scheduledAt ? call.scheduledAt|date('d.m.Y H:i') : '' %}
+
+{% block title %}{{ isEdit ? 'Редактирование звонка' : 'Новый звонок' }}{% endblock %}
+
+{% block body %}
+    <section class="section section--white">
+        <div class="container">
+            <h1>{{ isEdit ? 'Редактирование звонка' : 'Новый звонок' }}</h1>
+
+            <form
+                class="contact-form"
+                method="post"
+                action="{{ isEdit
+                    ? path('app_call_update', { id: call.id })
+                    : path('app_call_create') }}"
+                data-call-form
+                data-initial-organization="{{ selectedOrganizationId ?? '' }}"
+            >
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('call') }}">
+
+                {% if isEdit %}
+                    {# Организация фиксируется при создании и не меняется #}
+                    <div class="field">
+                        <label class="field__label" for="organization">Организация</label>
+                        <select class="field__input" id="organization" name="organization" disabled>
+                            <option value="{{ call.organization.id }}">{{ call.organization.name }}</option>
+                        </select>
+                    </div>
+                {% else %}
+                    <div class="field">
+                        <label class="field__label" for="organization">Организация</label>
+                        <select class="field__input" id="organization" name="organization" required data-org-combobox data-call-organization>
+                            <option value="">— выберите организацию —</option>
+                            {% for organization in organizations %}
+                                <option value="{{ organization.id }}"{% if organization.id == selectedOrganizationId %} selected{% endif %}>
+                                    {{ organization.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        {% if errors.organization|default(null) %}<span class="field__error" role="alert">{{ errors.organization }}</span>{% endif %}
+                    </div>
+                {% endif %}
+
+                <div class="field">
+                    <label class="field__label" for="scheduled_at">Запланированная дата звонка</label>
+                    <input class="field__input" type="text" id="scheduled_at" name="scheduled_at"
+                           value="{{ scheduledAtValue }}"
+                           data-date-picker="date" required>
+                    <span class="field__hint">Формат: дд.мм.гггг</span>
+                    {% if errors.scheduledAt|default(null) %}<span class="field__error" role="alert">{{ errors.scheduledAt }}</span>{% endif %}
+                </div>
+
+                <div class="field">
+                    <label class="field__label" for="contact">Контакт</label>
+                    <select class="field__input" id="contact" name="contact" data-call-contact-select>
+                        <option value="">— контакт не выбран —</option>
+                        {% for contact in contacts %}
+                            <option value="{{ contact.id }}"{% if contact.id == currentContactId %} selected{% endif %}>
+                                {{ contact.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    {% if errors.contact|default(null) %}<span class="field__error" role="alert">{{ errors.contact }}</span>{% endif %}
+                </div>
+
+                {# Факт звонка: кто и когда (spec «Менеджер фиксирует факт звонка») #}
+                {# Признак «проведён» выводится из наличия фактической даты (madeAt). #}
+                <div class="field">
+                    <label class="field__label" for="made_at">Фактическая дата звонка</label>
+                    <input class="field__input" type="text" id="made_at" name="made_at"
+                           value="{{ isEdit and call.madeAt ? call.madeAt|date('d.m.Y H:i') : '' }}"
+                           data-date-picker="datetime">
+                    <span class="field__hint">Формат: дд.мм.гггг чч:мм</span>
+                    {% if errors.madeAt|default(null) %}<span class="field__error" role="alert">{{ errors.madeAt }}</span>{% endif %}
+                </div>
+
+                {# Выбор автора звонка — только для администратора (calls-crud) #}
+                {% if isAdmin %}
+                    <div class="field">
+                        <label class="field__label" for="made_by">Кто совершил звонок</label>
+                        <select class="field__input" id="made_by" name="made_by">
+                            <option value="">— я (текущий пользователь) —</option>
+                            {% for u in users %}
+                                <option value="{{ u.id }}"{% if call is not null and call.madeBy and call.madeBy.id == u.id %} selected{% endif %}>{{ u.email }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endif %}
+
+                {# Результат — комбинация независимых отметок #}
+                <div class="field">
+                    <label class="field__consent" for="is_deal">
+                        <input type="checkbox" id="is_deal" name="is_deal" value="1"
+                               {% if isEdit and call.isDeal %}checked{% endif %}>
+                        Сделка совершена
+                    </label>
+                </div>
+
+                {% if isEdit %}
+                    <div class="field">
+                        <label class="field__label" for="next_call_date">Следующий звонок (дата)</label>
+                        <input class="field__input" type="text" id="next_call_date" name="next_call_date"
+                           data-date-picker="date">
+                        <span class="field__hint">Формат: дд.мм.гггг. Создаст новый запланированный звонок по этой организации</span>
+                        {% if errors.nextCallDate|default(null) %}<span class="field__error" role="alert">{{ errors.nextCallDate }}</span>{% endif %}
+                    </div>
+                {% endif %}
+
+                <div class="field">
+                    <label class="field__label" for="notes">Заметка</label>
+                    <textarea class="field__input" id="notes" name="notes" rows="3">{{ isEdit and call.notes ? call.notes : '' }}</textarea>
+                </div>
+
+                <div class="organization-form__actions">
+                    {{ include('components/button.html.twig', {
+                        variant: 'primary',
+                        text: isEdit ? 'Сохранить' : 'Создать',
+                    }) }}
+                    {{ include('components/button.html.twig', {
+                        variant: 'secondary',
+                        text: 'Отмена',
+                        href: path('app_dashboard'),
+                        type: 'button',
+                    }) }}
+                    {% if isEdit %}
+                        {{ include('components/button.html.twig', {
+                            variant: 'secondary',
+                            text: 'Удалить',
+                            href: path('app_call_delete', { id: call.id }),
+                            type: 'button',
+                            attr: { class: 'contact-form__delete' },
+                        }) }}
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </section>
+{% endblock %}

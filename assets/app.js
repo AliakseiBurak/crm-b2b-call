@@ -11,4 +11,6 @@ import './scss/app.scss';
 import './js/dashboard-search.js';
 import './js/organization-modal.js';
 import './js/contact-modal.js';
+import './js/call-modal.js';
 import './js/org-combobox.js';
+import './js/date-picker.js';

@@ -78,7 +78,7 @@
                                     <details class="org-details__box">
                                         <summary class="org-details__summary">Звонки и контакты организации</summary>
 
-                                        <a class="btn btn--secondary btn--sm org-calls__add" href="/organizations/{{ organization.id }}/calls/new">Добавить звонок</a>
+                                        <a class="btn btn--secondary btn--sm org-calls__add" href="{{ path('app_call_new_org', { organizationId: organization.id }) }}">Добавить звонок</a>
 
                                         {% set calls = callsByOrganization[organization.id]|default([]) %}
                                         {% set lastCallContact = contactById[row.lastCallContactId]|default(null) %}
@@ -102,20 +102,7 @@
                                                         <summary class="org-calls__all-summary">Все звонки ({{ calls|length }})</summary>
                                                         <ul class="org-calls__list">
                                                             {% for call in calls %}
-                                                                {% set callContact = contactById[call.contactId]|default(null) %}
-                                                                <li class="org-calls__item">
-                                                                    <span class="org-calls__body">
-                                                                        <span class="org-calls__date">{{ call.date ? call.date|date('d.m.Y') : '—' }}</span>{% if call.notes %} — {{ call.notes }}{% endif %}
-                                                                        {% if callContact %}
-                                                                            <span class="org-calls__item-contact">
-                                                                                контакт: <em>{{ callContact.name }}</em>
-                                                                                {% if callContact.phone %}<a href="tel:{{ callContact.phone|default('')|replace({' ': '', '(': '', ')': '', '-': ''}) }}">{{ callContact.phone }}</a>{% endif %}
-                                                                                {% if callContact.email %}<a href="mailto:{{ callContact.email }}">{{ callContact.email }}</a>{% endif %}
-                                                                            </span>
-                                                                        {% endif %}
-                                                                    </span>
-                                                                    <a class="btn btn--secondary btn--sm org-calls__edit" href="/calls/{{ call.id }}/edit">Изменить</a>
-                                                                </li>
+                                                                {% include 'call/_row.html.twig' with { callContact: contactById[call.contactId]|default(null) } %}
                                                             {% endfor %}
                                                         </ul>
                                                     </details>

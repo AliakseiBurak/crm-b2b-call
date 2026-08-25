@@ -67,3 +67,9 @@
     font-size: 0.9em;
     color: $color-action-orange;
 }
+
+// Подсказка под полем (change calls-crud)
+.field__hint {
+    font-size: 0.9em;
+    color: $color-text-body;
+}

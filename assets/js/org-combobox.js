@@ -3,6 +3,8 @@
 // (отправка формы, required, предвыбор), визуально заменяется кнопкой
 // и меню с фильтром. Фильтрация — по подстроке (без учёта регистра).
 
+import { notifyOverlayOpen, onOtherOverlayOpen } from './popover-coordinator.js';
+
 document.querySelectorAll('select[data-org-combobox]').forEach((select) => {
     const field = select.closest('.field') || select.parentElement;
 
@@ -89,6 +91,8 @@ document.querySelectorAll('select[data-org-combobox]').forEach((select) => {
     };
 
     const open = () => {
+        // Закрываем прочие оверлеи (date-picker и т.п.).
+        notifyOverlayOpen(menu);
         menu.hidden = false;
         toggle.setAttribute('aria-expanded', 'true');
         search.value = '';
@@ -143,6 +147,9 @@ document.querySelectorAll('select[data-org-combobox]').forEach((select) => {
             close();
         }
     });
+
+    // Закрываем этот список, когда открывается любой другой оверлей.
+    onOtherOverlayOpen(menu, close);
 
     select.addEventListener('change', syncLabel);
     syncLabel();

@@ -2,9 +2,12 @@
 
 namespace App\Controller;
 
+use App\Entity\User;
+use App\Entity\Enum\UserRole;
 use App\Repository\CallRepository;
 use App\Repository\ContactRepository;
 use App\Repository\OrganizationRepository;
+use App\Repository\UserRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -43,9 +46,12 @@ class HomeController extends AbstractController
         CallRepository $callRepository,
         OrganizationRepository $organizationRepository,
         ContactRepository $contactRepository,
+        UserRepository $userRepository,
     ): Response {
         $user = $this->getUser();
         $organizationIds = $organizationRepository->findAccessibleIds($user);
+        $isAdmin = $user instanceof User && UserRole::Admin === $user->role;
+        $adminUsers = $isAdmin ? $userRepository->findAdminsAndManagers() : [];
 
         $search = (string) $request->query->get('q', '');
         $sort = (string) $request->query->get('sort', '');
@@ -71,6 +77,8 @@ class HomeController extends AbstractController
             'contactsByOrganization' => $contactsByOrganization,
             'contactById' => $contactById,
             'callsByOrganization' => $callRepository->findAllCallsByOrganizations($ids),
+            'isAdmin' => $isAdmin,
+            'users' => $adminUsers,
             'search' => $search,
             'sort' => $sort,
             'dir' => $dir,

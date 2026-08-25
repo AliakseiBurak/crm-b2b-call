@@ -26,7 +26,7 @@ class OrganizationGroup
     #[ORM\Column(type: 'string', enumType: GroupType::class)]
     public private(set) GroupType $type;
 
-    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\OneToOne(targetEntity: User::class, inversedBy: 'personalGroup')]
     #[ORM\JoinColumn(name: 'owner_user_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     public private(set) ?User $ownerUser = null;
 

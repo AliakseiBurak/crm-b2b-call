@@ -1,0 +1,32 @@
+{#
+    Подтверждение удаления звонка (change calls-crud). Отмена возвращает
+    к форме звонка. Ожидает: call (Call).
+#}
+{% extends 'base.html.twig' %}
+
+{% block title %}Удаление звонка{% endblock %}
+
+{% block body %}
+    <section class="section section--white">
+        <div class="container">
+            <h1>Удаление звонка</h1>
+
+            <p class="organization-delete__warning">
+                Звонок организации «{{ call.organization.name }}»
+                {% if call.scheduledAt %}от {{ call.scheduledAt|date('d.m.Y') }}{% endif %}
+                будет удалён. Действие необратимо.
+            </p>
+
+            <form method="post" action="{{ path('app_call_remove', { id: call.id }) }}" class="organization-form__actions">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('call') }}">
+                {{ include('components/button.html.twig', { variant: 'secondary', text: 'Удалить' }) }}
+                {{ include('components/button.html.twig', {
+                    variant: 'secondary',
+                    text: 'Отмена',
+                    href: path('app_call_edit', { id: call.id }),
+                    type: 'button',
+                }) }}
+            </form>
+        </div>
+    </section>
+{% endblock %}

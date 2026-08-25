@@ -1,0 +1,33 @@
+{#
+    Строка звонка в списке «Все звонки» организации на панели
+    (change calls-crud). Вынесена отдельным шаблоном, чтобы AJAX-обновление
+    модального окна заменяло строку целиком без перезагрузки страницы.
+    Атрибуты data-call-* питают окно быстрого редактирования.
+    Ожидает: call (array{id, organizationId, contactId, date: ?DateTimeImmutable,
+    scheduledAt: ?DateTimeImmutable, madeAt: ?DateTimeImmutable, isDeal, notes}),
+    callContact (?Contact).
+#}
+<li class="org-calls__item"
+    data-call-row
+    data-call-id="{{ call.id }}"
+    data-call-org-id="{{ call.organizationId }}"
+    data-call-contact-id="{{ call.contactId }}"
+    data-call-scheduled-at="{{ call.scheduledAt ? call.scheduledAt|date('d.m.Y H:i') : '' }}"
+    data-call-made="{{ call.madeAt ? '1' : '0' }}"
+    data-call-made-at="{{ call.madeAt ? call.madeAt|date('d.m.Y H:i') : '' }}"
+    data-call-made-by="{{ call.madeById ?? '' }}"
+    data-call-is-deal="{{ call.isDeal ? '1' : '0' }}"
+    data-call-notes="{{ call.notes }}">
+    <span class="org-calls__body">
+        <span class="org-calls__status" title="{{ call.madeAt ? 'Проведён' : 'Запланирован' }}" aria-hidden="true">{{ call.madeAt ? '☎️' : '⏰' }}</span><span class="org-calls__date">{{ call.date ? call.date|date('d.m.Y') : '—' }}</span>{% if call.notes %} — {{ call.notes }}{% endif %}
+        {% if call.isDeal %}<span class="org-calls__deal">— сделка совершена</span>{% endif %}
+        {% if callContact %}
+            <span class="org-calls__item-contact">
+                контакт: <em>{{ callContact.name }}</em>
+                {% if callContact.phone %}<a href="tel:{{ callContact.phone|default('')|replace({' ': '', '(': '', ')': '', '-': ''}) }}">{{ callContact.phone }}</a>{% endif %}
+                {% if callContact.email %}<a href="mailto:{{ callContact.email }}">{{ callContact.email }}</a>{% endif %}
+            </span>
+        {% endif %}
+    </span>
+    <button class="btn btn--secondary btn--sm org-calls__edit" type="button" data-call-edit>Изменить</button>
+</li>

@@ -1,0 +1,107 @@
+@use '../tokens' as *;
+
+// Виджет выбора даты/времени (change calls-crud): без теней, оранжевые акценты,
+// совпадает с дизайн-системой. Позиционируется внутри .field (position: relative).
+
+.date-picker {
+    position: absolute;
+    z-index: 20;
+    top: 100%;
+    left: 0;
+    margin-top: 0.3em;
+    padding: 0.6em;
+    width: 18em;
+    background: #fff;
+    border: 2px solid $color-action-orange;
+    border-radius: 6px;
+    // Без box-shadow (требование web-interface spec).
+    font-family: $font-heading;
+    color: $color-text-body;
+
+    &[hidden] {
+        display: none;
+    }
+
+    &__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.4em;
+    }
+
+    &__title {
+        font-weight: 700;
+        color: $color-info-blue;
+    }
+
+    &__nav {
+        border: 0;
+        background: transparent;
+        color: $color-action-orange;
+        font-size: 1.2em;
+        line-height: 1;
+        cursor: pointer;
+    }
+
+    &__weekdays,
+    &__grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        gap: 2px;
+        text-align: center;
+    }
+
+    &__weekdays {
+        color: $color-text-secondary;
+        font-size: 0.85em;
+        margin-bottom: 0.2em;
+    }
+
+    &__day {
+        border: 0;
+        background: transparent;
+        padding: 0.4em 0;
+        border-radius: 4px;
+        color: $color-text-body;
+        font-family: $font-heading;
+        cursor: pointer;
+
+        &:hover {
+            background: #fbe9df;
+        }
+
+        &--empty {
+            visibility: hidden;
+            cursor: default;
+        }
+
+        &--selected {
+            background: $color-action-orange;
+            color: #fff;
+        }
+
+        &--today {
+            font-weight: 700;
+            text-decoration: underline;
+        }
+    }
+
+    &__time {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.4em;
+        margin-top: 0.5em;
+        padding-top: 0.5em;
+        border-top: 1px solid #eee;
+    }
+
+    &__time select {
+        padding: 0.2em 0.4em;
+        border: 1px solid $color-action-orange;
+        border-radius: 4px;
+        background: #fff;
+        color: $color-text-body;
+        font-family: $font-heading;
+    }
+}
