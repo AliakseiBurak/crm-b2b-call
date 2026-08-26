@@ -212,7 +212,6 @@ final class CallControllerTest extends DatabaseWebTestCase
         $this->open('/calls/' . $call->id . '/edit');
         $this->submitFormByButton('Сохранить', [
             'scheduled_at' => (new \DateTimeImmutable('+5 days'))->format('Y-m-d\TH:i'),
-            'made' => '1',
             'made_at' => '2026-08-24T12:30',
             'notes' => 'Договорились о встрече',
         ]);
