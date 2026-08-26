@@ -11,8 +11,8 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 /**
  * Integration-тесты серверной валидации звонка (change calls-crud,
- * задачи 4.3/7.2): обязательные поля organization/scheduledAt
- * с сообщениями на русском.
+ * задачи 4.3/7.2): обязательное поле organization с сообщением на русском.
+ * Запланированная дата опциональна (change call-scheduled-date-optional).
  */
 final class CallValidationTest extends KernelTestCase
 {
@@ -42,21 +42,19 @@ final class CallValidationTest extends KernelTestCase
         self::assertSame(0, $this->validator->validate($call)->count());
     }
 
-    public function testMissingScheduledAtShowsRussianMessage(): void
+    public function testScheduledAtIsOptional(): void
     {
         $call = (new Call())
             ->setOrganization((new Organization())->setName('ООО Ромашка')->setIndustry('IT'));
 
         $violations = $this->validator->validate($call);
 
-        $messages = [];
+        $paths = [];
         foreach ($violations as $violation) {
-            $messages[$violation->getPropertyPath()] = (string) $violation->getMessage();
+            $paths[] = $violation->getPropertyPath();
         }
 
-        self::assertArrayHasKey('scheduledAt', $messages);
-        self::assertSame('Дата звонка обязательна для заполнения', $messages['scheduledAt']);
-        self::assertArrayNotHasKey('organization', $messages);
+        self::assertNotContains('scheduledAt', $paths);
     }
 
     public function testMissingOrganizationShowsRussianMessage(): void
@@ -74,20 +72,5 @@ final class CallValidationTest extends KernelTestCase
         self::assertArrayHasKey('organization', $messages);
         self::assertSame('Организация обязательна для выбора', $messages['organization']);
         self::assertArrayNotHasKey('scheduledAt', $messages);
-    }
-
-    public function testBothRequiredFieldsReportedWhenEmpty(): void
-    {
-        $call = new Call();
-
-        $violations = $this->validator->validate($call);
-
-        $paths = [];
-        foreach ($violations as $violation) {
-            $paths[] = $violation->getPropertyPath();
-        }
-
-        self::assertContains('organization', $paths);
-        self::assertContains('scheduledAt', $paths);
     }
 }

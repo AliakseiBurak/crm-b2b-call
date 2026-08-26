@@ -57,19 +57,71 @@ final class CallControllerTest extends DatabaseWebTestCase
         self::assertFalse($call->isDeal);
     }
 
-    public function testCreateWithBlankScheduledAtShowsRussianErrorAndDoesNotSave(): void
+    public function testCreateWithActualDateOnlySavesCompletedCall(): void
+    {
+        [$organization, $contact] = $this->makeOrganizationWithContact('ООО Ромашка');
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $this->open('/organizations/' . $organization->id . '/calls/new');
+        // Запланированная дата опциональна: проведённый звонок фиксируется
+        // только фактической датой (change call-scheduled-date-optional).
+        $this->submitFormByButton('Создать', [
+            'organization' => (string) $organization->id,
+            'scheduled_at' => '',
+            'contact' => (string) $contact->id,
+            'made_at' => '24.08.2026 15:30',
+        ]);
+
+        $this->assertResponseRedirects();
+
+        $this->em()->clear();
+        $call = $this->findOrganizationCall($organization);
+        self::assertNotNull($call);
+        self::assertNull($call->scheduledAt);
+        self::assertSame('2026-08-24 15:30', $call->madeAt->format('Y-m-d H:i'));
+    }
+
+    public function testCreateWithoutAnyDatesSavesCall(): void
     {
         $organization = $this->makeOrganization('ООО Ромашка');
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
 
-        $this->open('/calls/new');
+        $this->open('/organizations/' . $organization->id . '/calls/new');
         $this->submitFormByButton('Создать', [
             'organization' => (string) $organization->id,
             'scheduled_at' => '',
         ]);
 
+        $this->assertResponseRedirects();
+
+        $this->em()->clear();
+        $call = $this->findOrganizationCall($organization);
+        self::assertNotNull($call);
+        self::assertNull($call->scheduledAt);
+        self::assertNull($call->madeAt);
+    }
+
+    public function testCreateValidationErrorRestoresEnteredValues(): void
+    {
+        $organization = $this->makeOrganization('ООО Ромашка');
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $this->open('/organizations/' . $organization->id . '/calls/new');
+        $this->submitFormByButton('Создать', [
+            'organization' => (string) $organization->id,
+            'scheduled_at' => '20.08.2020 10:00',
+            'made_at' => '24.08.2026 15:30',
+            'notes' => 'Черновик звонка',
+        ]);
+
         $this->assertResponseStatusCodeSame(422);
-        $this->assertSelectorTextContains('.field__error', 'Дата звонка обязательна для заполнения');
+        $this->assertSelectorTextContains('.field__error', 'Запланированная дата звонка не может быть в прошлом');
+
+        $crawler = $this->client->getCrawler();
+        // Запланированная дата восстанавливается в формате поля (без времени)
+        self::assertSame('20.08.2020', $crawler->filter('#scheduled_at')->attr('value'));
+        self::assertSame('24.08.2026 15:30', $crawler->filter('#made_at')->attr('value'));
+        self::assertSame('Черновик звонка', trim((string) $crawler->filter('#notes')->text()));
 
         $this->em()->clear();
         self::assertNull($this->findOrganizationCall($organization));
@@ -143,10 +195,9 @@ final class CallControllerTest extends DatabaseWebTestCase
         self::assertSame('Новая заметка', $updated->notes);
     }
 
-    public function testEditWithClearedScheduledAtShowsRussianErrorAndKeepsValue(): void
+    public function testEditClearedScheduledAtClearsDate(): void
     {
         $call = $this->makeCallWithOrganization(notes: 'Заметка');
-        $originalScheduledAt = $call->scheduledAt;
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
 
         $this->open('/calls/' . $call->id . '/edit');
@@ -155,14 +206,11 @@ final class CallControllerTest extends DatabaseWebTestCase
             'notes' => 'Заметка',
         ]);
 
-        $this->assertResponseStatusCodeSame(422);
-        $this->assertSelectorTextContains('.field__error', 'Дата звонка обязательна для заполнения');
+        // Очистка запланированной даты допустима — звонок остаётся без плана.
+        $this->assertResponseRedirects();
 
         $this->em()->clear();
-        self::assertSame(
-            $originalScheduledAt->format('Y-m-d H:i'),
-            $this->findCallById($call->id)->scheduledAt->format('Y-m-d H:i')
-        );
+        self::assertNull($this->findCallById($call->id)->scheduledAt);
     }
 
     public function testManagerCannotOpenEditOfInvisibleCall(): void
@@ -323,13 +371,13 @@ final class CallControllerTest extends DatabaseWebTestCase
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
 
         $this->submitCallAjax('/calls/' . $call->id . '/edit', '/calls/' . $call->id . '/edit', [
-            'scheduled_at' => '',
+            'scheduled_at' => '20.08.2020 10:00',
         ]);
 
         $this->assertResponseStatusCodeSame(422);
         $payload = json_decode((string) $this->client->getResponse()->getContent(), true);
         self::assertFalse($payload['ok']);
-        self::assertSame('Дата звонка обязательна для заполнения', $payload['errors']['scheduledAt']);
+        self::assertSame('Запланированная дата звонка не может быть в прошлом', $payload['errors']['scheduledAt']);
     }
 
     public function testDeleteConfirmationPageShowsWarning(): void

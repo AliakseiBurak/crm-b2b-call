@@ -84,13 +84,53 @@ test('ошибка валидации в модальном окне показ�
 
   await openFirstCallEditModal(page);
 
-  await page.locator('[data-call-field="scheduled_at"]').fill('');
+  // Запланированная дата опциональна; ошибка — только для даты в прошлом
+  // (change call-scheduled-date-optional).
+  await page.locator('[data-call-field="scheduled_at"]').fill('20.08.2020 10:00');
   await page.locator(editModal).locator('button[type="submit"]').first().click();
 
   await expect(page.locator('[data-call-error="scheduledAt"]')).toBeVisible();
   await expect(page.locator('[data-call-error="scheduledAt"]')).toHaveText(
-    'Дата звонка обязательна для заполнения',
+    'Запланированная дата звонка не может быть в прошлом',
   );
+});
+
+test('создание проведённого звонка с только фактической датой', async ({ page }) => {
+  await login(page, 'admin@b2b-crm.loc', 'admin123');
+
+  await page.goto('/dashboard');
+  const addLink = page.locator('a.org-calls__add').first();
+  const href = (await addLink.getAttribute('href')) ?? '/calls/new';
+  await page.goto(href);
+  await expect(page.locator('#scheduled_at')).not.toHaveAttribute('required');
+
+  const yesterday = new Date(Date.now() - 86_400_000);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const factDate = `${pad(yesterday.getDate())}.${pad(yesterday.getMonth() + 1)}.${yesterday.getFullYear()} 12:00`;
+  await page.fill('#made_at', factDate);
+  await page.fill('#notes', 'e2e факт без плана');
+  await page.click('button:has-text("Создать")');
+
+  // Успех — редирект на панель организаций с выделенной строкой организации
+  await expect(page).toHaveURL(/\/dashboard\?highlight=\d+$/);
+  const highlighted = page.locator('.org-table__row--highlight');
+  await expect(highlighted).toBeVisible();
+
+  // Звонок появился у организации как проведённый (☎️), без запланированной даты
+  const details = highlighted.locator('xpath=./following-sibling::tr[1]').locator('.org-details__box');
+  await details.locator('summary.org-details__summary').click();
+  const allCalls = details.locator('.org-calls__all summary');
+  await allCalls.click();
+  const item = details.locator('.org-calls__item', { hasText: 'e2e факт без плана' }).first();
+  await expect(item).toBeVisible();
+  await expect(item.locator('.org-calls__status')).toHaveAttribute('title', 'Проведён');
+
+  // Уборка: тест создаёт реальные данные в общей БД фикстур — удаляем звонок,
+  // чтобы не ломать подсчёт показателей на главной (home-stats).
+  const callId = await item.getAttribute('data-call-id');
+  await page.goto(`/calls/${callId}/delete`);
+  await page.click('button:has-text("Удалить")');
+  await expect(page).toHaveURL(/\/dashboard\?highlight=\d+$/);
 });
 
 test('форма создания звонка подгружает контакты выбранной организации', async ({ page }) => {
