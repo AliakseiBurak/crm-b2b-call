@@ -127,6 +127,33 @@ final class CallControllerTest extends DatabaseWebTestCase
         self::assertNull($this->findOrganizationCall($organization));
     }
 
+    public function testCreateWithFutureActualDateShowsRussianErrorAndRestoresValues(): void
+    {
+        $organization = $this->makeOrganization('ООО Ромашка');
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $scheduledAt = (new \DateTimeImmutable('+5 days'))->format('d.m.Y');
+        $this->open('/organizations/' . $organization->id . '/calls/new');
+        $this->submitFormByButton('Создать', [
+            'organization' => (string) $organization->id,
+            'scheduled_at' => $scheduledAt,
+            'made_at' => '01.01.2027 10:00',
+            'notes' => 'Черновик встречи',
+        ]);
+
+        $this->assertResponseStatusCodeSame(422);
+        $this->assertSelectorTextContains('.field__error', 'Фактическая дата звонка не может быть в будущем');
+
+        // Ошибка фактической даты не теряет значения остальных полей
+        $crawler = $this->client->getCrawler();
+        self::assertSame($scheduledAt, $crawler->filter('#scheduled_at')->attr('value'));
+        self::assertSame('01.01.2027 10:00', $crawler->filter('#made_at')->attr('value'));
+        self::assertSame('Черновик встречи', trim((string) $crawler->filter('#notes')->text()));
+
+        $this->em()->clear();
+        self::assertNull($this->findOrganizationCall($organization));
+    }
+
     public function testCreateWithoutOrganizationShowsRussianError(): void
     {
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
