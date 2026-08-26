@@ -36,8 +36,6 @@ completed call by filling only the actual call date.
 - **AND** введённые значения полей формы восстанавливаются
 - **AND** звонок не сохраняется
 
-## MODIFIED Requirements
-
 ### Requirement: Менеджер редактирует звонок
 The system SHALL let the manager update call fields through a form.
 
