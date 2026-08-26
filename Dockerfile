@@ -5,6 +5,8 @@ FROM php:8.5-fpm-bookworm
 ARG APP_UID=1000
 ARG APP_GID=1000
 
+ENV TZ=Europe/Minsk
+
 # Fail fast with clear logs; isolate apt from extension compilation for cacheability.
 SHELL ["/bin/bash", "-euxo", "pipefail", "-c"]
 
@@ -16,7 +18,9 @@ RUN apt-get update \
         git \
         curl \
         ca-certificates \
-        tzdata
+        tzdata \
+    && ln -sf /usr/share/zoneinfo/Europe/Minsk /etc/localtime \
+    && echo ${TZ} > /etc/timezone
 
 RUN docker-php-ext-install \
         pdo_mysql \
@@ -26,13 +30,12 @@ RUN docker-php-ext-install \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+RUN echo 'date.timezone = ${TZ}' > /usr/local/etc/php/conf.d/timezone.ini
+
 # Fail the build loudly if required modules are not actually loadable.
 RUN php -m | grep -Eq '^pdo_mysql$' \
     && php -m | grep -Eq '^intl$' \
     && php -m | grep -Eq '^zip$'
-
-ENV TZ=Europe/Minsk
-RUN echo 'date.timezone = Europe/Minsk' > /usr/local/etc/php/conf.d/timezone.ini
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
