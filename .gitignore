@@ -23,6 +23,9 @@
 
 # Misc
 .DS_Store
+ralph_loop.py
+ralph_logs/
+__pycache__/
 
 ###> symfony/framework-bundle ###
 /.env.local
