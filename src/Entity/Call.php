@@ -25,7 +25,6 @@ class Call
     public private(set) ?Contact $contact = null;
 
     #[ORM\Column(name: 'scheduled_at', type: 'datetime_immutable', nullable: true)]
-    #[Assert\NotNull(message: 'Дата звонка обязательна для заполнения')]
     public private(set) ?\DateTimeImmutable $scheduledAt = null;
 
     #[ORM\Column(name: 'made_at', type: 'datetime_immutable', nullable: true)]

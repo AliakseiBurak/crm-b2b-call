@@ -63,9 +63,30 @@
     color: #fff;
 }
 
+// Поле с серверной ошибкой валидации: красная рамка выделяет поле,
+// линия подчёркивания которой сливается с акцентными элементами формы
+.field--error {
+    .field__input {
+        padding: 0.5em 0.6em;
+        background: #fff;
+        border: 1px solid $color-error-red;
+        border-radius: 4px;
+
+        &:focus {
+            border-bottom-width: 1px;
+            border-bottom-color: $color-error-red;
+        }
+    }
+
+    .field__label {
+        color: $color-error-red;
+    }
+}
+
 .field__error {
     font-size: 0.9em;
-    color: $color-action-orange;
+    font-weight: 700;
+    color: $color-error-red;
 }
 
 // Подсказка под полем (change calls-crud)

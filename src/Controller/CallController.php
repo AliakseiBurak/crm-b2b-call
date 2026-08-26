@@ -245,12 +245,13 @@ class CallController extends AbstractController
         $scheduledAt = $this->parseDateTime((string) $request->request->get('scheduled_at', ''));
         if (false === $scheduledAt) {
             $errors['scheduledAt'] = 'Некорректный формат даты звонка';
-        } elseif (null !== $scheduledAt && $scheduledAt < new \DateTimeImmutable('today')) {
-            $errors['scheduledAt'] = 'Запланированная дата звонка не может быть в прошлом';
         } else {
-            // null (пустое поле) передаётся валидатору, который требует
-            // обязательное значение («Дата звонка обязательна для заполнения»).
+            // Значение пишется в entity и при ошибке: форма после 422
+            // восстанавливает введённое (сохранения на этом пути нет).
             $call->setScheduledAt($scheduledAt);
+            if (null !== $scheduledAt && $scheduledAt < new \DateTimeImmutable('today')) {
+                $errors['scheduledAt'] = 'Запланированная дата звонка не может быть в прошлом';
+            }
         }
 
         // Факт звонка определяется наличием фактической даты. Если дата указана,
@@ -261,11 +262,15 @@ class CallController extends AbstractController
             $madeAt = $this->parseDateTime($madeAtRaw);
             if (false === $madeAt) {
                 $errors['madeAt'] = 'Некорректный формат даты звонка';
-            } elseif ($madeAt > new \DateTimeImmutable()) {
-                $errors['madeAt'] = 'Фактическая дата звонка не может быть в будущем';
             } else {
+                // Значение пишется в entity и при ошибке: форма после 422
+                // восстанавливает введённое (сохранения на этом пути нет).
                 $call->setMadeAt($madeAt);
-                $call->setMadeBy($this->resolveMadeBy($request));
+                if ($madeAt > new \DateTimeImmutable()) {
+                    $errors['madeAt'] = 'Фактическая дата звонка не может быть в будущем';
+                } else {
+                    $call->setMadeBy($this->resolveMadeBy($request));
+                }
             }
         } else {
             $call->setMadeAt(null);
