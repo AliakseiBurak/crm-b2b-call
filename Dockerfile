@@ -15,7 +15,8 @@ RUN apt-get update \
         unzip \
         git \
         curl \
-        ca-certificates
+        ca-certificates \
+        tzdata
 
 RUN docker-php-ext-install \
         pdo_mysql \
@@ -29,6 +30,9 @@ RUN docker-php-ext-install \
 RUN php -m | grep -Eq '^pdo_mysql$' \
     && php -m | grep -Eq '^intl$' \
     && php -m | grep -Eq '^zip$'
+
+ENV TZ=Europe/Minsk
+RUN echo 'date.timezone = Europe/Minsk' > /usr/local/etc/php/conf.d/timezone.ini
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
