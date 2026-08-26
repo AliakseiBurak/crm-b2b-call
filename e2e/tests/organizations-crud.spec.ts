@@ -4,7 +4,10 @@ import { expect, test, type Page } from '@playwright/test';
 // (change organizations-crud).
 
 const loginSubmit = 'form[action="/login"] button[type="submit"]';
-const modalWindow = '.modal__window';
+// На дашборде в DOM присутствуют все модальные окна (организация, контакты,
+// звонок) — локатор скоупится окном редактирования организации, иначе strict
+// mode падает на четырёх .modal__window.
+const modalWindow = '[data-organization-edit-modal] .modal__window';
 
 async function login(page: Page, email: string, password: string) {
   await page.goto('/login');

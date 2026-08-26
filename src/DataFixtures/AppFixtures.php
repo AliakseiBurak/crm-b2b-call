@@ -168,7 +168,10 @@ class AppFixtures extends Fixture
         $manager->persist((new Call())
             ->setOrganization($organizations[3])
             ->setContact($contacts[8])
-            ->setScheduledAt($today->setTime(12, 0))
+            // Планы «на сегодня» стоят на 00:05: окно waitingWeek/Month
+            // считается строго > now, поэтому результат не зависит от
+            // времени запуска (в waitingToday попадает в любом случае).
+            ->setScheduledAt($today->setTime(0, 5))
             ->setMadeBy($manager2)
             ->setNotes('Перезвонить утром'));
 
@@ -216,7 +219,7 @@ class AppFixtures extends Fixture
         // 20 и 5 дней. Парус: 5 планов на вчера (3 совершены, 2 нет) —
         // частичная реализация, плюс план на сегодня без факта сегодня.
         $bare($organizations[1], $today->setTime(8, 0), true); // Вектор: факт сегодня
-        $bare($organizations[1], $today->setTime(9, 0), false); // Вектор: план сегодня (исключён из «Ожидают»)
+        $bare($organizations[1], $today->setTime(0, 5), false); // Вектор: план сегодня (исключён фактом из «Ожидают»)
         $plan($organizations[1], null, $yesterday->setTime(11, 0), null); // Вектор: просрочка вчера
         $bare($organizations[2], $today->modify('-20 days')->setTime(14, 0), false); // Сидоров: просрочка за 30 дней
         $bare($organizations[3], $today->modify('-5 days')->setTime(12, 0), false); // Конкурент: просрочка вне области менеджера
@@ -231,7 +234,7 @@ class AppFixtures extends Fixture
             }
             $manager->persist($call);
         }
-        $bare($organizations[6], $today->setTime(9, 0), false); // Парус: план сегодня без факта
+        $bare($organizations[6], $today->setTime(0, 5), false); // Парус: план сегодня без факта → waiting1
 
         $manager->flush();
     }

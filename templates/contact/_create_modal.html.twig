@@ -17,7 +17,7 @@
 
                 <div class="field">
                     <label class="field__label" for="modal-contact-organization">Организация</label>
-                    <select class="field__input" id="modal-contact-organization" name="organization" required data-contact-field="organization" data-org-combobox>
+                    <select class="field__input" id="modal-contact-organization" name="organization" data-contact-field="organization" data-org-combobox>
                         <option value="">— выберите организацию —</option>
                         {% for organization in organizations %}
                             <option value="{{ organization.id }}">{{ organization.name }}</option>
@@ -29,7 +29,7 @@
                 <div class="field">
                     <label class="field__label" for="modal-contact-name">Имя</label>
                     <input class="field__input" type="text" id="modal-contact-name" name="name"
-                           required data-contact-field="name">
+                           data-contact-field="name">
                     <span class="field__error" role="alert" data-contact-error="name" hidden></span>
                 </div>
 

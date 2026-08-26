@@ -46,7 +46,8 @@ test('даты звоноков берутся из звонков; без зв�
 
   const romashka = page.locator('.org-table__row', { hasText: 'Ромашка' });
   await expect(romashka.locator('td').nth(2)).toHaveText(/\d{2}\.\d{2}\.\d{4}/);
-  await expect(romashka.locator('td').nth(3)).toHaveText('—');
+  // У Ромашки есть план на завтра (+1д в фикстурах) — дата, не заглушка.
+  await expect(romashka.locator('td').nth(3)).toHaveText(/\d{2}\.\d{2}\.\d{4}/);
   // Кнопки переноса даты у следующего звонка больше нет — редактирование
   // звонка выполняется из списка «Все звонки»
   await expect(romashka.locator('a', { hasText: 'Изменить дату' })).toHaveCount(0);
@@ -190,7 +191,7 @@ test('аккордеон: раскрытие контактов организа
   await expect(ivanCard.locator('.card__name')).toContainText('Иван Петрович');
   await expect(ivanCard.locator('a[href^="tel:"]').first()).toBeVisible();
   await expect(ivanCard.locator('a[href^="mailto:"]').first()).toBeVisible();
-  await expect(details.locator('a.org-contacts__edit').first()).toBeVisible();
+  await expect(details.locator('[data-contact-edit]').first()).toBeVisible();
   await expect(ivanCard.locator('.card__meta', { hasText: 'Заметка' })).toBeVisible();
 
   // Единственная непустая заметка Ромашки — у звонка без контакта (-3д):
@@ -206,10 +207,11 @@ test('аккордеон: раскрытие контактов организа
   const items = details.locator('.org-calls__item');
   await expect(items).toHaveCount(3);
 
-  // У каждого звонка справа — кнопка «Изменить» (заглушка, 404)
-  const editButtons = items.locator('a.org-calls__edit', { hasText: 'Изменить' });
+  // У каждого звонка справа — кнопка «Изменить» (открывает модальное окно
+  // быстрого редактирования, change calls-crud)
+  const editButtons = items.locator('button[data-call-edit]', { hasText: 'Изменить' });
   await expect(editButtons).toHaveCount(3);
-  await expect(editButtons.nth(0)).toHaveAttribute('href', /^\/calls\/\d+\/edit$/);
+  await expect(editButtons.nth(0)).toBeVisible();
 
   const newest = await items.nth(0).textContent() ?? '';
   expect(newest).toMatch(/\d{2}\.\d{2}\.\d{4}/);
