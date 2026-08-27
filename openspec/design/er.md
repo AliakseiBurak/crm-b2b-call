@@ -18,10 +18,12 @@ erDiagram
     ORGANIZATION ||--o{ CALL : "история звонков"
     CONTACT ||--o{ CALL : "звонки по контакту"
     CALL o|--o| CALL : "next_call_id (self-ref, 0..1)"
-    CALL o|--|| CAMPAIGN : "campaign_id (0..1)"
+    CAMPAIGN ||--o{ CAMPAIGN_ATTACHMENT : "вложения на кампании"
+    CAMPAIGN ||--o{ CAMPAIGN_RECIPIENT : "ручные адресаты standalone"
+    ORGANIZATION ||--o{ CAMPAIGN_RECIPIENT : "адресат standalone-рассылки"
+    CONTACT ||--o{ CAMPAIGN_RECIPIENT : "адресат-контакт (nullable)"
     CAMPAIGN ||--o{ EMAIL_OUTBOX : "письма к отправке"
     EMAIL_OUTBOX ||--o{ EMAIL_STATUS_LOG : "история статусов"
-    CAMPAIGN o|--o| COMMUNICATION_TEMPLATE : "template_id (0..1)"
     COMMUNICATION_TEMPLATE o|--o{ COURSE : "embedded courses (0..N)"
 
     USER {
@@ -94,10 +96,32 @@ erDiagram
     CAMPAIGN {
         bigint id PK
         string name
-        bigint template_id FK "шаблон письма (0..1)"
-        bigint created_by FK "admin или manager"
-        enum status "draft|launch"
+        string subject "тема письма"
+        string preview_text "nullable, прехедер"
+        text body "текст письма (токены {{greeting}}, {{contact_name}}, {{organization_name}})"
+        enum status "draft|ready|launched|failed|archived, default draft"
+        datetime launched_at "nullable; ручной запуск — кнопка «Запустить»"
+        datetime failed_at "nullable; фиксируется при ошибке отправки"
         datetime created_at
+    }
+
+    CAMPAIGN_ATTACHMENT {
+        bigint id PK
+        bigint campaign_id FK "ON DELETE CASCADE (строки); файлы удаляет storage-слой"
+        string filename "оригинальное имя файла"
+        string storage_key UK "ключ файла в var/storage/campaign-attachments"
+        string mime_type "nullable"
+        int size "nullable"
+        datetime created_at
+    }
+
+    CAMPAIGN_RECIPIENT {
+        bigint id PK
+        bigint campaign_id FK "ON DELETE CASCADE"
+        bigint organization_id FK "ON DELETE CASCADE; менеджеру — только область доступа (ADR-0007), отказ 403"
+        bigint contact_id FK "nullable, ON DELETE CASCADE; рассылка на email контакта"
+        datetime created_at
+        "unique(campaign_id, organization_id)"
     }
 
     EMAIL_OUTBOX {
@@ -139,6 +163,11 @@ erDiagram
     }
 ```
 
+> `COMMUNICATION_TEMPLATE` больше не связана с `Campaign`: с change
+> `campaign-entity` тема и шаблон письма хранятся на самой кампании
+> (`campaign.subject`, `campaign.template`), вложения — в
+> `campaign_attachment`.
+
 ## Правила (ADR-0001–0009)
 
 1. **`USER.role`** — фиксированный enum `admin|manager` (ADR-0009); роли не
@@ -159,9 +188,14 @@ erDiagram
 7. **Рассылки** не привязаны к одной организации; формируются из результатов
    звонков и/или вручную (standalone). Отправка — outbox через SMTP, статусы
    per-письмо + `opened` через tracking-pixel (ADR-0010).
+8. **`Campaign`** (change `campaign-entity`) хранит тему, текст письма и вложения на
+   себе; адресаты — в `campaign_recipient` (contact_id nullable).
+   запуск — ручной (кнопка «Запустить») —
+   проставляет `launched_at` и `status = launched`.
 
 ## Скоуп первой реализации
 
 Таблицы **ядра**: `user`, `organization_group`, `group_assignment`,
-`org_group_membership`, `organization`, `contact`. Обзвон (`call`) и рассылки
-(`campaign`, `email_outbox`) — следующие шаги (UI → обзвон → e-mail).
+`org_group_membership`, `organization`, `contact`. Обзвон (`call`) реализован;
+рассылки — `campaign` и `campaign_attachment` (change `campaign-entity`);
+`email_outbox`/`call_result` — следующие шаги (e-mail → результаты звонков).
