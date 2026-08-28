@@ -1,0 +1,128 @@
+{#
+    Список рассылок (change campaign-entity): таблица кампаний.
+    Ожидает: campaigns (Campaign[]), highlight (int), sort (string), direction (string).
+#}
+{% extends 'base.html.twig' %}
+
+{% block title %}Рассылки{% endblock %}
+
+{% block body %}
+    <section class="section section--white">
+        <div class="container">
+            <h1>Рассылки</h1>
+
+            <p>
+                {{ include('components/button.html.twig', {
+                    variant: 'secondary',
+                    text: 'Добавить рассылку',
+                    href: path('app_campaign_new'),
+                    type: 'button',
+                    sm: true,
+                }) }}
+            </p>
+
+            {% if campaigns is empty %}
+                <p class="campaign-empty">Рассылок пока нет — создайте первую.</p>
+            {% else %}
+                {% macro sort_link(column, label, currentSort, currentDir, highlightId) %}
+                    {% set newDir = (currentSort == column and currentDir == 'ASC') ? 'DESC' : 'ASC' %}
+                    {% set arrow = '' %}
+                    {% if currentSort == column %}
+                        {% set arrow = currentDir == 'ASC' ? ' ↑' : ' ↓' %}
+                    {% endif %}
+                    <a href="?sort={{ column }}&dir={{ newDir }}{% if highlightId %}&highlight={{ highlightId }}{% endif %}">{{ label }}{{ arrow }}</a>
+                {% endmacro %}
+
+                <div class="table-wrap">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th scope="col">{{ _self.sort_link('name', 'Название', sort, direction, highlight) }}</th>
+                                <th scope="col">{{ _self.sort_link('status', 'Статус', sort, direction, highlight) }}</th>
+                                <th scope="col">{{ _self.sort_link('subject', 'Тема письма', sort, direction, highlight) }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for campaign in campaigns %}
+                                {% set rowClass = '' %}
+                                {% if highlight == campaign.id %}
+                                    {% set rowClass = 'table__row--highlight' %}
+                                {% endif %}
+                                {% if campaign.status.value == 'archived' %}
+                                    {% set rowClass = rowClass ~ ' campaign-table__row--archived' %}
+                                {% endif %}
+                                {% if campaign.status.value == 'failed' %}
+                                    {% set rowClass = rowClass ~ ' campaign-table__row--failed' %}
+                                {% endif %}
+                                <tr class="{{ rowClass }}" id="campaign-{{ campaign.id }}" data-status="{{ campaign.status.value }}">
+                                    <td class="campaign-table__name-cell">
+                                        <a href="{{ path('app_campaign_show', { id: campaign.id }) }}">{{ campaign.name }}</a>
+                                        <span class="campaign-table__cell-actions">
+                                            {% if campaign.status.value == 'ready' %}
+                                                <button type="button" class="campaign-table__btn campaign-table__btn--start" title="Запустить"
+                                                    data-action="launch" data-id="{{ campaign.id }}" data-csrf="{{ csrf_token('campaign') }}"></button>
+                                            {% elseif campaign.status.value == 'launched' %}
+                                                <button type="button" class="campaign-table__btn campaign-table__btn--stop" title="Остановить"
+                                                    data-action="stop" data-id="{{ campaign.id }}" data-csrf="{{ csrf_token('campaign') }}"></button>
+                                            {% elseif campaign.status.value == 'failed' %}
+                                                <span class="campaign-table__btn campaign-table__btn--error" title="Ошибка"></span>
+                                            {% endif %}
+                                        </span>
+                                    </td>
+                                    <td class="campaign-table__status-cell">{{ campaign.status.label() }}</td>
+                                    <td>{{ campaign.subject }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <script>
+        function bindActions(root) {
+            root.querySelectorAll('[data-action]').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var action = this.dataset.action;
+                    var id = this.dataset.id;
+                    var csrf = this.dataset.csrf;
+                    var row = this.closest('tr');
+
+                    fetch('/campaigns/' + id + '/' + action, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-Token': csrf,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        row.dataset.status = data.status;
+
+                        var statusCell = row.querySelector('.campaign-table__status-cell');
+                        if (statusCell) statusCell.textContent = data.label;
+
+                        var actions = row.querySelector('.campaign-table__cell-actions');
+                        if (data.status === 'ready') {
+                            actions.innerHTML = '<button type="button" class="campaign-table__btn campaign-table__btn--start" title="Запустить" data-action="launch" data-id="' + id + '" data-csrf="' + csrf + '"></button>';
+                        } else if (data.status === 'launched') {
+                            actions.innerHTML = '<button type="button" class="campaign-table__btn campaign-table__btn--stop" title="Остановить" data-action="stop" data-id="' + id + '" data-csrf="' + csrf + '"></button>';
+                        } else {
+                            actions.innerHTML = '';
+                        }
+
+                        row.classList.remove('campaign-table__row--failed');
+                        row.classList.remove('campaign-table__row--archived');
+                        if (data.status === 'archived') row.classList.add('campaign-table__row--archived');
+                        if (data.status === 'failed') row.classList.add('campaign-table__row--failed');
+
+                        bindActions(row);
+                    });
+                });
+            });
+        }
+
+        bindActions(document);
+    </script>
+{% endblock %}

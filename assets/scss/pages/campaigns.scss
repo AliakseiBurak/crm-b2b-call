@@ -1,0 +1,329 @@
+@use '../tokens' as *;
+
+// Страницы рассылок (change campaign-entity): форма, карточка, вложения.
+
+.campaign-form {
+    max-width: 720px;
+
+    &__body {
+        min-height: 160px;
+        resize: vertical;
+    }
+
+    &__actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 8px;
+    }
+
+    // ── Вложения (список файлов) ────────────────────────────────────
+    &__file-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        padding: 0;
+        margin: 8px 0 0;
+        list-style: none;
+    }
+
+    &__file-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--color-border, #e5e7eb);
+
+        &:last-child {
+            border-bottom: 0;
+        }
+
+        form {
+            margin-left: auto;
+        }
+    }
+
+    &__file-name {
+        font-family: $font-heading;
+        font-size: $font-size-table;
+    }
+
+    &__file-size {
+        color: $color-text-secondary;
+        font-size: 13px;
+        margin-left: -4px;
+    }
+
+    // ── Загрузка файла ─────────────────────────────────────────────
+    &__upload {
+        max-width: 720px;
+        margin-top: 24px;
+        padding-top: 24px;
+        border-top: 1px solid var(--color-border, #e5e7eb);
+    }
+
+    &__upload-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 8px;
+    }
+
+    &__upload-input {
+        flex: 1;
+        font-family: $font-heading;
+        font-size: $font-size-table;
+        color: $color-text-body;
+
+        &::file-selector-button {
+            font-family: $font-heading;
+            font-size: 14px;
+            font-weight: 700;
+            color: $color-action-orange;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0;
+            margin-right: 8px;
+
+            &:hover {
+                color: $color-info-blue;
+            }
+        }
+    }
+
+    // ── Адресаты ───────────────────────────────────────────────────
+    &__section {
+        max-width: 720px;
+        margin-top: 32px;
+        padding-top: 24px;
+        border-top: 1px solid var(--color-border, #e5e7eb);
+
+        &[hidden] {
+            display: none;
+        }
+    }
+
+    &__recipient-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        padding: 0;
+        margin: 0 0 16px;
+        list-style: none;
+    }
+
+    &__recipient-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--color-border, #e5e7eb);
+
+        &:last-child {
+            border-bottom: 0;
+        }
+
+        form {
+            margin-left: auto;
+        }
+    }
+
+    &__recipient-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    &__recipient-org {
+        font-family: $font-heading;
+        font-size: $font-size-table;
+        font-weight: 600;
+    }
+
+    &__recipient-contact {
+        font-size: 14px;
+        color: $color-text-body;
+    }
+
+    &__recipient-email {
+        color: $color-text-secondary;
+    }
+
+    &__add-recipient {
+        margin-top: 8px;
+    }
+
+    &__recipient-selects {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+}
+
+// ── Карточка рассылки (show page) ───────────────────────────────
+.campaign-card {
+    max-width: 720px;
+
+    &__fields {
+        margin: 0 0 24px;
+    }
+
+    &__row {
+        display: grid;
+        grid-template-columns: 200px 1fr;
+        gap: 16px;
+        padding: 10px 0;
+        border-bottom: 1px solid var(--color-border, #e5e7eb);
+
+        dt {
+            font-weight: 600;
+        }
+
+        dd {
+            margin: 0;
+            overflow-wrap: anywhere;
+        }
+    }
+
+    &__template {
+        margin: 0;
+        white-space: pre-wrap;
+        font-family: inherit;
+    }
+
+    &__actions {
+        display: flex;
+        gap: 12px;
+
+        form {
+            margin: 0;
+        }
+    }
+
+    &__clone-row {
+        display: flex;
+        align-items: center;
+        margin-bottom: 24px;
+    }
+}
+
+// ── Таблица рассылок ──────────────────────────────────────────────
+.campaign-table {
+    &__row--archived {
+        opacity: 0.5;
+    }
+
+    &__row--failed {
+        background: rgba($color-error-red, 0.06);
+    }
+
+    &__name-cell {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    &__cell-actions {
+        display: flex;
+        align-items: center;
+        margin-left: auto;
+        flex-shrink: 0;
+    }
+
+    &__status-cell {
+        transition: color 0.15s ease;
+    }
+
+    &__action {
+        display: inline;
+    }
+
+    &__btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 3px;
+        font-size: 12px;
+        cursor: default;
+        border: 0;
+        background: none;
+        line-height: 1;
+
+        &--start {
+            background: $color-success-green;
+            color: #fff;
+            cursor: pointer;
+            transition: opacity 0.15s;
+
+            &::after {
+                content: '▶';
+                font-size: 10px;
+            }
+
+            &:hover {
+                opacity: 0.8;
+            }
+        }
+
+        &--stop {
+            background: $color-action-orange;
+            color: #fff;
+
+            &::after {
+                content: '■';
+                font-size: 10px;
+            }
+        }
+
+        &--error {
+            background: $color-error-red;
+            color: #fff;
+
+            &::after {
+                content: '✕';
+                font-size: 12px;
+                font-weight: 700;
+            }
+        }
+    }
+}
+
+.campaign-status {
+    &--launched {
+        color: var(--color-success, #15803d);
+        font-weight: 600;
+    }
+
+    &--failed {
+        color: var(--color-danger, #b91c1c);
+        font-weight: 600;
+    }
+}
+
+.campaign-delete__warning,
+.campaign-empty {
+    color: var(--color-danger, #b91c1c);
+}
+
+.campaign-empty {
+    color: var(--color-text-secondary, #6b7280);
+}
+
+.campaign-clone-form {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: auto;
+}
+
+.campaign-clone-form__option {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--color-text-secondary, #6b7280);
+    white-space: nowrap;
+    cursor: pointer;
+}

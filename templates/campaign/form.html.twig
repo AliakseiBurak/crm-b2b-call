@@ -1,0 +1,239 @@
+{#
+    Форма рассылки: создание (campaign is null) и редактирование
+    (change campaign-entity). Поля name/subject/body обязательны;
+    preview_text — опциональный прехедер; статус — выбор из
+    draft/ready/launched/error/archived. Вложения — загрузка файла
+    на обеих страницах. Адресаты — только при статусе ready/launched.
+    Ожидает: campaign (?Campaign), errors (array<string, string>),
+    attachmentError (?string).
+#}
+{% extends 'base.html.twig' %}
+
+{% set isEdit = campaign and campaign.id %}
+
+{% block title %}{{ isEdit ? 'Редактирование рассылки' : 'Новая рассылка' }}{% endblock %}
+
+{% block body %}
+    <section class="section section--white">
+        <div class="container">
+            <h1>{{ isEdit ? 'Редактирование рассылки' : 'Новая рассылка' }}</h1>
+
+            <form
+                class="campaign-form"
+                method="post"
+                enctype="multipart/form-data"
+                action="{{ isEdit
+                    ? path('app_campaign_update', { id: campaign.id })
+                    : path('app_campaign_create') }}"
+            >
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('campaign') }}">
+                <input type="hidden" name="_recipient_csrf" value="{{ csrf_token('campaign_recipient') }}">
+
+                {{ include('components/form_field.html.twig', {
+                    name: 'name',
+                    label: 'Название',
+                    value: campaign.name|default(''),
+                    error: errors.name|default(null),
+                }) }}
+
+                <div class="field">
+                    <label class="field__label" for="status">Статус</label>
+                    <select class="field__input" id="status" name="status" data-campaign-status>
+                        {% for option in enum('App\\Entity\\Enum\\CampaignStatus').cases() %}
+                            {% set selected = campaign and campaign.id ? campaign.status == option : option.value == 'draft' %}
+                            <option value="{{ option.value }}"{% if selected %} selected{% endif %}>{{ option.label() }}</option>
+                        {% endfor %}
+                    </select>
+                    {% if errors.status is defined and errors.status %}
+                        <span class="field__error" role="alert">{{ errors.status }}</span>
+                    {% endif %}
+                </div>
+
+                {{ include('components/form_field.html.twig', {
+                    name: 'subject',
+                    label: 'Тема письма',
+                    value: campaign.subject|default(''),
+                    error: errors.subject|default(null),
+                }) }}
+
+                {{ include('components/form_field.html.twig', {
+                    name: 'preview_text',
+                    label: 'Текст превью (прехедер)',
+                    value: campaign.previewText|default(''),
+                    error: errors.preview_text|default(null),
+                    hint: 'Краткое описание для предпросмотра в почте. Можно оставить пустым',
+                }) }}
+
+                <div class="field">
+                    <label class="field__label" for="body">Текст письма</label>
+                    <textarea
+                        class="field__input campaign-form__body"
+                        id="body"
+                        name="body"
+                        rows="8"
+                    >{{ campaign.body|default('') }}</textarea>
+                    <span class="field__hint">Токены: {{ '{{' }}greeting{{ '}}' }} — приветствие, {{ '{{' }}organization_name{{ '}}' }} — название организации, {{ '{{' }}contact_name{{ '}}' }} — имя контакта</span>
+                    {% if errors.body is defined and errors.body %}
+                        <span class="field__error" role="alert">{{ errors.body }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="field">
+                    <label class="field__label">Вложения</label>
+                    {% if attachmentError %}
+                        <span class="field__error" role="alert">{{ attachmentError }}</span>
+                    {% endif %}
+                    {% if isEdit and campaign.attachments is not empty %}
+                        <ul class="campaign-form__file-list">
+                            {% for attachment in campaign.attachments %}
+                                <li class="campaign-form__file-item">
+                                    <span class="campaign-form__file-name">{{ attachment.filename }}</span>
+                                    {% if attachment.size %}
+                                        <span class="campaign-form__file-size">{{ (attachment.size / 1024)|round(1) }} КБ</span>
+                                    {% endif %}
+                                    <button type="button" class="btn btn--secondary btn--sm"
+                                        data-action="remove-attachment"
+                                        data-url="{{ path('app_campaign_attachment_remove', { id: campaign.id, attachmentId: attachment.id }) }}"
+                                        data-csrf="{{ csrf_token('campaign_attachment') }}">Удалить</button>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                    <div class="campaign-form__upload-row">
+                        <input type="hidden" name="_attachment_csrf" value="{{ csrf_token('campaign_attachment') }}">
+                        <input class="campaign-form__upload-input" type="file" id="attachment" name="attachments[]" multiple>
+                    </div>
+                </div>
+
+                <div class="campaign-form__section" data-recipients-section>
+                    {% if isEdit and campaign.recipients is not empty %}
+                        <ul class="campaign-form__recipient-list">
+                            {% for recipient in campaign.recipients %}
+                                <li class="campaign-form__recipient-item">
+                                    <span class="campaign-form__recipient-info">
+                                        <span class="campaign-form__recipient-org">{{ recipient.organization.name }}</span>
+                                        {% if recipient.contact %}
+                                            <span class="campaign-form__recipient-contact">{{ recipient.contact.name }}{% if recipient.contact.email %} <span class="campaign-form__recipient-email">{{ recipient.contact.email }}</span>{% endif %}</span>
+                                        {% endif %}
+                                    </span>
+                                    <button type="button" class="btn btn--secondary btn--sm"
+                                        data-action="remove-recipient"
+                                        data-url="{{ path('app_campaign_recipient_remove', { id: campaign.id, recipientId: recipient.id }) }}"
+                                        data-csrf="{{ csrf_token('campaign_recipient') }}">Убрать</button>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+
+                    {% if isEdit and availableOrganizations|default([]) is not empty %}
+                        <div class="campaign-form__add-recipient">
+                            <div class="campaign-form__recipient-selects">
+                                <select class="field__input" name="organization" id="recipient-organization" required>
+                                    {% for organization in availableOrganizations %}
+                                        <option value="{{ organization.id }}">{{ organization.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <select class="field__input" name="contact" id="recipient-contact">
+                                    <option value="">— вся организация —</option>
+                                    {% for organization in availableOrganizations %}
+                                        {% for contact in organization.contacts %}
+                                            <option value="{{ contact.id }}" data-org="{{ organization.id }}">{{ contact.name }}{% if contact.email %} ({{ contact.email }}){% endif %}</option>
+                                        {% endfor %}
+                                    {% endfor %}
+                                </select>
+                                <button type="button" class="btn btn--secondary"
+                                    data-action="add-recipient"
+                                    data-url="{{ path('app_campaign_recipient_add', { id: campaign.id }) }}"
+                                    data-csrf="{{ csrf_token('campaign_recipient') }}">Добавить</button>
+                            </div>
+                        </div>
+                        <script>
+                            (() => {
+                                const orgSelect = document.getElementById('recipient-organization');
+                                const contactSelect = document.getElementById('recipient-contact');
+                                const allOptions = [...contactSelect.querySelectorAll('option[data-org]')];
+                                const noContact = contactSelect.querySelector('option:not([data-org])');
+                                orgSelect.addEventListener('change', () => {
+                                    const orgId = orgSelect.value;
+                                    contactSelect.innerHTML = '';
+                                    contactSelect.appendChild(noContact.cloneNode(true));
+                                    allOptions.filter(o => o.dataset.org === orgId).forEach(o => contactSelect.appendChild(o.cloneNode(true)));
+                                });
+                                orgSelect.dispatchEvent(new Event('change'));
+                            })();
+                        </script>
+                    {% endif %}
+                </div>
+
+                <div class="campaign-form__actions">
+                    {{ include('components/button.html.twig', {
+                        variant: 'primary',
+                        text: isEdit ? 'Сохранить' : 'Создать',
+                    }) }}
+                    {{ include('components/button.html.twig', {
+                        variant: 'secondary',
+                        text: 'Отмена',
+                        href: isEdit ? path('app_campaign_show', { id: campaign.id }) : path('app_campaign_index'),
+                        type: 'button',
+                    }) }}
+                    {% if isEdit %}
+                        {{ include('components/button.html.twig', {
+                            variant: 'secondary',
+                            text: 'Удалить',
+                            href: path('app_campaign_delete', { id: campaign.id }),
+                            type: 'button',
+                        }) }}
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <script>
+        (() => {
+            const statusSelect = document.querySelector('[data-campaign-status]');
+            const recipientsSection = document.querySelector('[data-recipients-section]');
+            if (statusSelect && recipientsSection) {
+                const toggleRecipients = () => {
+                    const allowed = statusSelect.value === 'ready' || statusSelect.value === 'launched';
+                    recipientsSection.hidden = !allowed;
+                };
+                statusSelect.addEventListener('change', toggleRecipients);
+                toggleRecipients();
+            }
+
+            document.addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-action]');
+                if (!btn) return;
+
+                const action = btn.dataset.action;
+                const url = btn.dataset.url;
+                const csrf = btn.dataset.csrf;
+
+                if (action === 'remove-attachment' || action === 'remove-recipient') {
+                    fetch(url, {
+                        method: 'POST',
+                        headers: { 'X-CSRF-Token': csrf, 'X-Requested-With': 'XMLHttpRequest' }
+                    }).then(() => btn.closest('li').remove());
+                }
+
+                if (action === 'add-recipient') {
+                    const orgSelect = document.getElementById('recipient-organization');
+                    const contactSelect = document.getElementById('recipient-contact');
+                    const body = new URLSearchParams();
+                    body.append('organization', orgSelect.value);
+                    body.append('contact', contactSelect.value);
+                    body.append('_csrf_token', csrf);
+
+                    fetch(url, {
+                        method: 'POST',
+                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                        body: body
+                    }).then(r => r.json()).then(data => {
+                        if (data.redirect) window.location.href = data.redirect;
+                    });
+                }
+            });
+        })();
+    </script>
+{% endblock %}

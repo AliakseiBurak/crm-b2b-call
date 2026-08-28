@@ -3,6 +3,7 @@
     Параметры:
       - name, type, label, value, placeholder, required, autofocus
       - on_band: цветная лента (белая линия/текст)
+      - hint: подсказка под полем
       - error: сообщение
 #}
 <div class="field{% if on_band is defined and on_band %} field--on-band{% endif %}">
@@ -17,5 +18,6 @@
         {% if required is defined and required %}required{% endif %}
         {% if autofocus is defined and autofocus %}autofocus{% endif %}
     >
+    {% if hint is defined and hint %}<span class="field__hint">{{ hint }}</span>{% endif %}
     {% if error is defined and error %}<span class="field__error" role="alert">{{ error }}</span>{% endif %}
 </div>

@@ -3,7 +3,11 @@
 namespace App\DataFixtures;
 
 use App\Entity\Call;
+use App\Entity\Campaign;
+use App\Entity\CampaignAttachment;
+use App\Entity\CampaignRecipient;
 use App\Entity\Contact;
+use App\Entity\Enum\CampaignStatus;
 use App\Entity\Enum\ContactType;
 use App\Entity\Enum\GroupType;
 use App\Entity\Enum\UserRole;
@@ -235,6 +239,73 @@ class AppFixtures extends Fixture
             $manager->persist($call);
         }
         $bare($organizations[6], $today->setTime(0, 5), false); // Парус: план сегодня без факта → waiting1
+
+        // ── Рассылки (campaigns) — все статусы ────────────────────────
+
+        // Черновик.
+        $campaignDraft = (new Campaign())
+            ->setName('Новые курсы')
+            ->setSubject('Приглашаем на курсы 2026')
+            ->setPreviewText('Обзор новых курсов для ваших сотрудников')
+            ->setBody("{{greeting}}!\n\nПриглашаем вас на наши курсы.\n\nС уважением, команда обучения.");
+        $manager->persist($campaignDraft);
+
+        // Готова.
+        $campaignReady = (new Campaign())
+            ->setName('Осенняя рассылка')
+            ->setSubject('Осень на носу — готовьте сотрудников')
+            ->setBody("{{greeting}}!\n\nОсень — время обновлений. Предлагаем вам наши программы.");
+        $campaignReady->setStatus(CampaignStatus::Ready);
+        $manager->persist($campaignReady);
+
+        // Запущена.
+        $campaignLaunched = (new Campaign())
+            ->setName('Акция')
+            ->setSubject('Скидки недели')
+            ->setPreviewText('Специальные предложения только для вас')
+            ->setBody("{{greeting}}!\n\nСпециальное предложение только для вас.\n\nНе пропустите скидки этой недели!")
+            ->setStatus(CampaignStatus::Launched);
+        $campaignLaunched->launch();
+        $manager->persist($campaignLaunched);
+
+        // Ошибка.
+        $campaignFailed = (new Campaign())
+            ->setName('Рассылка с ошибкой')
+            ->setSubject('Тестовая ошибка отправки')
+            ->setBody("{{greeting}}!\n\nЭто тестовая рассылка для проверки обработки ошибок.");
+        $campaignFailed->fail();
+        $manager->persist($campaignFailed);
+
+        // Архив.
+        $campaignArchived = (new Campaign())
+            ->setName('Прошлая акция')
+            ->setSubject('Акция прошла')
+            ->setBody("{{greeting}}!\n\nЭто архивная рассылка.")
+            ->setStatus(CampaignStatus::Archived);
+        $manager->persist($campaignArchived);
+
+        // Ещё один черновик.
+        $campaignStandalone = (new Campaign())
+            ->setName('Приглашение на вебинар')
+            ->setSubject('Вебинар по логистике')
+            ->setPreviewText('Приглашение на вебинар')
+            ->setBody("{{greeting}}!\n\nПриглашаем на вебинар {{organization_name}}.\n\nТема: Современная логистика.");
+        $manager->persist($campaignStandalone);
+
+        $manager->flush();
+
+        // Вложения кампании (файлы — метаданные, реальные файлы в storage).
+        $attachment1 = new CampaignAttachment($campaignLaunched, 'брошюра.pdf', 'fixture-broshure-001');
+        $attachment1->setMimeType('application/pdf')->setSize(204800);
+        $manager->persist($attachment1);
+
+        $attachment2 = new CampaignAttachment($campaignLaunched, 'прайс.xlsx', 'fixture-price-002');
+        $attachment2->setMimeType('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')->setSize(51200);
+        $manager->persist($attachment2);
+
+        // Ручные адресаты standalone-рассылки.
+        $manager->persist(new CampaignRecipient($campaignStandalone, $organizations[0])); // Ромашка — вся организация
+        $manager->persist(new CampaignRecipient($campaignStandalone, $organizations[1], $contacts[2])); // Вектор → контакт
 
         $manager->flush();
     }

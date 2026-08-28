@@ -1,0 +1,45 @@
+{#
+    Подтверждение удаления рассылки (change campaign-entity): предупреждение
+    об удалении файлов вложений из storage. error — сообщение отклонённого
+    удаления. Ожидает: campaign (Campaign), error (?string).
+#}
+{% extends 'base.html.twig' %}
+
+{% block title %}Удаление рассылки{% endblock %}
+
+{% block body %}
+    <section class="section section--white">
+        <div class="container">
+            <h1>Удаление рассылки</h1>
+
+            {% if error %}
+                <p class="field__error" role="alert">{{ error }}</p>
+            {% endif %}
+
+            {% if campaign.attachments is not empty %}
+                <p class="campaign-delete__warning">
+                    Вместе с рассылкой будут удалены её вложения (файлы из хранилища — тоже).
+                </p>
+            {% endif %}
+
+            <p>Вы уверены, что хотите удалить рассылку «{{ campaign.name }}»?</p>
+
+            <form method="post" action="{{ path('app_campaign_remove', { id: campaign.id }) }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('campaign') }}">
+
+                <div class="campaign-form__actions">
+                    {{ include('components/button.html.twig', {
+                        variant: 'primary',
+                        text: 'Удалить',
+                    }) }}
+                    {{ include('components/button.html.twig', {
+                        variant: 'secondary',
+                        text: 'Отмена',
+                        href: path('app_campaign_show', { id: campaign.id }),
+                        type: 'button',
+                    }) }}
+                </div>
+            </form>
+        </div>
+    </section>
+{% endblock %}

@@ -34,3 +34,4 @@ security:
         - { path: ^/organizations, roles: ROLE_USER }
         - { path: ^/contacts, roles: ROLE_USER }
         - { path: ^/calls, roles: ROLE_USER }
+        - { path: ^/campaigns, roles: ROLE_USER }

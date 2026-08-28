@@ -11,6 +11,7 @@
     {% set menu = app.user
         ? [
             { label: 'Панель', href: path('app_dashboard') },
+            { label: 'Рассылки', href: path('app_campaign_index') },
             { label: 'Выйти', href: path('app_logout') },
         ]
         : [

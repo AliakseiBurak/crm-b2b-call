@@ -1,0 +1,144 @@
+{#
+    Карточка рассылки (change campaign-entity): тема, превью, текст письма,
+    вложения, статус, кнопка «Запустить» (для не запущенных), индикация
+    запущенности (launched_at). Ожидает: campaign (Campaign).
+#}
+{% extends 'base.html.twig' %}
+
+{% block title %}Рассылка «{{ campaign.name }}»{% endblock %}
+
+{% block body %}
+    <section class="section section--white">
+        <div class="container">
+            <h1>Рассылка «{{ campaign.name }}»</h1>
+
+            <article class="campaign-card">
+                <dl class="campaign-card__fields">
+                    <div class="campaign-card__row">
+                        <dt>Тема письма</dt>
+                        <dd>{{ campaign.subject }}</dd>
+                    </div>
+                    {% if campaign.previewText %}
+                        <div class="campaign-card__row">
+                            <dt>Превью</dt>
+                            <dd>{{ campaign.previewText }}</dd>
+                        </div>
+                    {% endif %}
+                    <div class="campaign-card__row">
+                        <dt>Текст письма</dt>
+                        <dd><pre class="campaign-card__template">{{ campaign.body }}</pre></dd>
+                    </div>
+                    <div class="campaign-card__row">
+                        <dt>Статус</dt>
+                        <dd>{{ campaign.status.label() }}</dd>
+                    </div>
+                    <div class="campaign-card__row">
+                        <dt>Запуск</dt>
+                        <dd>
+                            {% if campaign.launchedAt %}
+                                <span class="campaign-status campaign-status--launched">Первый запуск {{ campaign.launchedAt|date('d.m.Y H:i') }}</span>
+                            {% else %}
+                                Не запущена
+                            {% endif %}
+                        </dd>
+                    </div>
+                    {% if campaign.failedAt %}
+                        <div class="campaign-card__row">
+                            <dt>Ошибка</dt>
+                            <dd><span class="campaign-status campaign-status--failed">Ошибка {{ campaign.failedAt|date('d.m.Y H:i') }}</span></dd>
+                        </div>
+                    {% endif %}
+                    <div class="campaign-card__row">
+                        <dt>Адресаты</dt>
+                        <dd>
+                            {% if campaign.recipients is empty %}
+                                нет
+                            {% else %}
+                                {% for recipient in campaign.recipients %}
+                                    {{ recipient.organization.name }}{% if recipient.contact %} → {{ recipient.contact.name }}{% endif %}{% if not loop.last %}, {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        </dd>
+                    </div>
+                    <div class="campaign-card__row">
+                        <dt>Вложения</dt>
+                        <dd>
+                            {% if campaign.attachments is empty %}
+                                нет
+                            {% else %}
+                                <ul class="campaign-attachments__list">
+                                    {% for attachment in campaign.attachments %}
+                                        <li class="campaign-attachments__item">
+                                            <span class="campaign-attachments__name">{{ attachment.filename }}</span>
+                                            {% if attachment.size %}
+                                                <span class="campaign-attachments__size">{{ (attachment.size / 1024)|round(1) }} КБ</span>
+                                            {% endif %}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                        </dd>
+                    </div>
+                </dl>
+
+                {% if campaign.status.value != 'draft' %}
+                    <div class="campaign-card__clone-row">
+                        <form method="post" action="{{ path('app_campaign_clone', { id: campaign.id }) }}" class="campaign-clone-form">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token('campaign') }}">
+                            {{ include('components/button.html.twig', {
+                                variant: 'secondary',
+                                text: 'Клонировать',
+                            }) }}
+                            <label class="campaign-clone-form__option">
+                                <input type="checkbox" name="with_recipients" value="1">
+                                С получателями
+                            </label>
+                        </form>
+                    </div>
+                {% endif %}
+
+                <div class="campaign-card__actions">
+                    {% if campaign.status.value == 'ready' %}
+                        <form method="post" action="{{ path('app_campaign_launch', { id: campaign.id }) }}">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token('campaign') }}">
+                            {{ include('components/button.html.twig', {
+                                variant: 'primary',
+                                text: 'Запустить',
+                            }) }}
+                        </form>
+                    {% endif %}
+                    {% if campaign.status.value == 'failed' %}
+                        <form method="post" action="{{ path('app_campaign_reset', { id: campaign.id }) }}">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token('campaign') }}">
+                            {{ include('components/button.html.twig', {
+                                variant: 'secondary',
+                                text: 'Сбросить',
+                            }) }}
+                        </form>
+                    {% endif %}
+                    {% if campaign.status.value == 'launched' %}
+                        <form method="post" action="{{ path('app_campaign_stop', { id: campaign.id }) }}">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token('campaign') }}">
+                            {{ include('components/button.html.twig', {
+                                variant: 'secondary',
+                                text: 'Остановить',
+                            }) }}
+                        </form>
+                    {% endif %}
+                    {{ include('components/button.html.twig', {
+                        variant: 'secondary',
+                        text: 'Редактировать',
+                        href: path('app_campaign_edit', { id: campaign.id }),
+                        type: 'button',
+                    }) }}
+                    {{ include('components/button.html.twig', {
+                        variant: 'secondary',
+                        text: 'Назад к списку',
+                        href: path('app_campaign_index'),
+                        type: 'button',
+                    }) }}
+                </div>
+            </article>
+        </div>
+    </section>
+{% endblock %}

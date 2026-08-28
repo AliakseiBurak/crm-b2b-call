@@ -1,0 +1,62 @@
+{#
+    Подтверждение замены адресата рассылки: показывает текущий и новый набор
+    (org/contact) с предупреждением о замене. Ожидает: campaign (Campaign),
+    existing (CampaignRecipient), newContact (?Contact), newOrganization (Organization).
+#}
+{% extends 'base.html.twig' %}
+
+{% block title %}Замена адресата — {{ campaign.name }}{% endblock %}
+
+{% block body %}
+    <section class="section section--white">
+        <div class="container">
+            <h1>Замена адресата</h1>
+
+            <div class="campaign-card">
+                <div class="campaign-card__row">
+                    <dt>Рассылка</dt>
+                    <dd>{{ campaign.name }}</dd>
+                </div>
+
+                <div class="campaign-card__row campaign-delete__warning">
+                    <dt>Текущий адресат</dt>
+                    <dd>
+                        {{ existing.organization.name }}
+                        {% if existing.contact %}
+                            → {{ existing.contact.name }}{% if existing.contact.email %} ({{ existing.contact.email }}){% endif %}
+                        {% endif %}
+                    </dd>
+                </div>
+
+                <div class="campaign-card__row">
+                    <dt>Заменить на</dt>
+                    <dd>
+                        {{ newOrganization.name }}
+                        {% if newContact %}
+                            → {{ newContact.name }}{% if newContact.email %} ({{ newContact.email }}){% endif %}
+                        {% else %}
+                            — вся организация —
+                        {% endif %}
+                    </dd>
+                </div>
+
+                <div class="campaign-card__actions">
+                    <form method="post" action="{{ path('app_campaign_recipient_replace_execute', { id: campaign.id, recipientId: existing.id }) }}">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('campaign_recipient') }}">
+                        <input type="hidden" name="new_contact_id" value="{{ newContact ? newContact.id : '' }}">
+                        {{ include('components/button.html.twig', {
+                            variant: 'primary',
+                            text: 'Заменить',
+                        }) }}
+                    </form>
+                    {{ include('components/button.html.twig', {
+                        variant: 'secondary',
+                        text: 'Отмена',
+                        href: path('app_campaign_edit', { id: campaign.id }),
+                        type: 'button',
+                    }) }}
+                </div>
+            </div>
+        </div>
+    </section>
+{% endblock %}
