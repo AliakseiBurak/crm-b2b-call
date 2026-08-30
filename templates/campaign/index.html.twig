@@ -39,6 +39,7 @@
                             <tr>
                                 <th scope="col">{{ _self.sort_link('name', 'Название', sort, direction, highlight) }}</th>
                                 <th scope="col">{{ _self.sort_link('status', 'Статус', sort, direction, highlight) }}</th>
+                                <th scope="col"></th>
                                 <th scope="col">{{ _self.sort_link('subject', 'Тема письма', sort, direction, highlight) }}</th>
                             </tr>
                         </thead>
@@ -70,6 +71,15 @@
                                         </span>
                                     </td>
                                     <td class="campaign-table__status-cell">{{ campaign.status.label() }}</td>
+                                    <td class="campaign-table__actions-cell">
+                                        {{ include('components/button.html.twig', {
+                                            variant: 'secondary',
+                                            text: 'Адресаты',
+                                            href: path('app_campaign_recipients', { id: campaign.id }),
+                                            type: 'button',
+                                            sm: true,
+                                        }) }}
+                                    </td>
                                     <td>{{ campaign.subject }}</td>
                                 </tr>
                             {% endfor %}

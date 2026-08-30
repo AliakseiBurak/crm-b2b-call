@@ -30,7 +30,7 @@ The system SHALL let the administrator and managers create campaigns with a name
 - **THEN** рассылка создаётся, а письмо формируется без вложений
 
 ### Requirement: Статусы рассылки
-The system SHALL support the following campaign statuses: `draft`, `ready`, `launched`, `failed`, `archived`. Each status SHALL have a localized label. The `failedAt` timestamp SHALL be recorded when a campaign transitions to `failed`. The `launchedAt` timestamp SHALL be recorded when a campaign transitions to `launched`.
+The system SHALL support the following campaign statuses: `draft`, `ready`, `launched`, `failed`, `archived`. Each status SHALL have a localized label. The `failed` status SHALL be a technical status set exclusively by the MailingService when a sending error occurs; users SHALL NOT be able to set `failed` manually via the form. Users SHALL be able to reset a `failed` campaign to `ready` for re-launch. The `failedAt` timestamp SHALL be recorded when a campaign transitions to `failed`. The `launchedAt` timestamp SHALL be recorded when a campaign transitions to `launched`.
 
 #### Scenario: Черновик
 - **WHEN** менеджер создаёт новую рассылку
@@ -41,17 +41,20 @@ The system SHALL support the following campaign statuses: `draft`, `ready`, `lau
 - **THEN** поле `failedAt` заполняется текущим временем
 
 ### Requirement: Формирование адресатов
-The system SHALL let managers add recipients to campaigns manually. Each organization SHALL have at most one recipient per campaign (unique constraint on `campaign_id`, `organization_id`). A recipient MAY specify a contact; when a contact is set, the email SHALL be sent to that contact's email address instead of the organization. Recipients SHALL only be editable when the campaign status is `ready` or `launched`; the add/remove UI SHALL be hidden for other statuses via client-side JavaScript. When a recipient already exists for an organization, the system SHALL prompt the user with a replacement confirmation; on confirmation, the existing recipient is removed and a new one is created.
+The system SHALL provide a dedicated recipients page for each campaign, accessible from the campaign list and show page. Each organization SHALL have at most one recipient per campaign (unique constraint on `campaign_id`, `organization_id`). A recipient MAY specify a contact; when a contact is set, the email SHALL be sent to that contact's email address instead of the organization. Recipients SHALL be editable for all campaign statuses except `archived`; for archived campaigns, the recipients list SHALL be view-only (no add/remove). When a recipient already exists for an organization, the system SHALL prompt the user with a replacement confirmation; on confirmation, the existing recipient is removed and a new one is created. If the campaign has been launched (`launchedAt` is not null), the replacement SHALL trigger a re-send to the organization and the `replacementCount` SHALL be incremented. If the campaign has not been launched yet, the replacement SHALL NOT increment the counter. The system SHALL display a warning on the replacement confirmation page when the campaign has been launched, informing the user that the replacement will trigger a re-send. The system SHALL support bulk-adding all accessible organizations as recipients at once. Each recipient SHALL track a `replacementCount` field showing the number of replacements performed while the campaign was active.
 
-#### Scenario: Адресаты для standalone-рассылки
-- **WHEN** менеджер создаёт standalone-рассылку «Акция» со статусом «Готова»
-- **AND** вручную выбирает организации «ООО Ромашка» и «ООО Б»
-- **THEN** получателями рассылки являются только выбранные организации
+#### Scenario: Страница адресатов
+- **WHEN** менеджер открывает страницу адресатов рассылки «Акция»
+- **THEN** он видит таблицу с колонками: Организация, Контакт, П/отправка, Действия
 
-#### Scenario: Адресат — конкретный контакт
-- **WHEN** менеджер добавляет адресата standalone-рассылки «Акция» для организации «ООО Ромашка» и выбирает контакт «Иван Петров» с email ivan@romashka.ru
-- **THEN** получателем рассылки является контакт «Иван Петров» организации «ООО Ромашка»
-- **AND** письмо отправляется на адрес ivan@romashka.ru
+#### Scenario: Добавление адресата
+- **WHEN** менеджер выбирает организацию «ООО Ромашка» и нажимает «Добавить»
+- **THEN** организация добавляется как адресат рассылки
+
+#### Scenario: Массовое добавление всех организаций
+- **WHEN** менеджер нажимает «Выбрать все организации»
+- **THEN** все доступные организации добавляются как адресаты
+- **AND** уже существующие организации пропускаются
 
 #### Scenario: Замена адресата организации
 - **WHEN** рассылка «Акция» уже имеет адресата «ООО Ромашка» (без контакта)
@@ -59,20 +62,57 @@ The system SHALL let managers add recipients to campaigns manually. Each organiz
 - **THEN** система отображает страницу подтверждения замены
 - **AND** при подтверждении текущий адресат удаляется и добавляется новый с контактом «Иван Петров»
 
+#### Scenario: Замена адресата в запущенной рассылке
+- **WHEN** рассылка «Акция» запущена (`launchedAt` не null) и имеет адресата «ООО Ромашка»
+- **AND** менеджер заменяет адресата на другой контакт
+- **THEN** система отображает предупреждение «Рассылка уже запущена. Замена адресата инициирует повторную отправку письма данной организации.»
+- **AND** при подтверждении `replacementCount` текущего адресата увеличивается на 1
+- **AND** новый адресат создаётся с увеличенным счётчиком
+
+#### Scenario: Замена адресата до запуска рассылки
+- **WHEN** рассылка «Акция» не запущена (`launchedAt` равен null) и имеет адресата «ООО Ромашка»
+- **AND** менеджер заменяет адресата на другой контакт
+- **THEN** система отображает страницу подтверждения замены без предупреждения о повторной отправке
+- **AND** при подтверждении `replacementCount` НЕ увеличивается
+
 #### Scenario: Менеджер не может добавить недоступную организацию адресатом
 - **WHEN** в системе существует организация «ООО Конкурент», отсутствующая в области доступа менеджера
 - **AND** менеджер пытается добавить её адресатом standalone-рассылки
 - **THEN** система отклоняет запрос с ошибкой 403
 - **AND** организация не включается в получатели
 
-#### Scenario: Адресаты нельзя добавить для черновика
-- **WHEN** рассылка «Новые курсы» имеет статус `draft`
-- **AND** менеджер пытается добавить адресата
-- **THEN** система отклоняет запрос с ошибкой
+#### Scenario: Адресаты нельзя добавить для архивированной рассылки
+- **WHEN** рассылка «Новые курсы» имеет статус `archived`
+- **AND** менеджер пытается добавить или удалить адресата
+- **THEN** система отклоняет запрос с сообщением «Адресаты недоступны для рассылки в статусе «В архиве»»
 
-#### Scenario: Интерфейс адресатов скрыт для черновика
+#### Scenario: Просмотр адресатов архивированной рассылки
+- **WHEN** менеджер открывает страницу адресатов архивированной рассылки
+- **THEN** он видит таблицу адресатов без кнопок удаления и формы добавления
+
+#### Scenario: Адресаты доступны для черновика
 - **WHEN** рассылка имеет статус `draft`
-- **THEN** форма добавления адресатов и кнопки «Убрать» не отображаются (скрыты через JS)
+- **THEN** менеджер может добавлять и удалять адресатов через страницу адресатов
+
+#### Scenario: Адресаты доступны для готовой рассылки
+- **WHEN** рассылка имеет статус `ready`
+- **THEN** менеджер может добавлять и удалять адресатов через страницу адресатов
+
+#### Scenario: Адресаты доступны для запущенной рассылки
+- **WHEN** рассылка имеет статус `launched`
+- **THEN** менеджер может добавлять и удалять адресатов через страницу адресатов
+
+#### Scenario: Адресаты доступны для рассылки с ошибкой
+- **WHEN** рассылка имеет статус `failed`
+- **THEN** менеджер может добавлять и удалять адресатов через страницу адресатов
+
+#### Scenario: Переход на страницу адресатов из списка
+- **WHEN** менеджер нажимает кнопку «Адресаты» в анонимной колонке таблицы рассылок
+- **THEN** он перенаправляется на страницу адресатов соответствующей рассылки
+
+#### Scenario: Переход на страницу адресатов из карточки
+- **WHEN** менеджер нажимает кнопку «Адресаты» на карточке рассылки
+- **THEN** он перенаправляется на страницу адресатов соответствующей рассылки
 
 ### Requirement: Генерация письма по шаблону
 The system SHALL generate each email from the campaign's stored subject, preview text, and body by filling tokens (`{{greeting}}`, `{{contact_name}}`, `{{organization_name}}`). The `{{greeting}}` token SHALL resolve to "Уважаемый(ая) {contact_name}" when a contact is set, or "Уважаемые сотрудники {organization_name}" otherwise.
@@ -174,7 +214,7 @@ The system SHALL let the administrator and manager attach one or more files to a
 - **THEN** файлы сохраняются после создания рассылки
 
 ### Requirement: Запуск рассылки
-The system SHALL support launching a campaign manually (administrator clicks launch). Launching SHALL set the campaign's `status` to `launched` and record `launchedAt`; actual sending is performed by a separate service. A launch button SHALL be available on the campaign card and as a quick action in the campaign list table, but ONLY when the campaign status is `ready`.
+The system SHALL support launching a campaign manually (administrator clicks launch). Launching SHALL set the campaign's `status` to `launched` and record `launchedAt`; actual sending is performed by a separate service. On the campaign card, the button order SHALL be: 1) Адресаты, 2) Клонировать (with recipients checkbox, if status is not draft), 3) action buttons (launch/stop/reset + Редактировать + Назад к списку).
 
 #### Scenario: Ручной запуск
 - **WHEN** администратор открывает карточку рассылки «Новые курсы» со статусом `ready`
@@ -207,9 +247,17 @@ The system SHALL support launching a campaign manually (administrator clicks lau
 
 #### Scenario: Клонирование рассылки
 - **WHEN** менеджер открывает карточку рассылки со статусом `ready`, `launched`, `failed` или `archived`
-- **THEN** отображается кнопка «Клонировать»
-- **AND** при нажатии создаётся новая рассылка со статусом `draft`, копией темы, превью, текста, вложений (метаданные, файлы в storage общие) и адресатов (опционально)
+- **THEN** отображается кнопка «Клонировать» с тремя вариантами: «Без адресатов», «С адресатами», «С адресатами и контактами»
+- **AND** при нажатии создаётся новая рассылка со статусом `draft`, копией темы, превью, текста, вложений (метаданные, файлы в storage общие)
 - **AND** к названию добавляется суффикс «(копия)»
+
+#### Scenario: Клонирование с адресатами без контактов
+- **WHEN** менеджер выбирает «С адресатами» и нажимает «Клонировать»
+- **THEN** копируются адресаты (организации) без контактов
+
+#### Scenario: Клонирование с адресатами и контактами
+- **WHEN** менеджер выбирает «С адресатами и контактами» и нажимает «Клонировать»
+- **THEN** копируются адресаты с их контактами
 
 #### Scenario: Клонирование недоступно для черновика
 - **WHEN** рассылка имеет статус `draft`
@@ -232,7 +280,7 @@ The system SHALL let the administrator delete a campaign from the edit form. Del
 - **THEN** рассылка, её вложения и адресаты удаляются
 
 ### Requirement: Список рассылок и сортировка
-The system SHALL display campaigns in a sortable table with columns: Name (with quick actions), Status, Subject. Sorting SHALL be available on all three columns via clickable headers with ascending/descending indicators. Archived campaigns SHALL always appear at the bottom of the list regardless of sort order. The updated campaign SHALL be highlighted after save.
+The system SHALL display campaigns in a sortable table with columns: Name (with quick actions), Status, anonymous column (with "Адресаты" button), Subject. Sorting SHALL be available on name, status, and subject columns via clickable headers with ascending/descending indicators. Archived campaigns SHALL always appear at the bottom of the list regardless of sort order. The updated campaign SHALL be highlighted after save.
 
 #### Scenario: Сортировка по столбцам
 - **WHEN** менеджер кликает по заголовку столбца «Название»

@@ -12,6 +12,12 @@
         <div class="container">
             <h1>Замена адресата</h1>
 
+            {% if campaign.launchedAt %}
+                <div class="alert alert--warning">
+                    Рассылка уже запущена. Замена адресата инициирует повторную отправку письма данной организации.
+                </div>
+            {% endif %}
+
             <div class="campaign-card">
                 <div class="campaign-card__row">
                     <dt>Рассылка</dt>

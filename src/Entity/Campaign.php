@@ -156,6 +156,8 @@ class Campaign
 
     /**
      * Пометить рассылку как неудачную: статус failed, зафиксировать время.
+     * Вызывается сервисом MailingService при ошибке отправки; недоступен
+     * пользователю через форму.
      */
     public function fail(): self
     {
@@ -189,9 +191,10 @@ class Campaign
     /**
      * Клонирование кампании: копируются тема, превью, текст, вложения
      * (метаданные, файлы в storage общие); статус — draft, launchedAt — null.
-     * Получатели копируются при $withRecipients = true.
+     * При $withRecipients = true копируются адресаты;
+     * при $withContacts = true сохраняются контакты адресатов.
      */
-    public static function cloneFrom(self $source, bool $withRecipients): self
+    public static function cloneFrom(self $source, bool $withRecipients, bool $withContacts = false): self
     {
         $clone = (new self())
             ->setName($source->name . ' (копия)')
@@ -209,7 +212,7 @@ class Campaign
         if ($withRecipients) {
             foreach ($source->recipients as $recipient) {
                 // CampaignRecipient constructor auto-adds to $clone->recipients
-                new CampaignRecipient($clone, $recipient->organization, $recipient->contact);
+                new CampaignRecipient($clone, $recipient->organization, $withContacts ? $recipient->contact : null);
             }
         }
 

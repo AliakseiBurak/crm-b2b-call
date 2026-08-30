@@ -25,7 +25,8 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
  * Рассылки (change campaign-entity): создание/редактирование доступны
  * администратору и менеджерам (спецификация campaigns), вложения хранятся на
  * кампании, запуск — ручной (кнопка), остановка и сброс ошибки,
- * клонирование, ручные адресаты с заменой подтверждением.
+ * клонирование, ручные адресаты (все статусы кроме archived) с заменой
+ * подтверждением.
  */
 class CampaignController extends AbstractController
 {
@@ -120,9 +121,6 @@ class CampaignController extends AbstractController
             'campaign' => $campaign,
             'errors' => [],
             'attachmentError' => null,
-            // Для выбора ручных адресатов: организации области доступа
-            // (ADR-0007/0008), ещё не добавленные в рассылку.
-            'availableOrganizations' => $this->availableOrganizations($campaign),
         ]);
     }
 
@@ -138,7 +136,6 @@ class CampaignController extends AbstractController
                 'campaign' => $campaign,
                 'errors' => $errors,
                 'attachmentError' => null,
-                'availableOrganizations' => $this->availableOrganizations($campaign),
             ], new Response(null, Response::HTTP_UNPROCESSABLE_ENTITY));
         }
 
@@ -238,8 +235,10 @@ class CampaignController extends AbstractController
             throw $this->createNotFoundException('Клонирование недоступно для черновиков');
         }
 
-        $withRecipients = null !== $request->request->get('with_recipients');
-        $clone = Campaign::cloneFrom($campaign, $withRecipients);
+        $cloneMode = (string) $request->request->get('clone_mode', 'none');
+        $withRecipients = 'none' !== $cloneMode;
+        $withContacts = 'recipients_with_contacts' === $cloneMode;
+        $clone = Campaign::cloneFrom($campaign, $withRecipients, $withContacts);
         $this->em->persist($clone);
         $this->em->flush();
 
@@ -333,20 +332,79 @@ class CampaignController extends AbstractController
     }
 
     /**
+     * Страница адресатов рассылки: список, добавление, удаление.
+     * Редактирование доступно для всех статусов, кроме archived.
+     */
+    #[Route('/campaigns/{id}/recipients', name: 'app_campaign_recipients', methods: ['GET'])]
+    public function recipients(int $id): Response
+    {
+        $campaign = $this->campaign($id);
+        $available = $this->availableOrganizations($campaign);
+
+        $contactsByOrg = [];
+        foreach ($available as $org) {
+            $contactsByOrg[$org->id] = array_map(
+                static fn (Contact $c): array => ['id' => $c->id, 'name' => $c->name, 'email' => $c->email],
+                $org->contacts->toArray(),
+            );
+        }
+
+        return $this->render('campaign/recipients.html.twig', [
+            'campaign' => $campaign,
+            'availableOrganizations' => $available,
+            'contactsByOrg' => $contactsByOrg,
+        ]);
+    }
+
+    /**
+     * Массовое добавление всех доступных организаций адресатами.
+     * Существующие организации пропускаются (тихо).
+     */
+    #[Route('/campaigns/{id}/recipients/bulk', name: 'app_campaign_recipient_bulk', methods: ['POST'])]
+    public function bulkAddRecipients(int $id, Request $request): Response
+    {
+        $campaign = $this->campaign($id);
+        $this->assertRecipientCsrfToken($request);
+        $this->assertRecipientsEditable($campaign);
+
+        $available = $this->availableOrganizations($campaign);
+        $added = 0;
+        foreach ($available as $organization) {
+            $exists = $this->em->getRepository(CampaignRecipient::class)->findOneBy([
+                'campaign' => $campaign,
+                'organization' => $organization,
+            ]);
+            if (null !== $exists) {
+                continue;
+            }
+            $this->em->persist(new CampaignRecipient($campaign, $organization));
+            ++$added;
+        }
+        $this->em->flush();
+
+        if ($request->headers->get('X-Requested-With') === 'XMLHttpRequest') {
+            return $this->json([
+                'redirect' => $this->generateUrl('app_campaign_recipients', ['id' => $campaign->id]),
+                'added' => $added,
+            ]);
+        }
+
+        return $this->redirectToRoute('app_campaign_recipients', ['id' => $campaign->id]);
+    }
+
+    /**
      * Добавление ручного адресата standalone-рассылки (task 5.5): менеджеру
      * разрешены только организации области доступа (ADR-0007) — недоступная
      * организация отклоняется с 403; администратору — любые (ADR-0008).
      * Опционально указывается contact_id для рассылки на email контакта.
+     * Адресаты доступны для всех статусов кампании, кроме archived.
      */
     #[Route('/campaigns/{id}/recipients', name: 'app_campaign_recipient_add', methods: ['POST'])]
     public function addRecipient(int $id, Request $request): Response
     {
         $campaign = $this->campaign($id);
         $this->assertRecipientCsrfToken($request);
-
-        if (!in_array($campaign->status, [CampaignStatus::Ready, CampaignStatus::Launched], true)) {
-            throw $this->createNotFoundException('Адресаты можно добавлять только для рассылок со статусом «Готова» или «Запущена»');
-        }
+        $this->assertRecipientsEditable($campaign);
 
         $organization = $this->accessibleOrganizationForRecipient((int) $request->request->get('organization', 0));
 
@@ -367,9 +425,9 @@ class CampaignController extends AbstractController
         ]);
         if (null !== $exact) {
             if ($request->headers->get('X-Requested-With') === 'XMLHttpRequest') {
-                return $this->json(['redirect' => $this->generateUrl('app_campaign_edit', ['id' => $campaign->id])]);
+                return $this->json(['redirect' => $this->generateUrl('app_campaign_recipients', ['id' => $campaign->id])]);
             }
-            return $this->redirectToRoute('app_campaign_edit', ['id' => $campaign->id]);
+            return $this->redirectToRoute('app_campaign_recipients', ['id' => $campaign->id]);
         }
 
         // Проверка: есть ли другой адресат для той же организации
@@ -397,15 +455,15 @@ class CampaignController extends AbstractController
         $this->em->flush();
 
         if ($request->headers->get('X-Requested-With') === 'XMLHttpRequest') {
-            return $this->json(['redirect' => $this->generateUrl('app_campaign_edit', ['id' => $campaign->id])]);
+            return $this->json(['redirect' => $this->generateUrl('app_campaign_recipients', ['id' => $campaign->id])]);
         }
 
-        return $this->redirectToRoute('app_campaign_edit', ['id' => $campaign->id]);
+        return $this->redirectToRoute('app_campaign_recipients', ['id' => $campaign->id]);
     }
 
     /**
      * Страница подтверждения замены адресата: показывает текущий и новый
-     * набор (org/contact) с предупреждением о замене.
+     * набор (org/contact); при запущенной рассылке — предупреждение о повторной отправке.
      */
     #[Route('/campaigns/{id}/recipients/{recipientId}/replace', name: 'app_campaign_recipient_replace_confirm', methods: ['GET'])]
     public function replaceConfirm(int $id, int $recipientId, Request $request): Response
@@ -439,6 +497,7 @@ class CampaignController extends AbstractController
     {
         $campaign = $this->campaign($id);
         $this->assertRecipientCsrfToken($request);
+        $this->assertRecipientsEditable($campaign);
 
         $existing = $this->em->find(CampaignRecipient::class, $recipientId);
         if (null === $existing || $existing->campaign->id !== $campaign->id) {
@@ -452,10 +511,21 @@ class CampaignController extends AbstractController
         }
 
         $this->em->remove($existing);
-        $this->em->persist(new CampaignRecipient($campaign, $existing->organization, $newContact));
         $this->em->flush();
 
-        return $this->redirectToRoute('app_campaign_edit', ['id' => $campaign->id]);
+        // Счётчик увеличивается только если рассылка уже запущена.
+        // TODO: в будущем — учитывать статус доставки письма (deliveredAt на CampaignRecipient),
+        // чтобы счётчик рос только при реальной доставке, а не просто при запуске рассылки.
+        $shouldIncrement = null !== $campaign->launchedAt;
+        $this->em->persist(new CampaignRecipient(
+            $campaign,
+            $existing->organization,
+            $newContact,
+            $shouldIncrement ? $existing->replacementCount + 1 : $existing->replacementCount,
+        ));
+        $this->em->flush();
+
+        return $this->redirectToRoute('app_campaign_recipients', ['id' => $campaign->id]);
     }
 
     #[Route('/campaigns/{id}/recipients/{recipientId}/delete', name: 'app_campaign_recipient_remove', methods: ['POST'])]
@@ -463,6 +533,7 @@ class CampaignController extends AbstractController
     {
         $campaign = $this->campaign($id);
         $this->assertRecipientCsrfToken($request);
+        $this->assertRecipientsEditable($campaign);
 
         $recipient = $this->em->find(CampaignRecipient::class, $recipientId);
         if (null === $recipient || $recipient->campaign->id !== $campaign->id) {
@@ -476,7 +547,7 @@ class CampaignController extends AbstractController
             return $this->json(['ok' => true]);
         }
 
-        return $this->redirectToRoute('app_campaign_edit', ['id' => $campaign->id]);
+        return $this->redirectToRoute('app_campaign_recipients', ['id' => $campaign->id]);
     }
 
     /**
@@ -496,10 +567,13 @@ class CampaignController extends AbstractController
         $campaign->setBody((string) $request->request->get('body', ''));
 
         // Статус выбирается из фиксированного списка draft/ready/launched/archived.
+        // failed — технический статус, устанавливаемый MailingService, недоступен в форме.
         $status = (string) $request->request->get('status', CampaignStatus::Draft->value);
         $status = CampaignStatus::tryFrom($status);
         if (null === $status) {
             $errors['status'] = 'Некорректный статус рассылки';
+        } elseif (CampaignStatus::Failed === $status) {
+            $errors['status'] = 'Статус «Ошибка» устанавливается автоматически сервисом отправки';
         } else {
             $campaign->setStatus($status);
         }
@@ -517,7 +591,6 @@ class CampaignController extends AbstractController
             'campaign' => $campaign,
             'errors' => [],
             'attachmentError' => $message,
-            'availableOrganizations' => $this->availableOrganizations($campaign),
         ], new Response(null, Response::HTTP_UNPROCESSABLE_ENTITY));
     }
 
@@ -554,15 +627,7 @@ class CampaignController extends AbstractController
      */
     private function availableOrganizations(Campaign $campaign): array
     {
-        $added = array_map(
-            static fn (CampaignRecipient $recipient): int => $recipient->organization->id,
-            $campaign->recipients->toArray(),
-        );
-
-        return array_values(array_filter(
-            $this->organizations->findAccessibleOrganizations($this->getUser()),
-            static fn (Organization $organization): bool => !\in_array($organization->id, $added, true),
-        ));
+        return $this->organizations->findAccessibleOrganizations($this->getUser());
     }
 
     /**
@@ -583,6 +648,18 @@ class CampaignController extends AbstractController
         }
 
         return $organization;
+    }
+
+    /**
+     * Адресаты доступны для всех статусов кампании, кроме archived.
+     * Для архивных кампаний редактирование запрещено (design campaign-entity,
+     * решение 5).
+     */
+    private function assertRecipientsEditable(Campaign $campaign): void
+    {
+        if (CampaignStatus::Archived === $campaign->status) {
+            throw new AccessDeniedHttpException('Адресаты недоступны для рассылки в статусе «В архиве»');
+        }
     }
 
     private function assertAttachmentCsrfToken(Request $request): void

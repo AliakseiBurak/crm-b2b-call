@@ -53,6 +53,18 @@
         margin-left: -4px;
     }
 
+    &__file-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    &__file-remove {
+        margin-left: auto;
+        flex-shrink: 0;
+    }
+
     // ── Загрузка файла ─────────────────────────────────────────────
     &__upload {
         max-width: 720px;
@@ -166,6 +178,14 @@
 
     &__fields {
         margin: 0 0 24px;
+
+        &--top {
+            margin-bottom: 24px;
+
+            .campaign-card__row:last-child {
+                border-bottom: 3px solid var(--color-border, #e5e7eb);
+            }
+        }
     }
 
     &__row {
@@ -194,10 +214,15 @@
     &__actions {
         display: flex;
         gap: 12px;
+        margin-top: 24px;
 
         form {
             margin: 0;
         }
+    }
+
+    &__actions-row {
+        margin-bottom: 24px;
     }
 
     &__clone-row {
@@ -326,4 +351,52 @@
     color: var(--color-text-secondary, #6b7280);
     white-space: nowrap;
     cursor: pointer;
+}
+
+// ── Страница адресатов ─────────────────────────────────────────
+.campaign-recipients {
+    &__bulk {
+        margin-bottom: 24px;
+    }
+
+    &__add {
+        margin-bottom: 24px;
+    }
+
+    &__add-form {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    &__table {
+        width: 100%;
+        margin-bottom: 0;
+    }
+
+    &__actions {
+        text-align: right;
+        white-space: nowrap;
+    }
+
+    &__delete-form {
+        display: inline;
+    }
+
+    &__empty {
+        color: var(--color-text-secondary, #6b7280);
+    }
+
+    &__back {
+        margin-top: 24px;
+    }
+}
+
+// ── Анонимная колонка в таблице рассылок ────────────────────────
+.campaign-table {
+    &__actions-cell {
+        text-align: center;
+        white-space: nowrap;
+        width: 1%;
+    }
 }

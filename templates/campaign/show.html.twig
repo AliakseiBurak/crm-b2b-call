@@ -13,21 +13,7 @@
             <h1>Рассылка «{{ campaign.name }}»</h1>
 
             <article class="campaign-card">
-                <dl class="campaign-card__fields">
-                    <div class="campaign-card__row">
-                        <dt>Тема письма</dt>
-                        <dd>{{ campaign.subject }}</dd>
-                    </div>
-                    {% if campaign.previewText %}
-                        <div class="campaign-card__row">
-                            <dt>Превью</dt>
-                            <dd>{{ campaign.previewText }}</dd>
-                        </div>
-                    {% endif %}
-                    <div class="campaign-card__row">
-                        <dt>Текст письма</dt>
-                        <dd><pre class="campaign-card__template">{{ campaign.body }}</pre></dd>
-                    </div>
+                <dl class="campaign-card__fields campaign-card__fields--top">
                     <div class="campaign-card__row">
                         <dt>Статус</dt>
                         <dd>{{ campaign.status.label() }}</dd>
@@ -48,17 +34,22 @@
                             <dd><span class="campaign-status campaign-status--failed">Ошибка {{ campaign.failedAt|date('d.m.Y H:i') }}</span></dd>
                         </div>
                     {% endif %}
+                </dl>
+
+                <dl class="campaign-card__fields">
                     <div class="campaign-card__row">
-                        <dt>Адресаты</dt>
-                        <dd>
-                            {% if campaign.recipients is empty %}
-                                нет
-                            {% else %}
-                                {% for recipient in campaign.recipients %}
-                                    {{ recipient.organization.name }}{% if recipient.contact %} → {{ recipient.contact.name }}{% endif %}{% if not loop.last %}, {% endif %}
-                                {% endfor %}
-                            {% endif %}
-                        </dd>
+                        <dt>Тема письма</dt>
+                        <dd>{{ campaign.subject }}</dd>
+                    </div>
+                    {% if campaign.previewText %}
+                        <div class="campaign-card__row">
+                            <dt>Превью</dt>
+                            <dd>{{ campaign.previewText }}</dd>
+                        </div>
+                    {% endif %}
+                    <div class="campaign-card__row">
+                        <dt>Текст письма</dt>
+                        <dd><pre class="campaign-card__template">{{ campaign.body }}</pre></dd>
                     </div>
                     <div class="campaign-card__row">
                         <dt>Вложения</dt>
@@ -81,6 +72,15 @@
                     </div>
                 </dl>
 
+                <div class="campaign-card__actions-row">
+                    {{ include('components/button.html.twig', {
+                        variant: 'secondary',
+                        text: 'Адресаты',
+                        href: path('app_campaign_recipients', { id: campaign.id }),
+                        type: 'button',
+                    }) }}
+                </div>
+
                 {% if campaign.status.value != 'draft' %}
                     <div class="campaign-card__clone-row">
                         <form method="post" action="{{ path('app_campaign_clone', { id: campaign.id }) }}" class="campaign-clone-form">
@@ -90,8 +90,16 @@
                                 text: 'Клонировать',
                             }) }}
                             <label class="campaign-clone-form__option">
-                                <input type="checkbox" name="with_recipients" value="1">
-                                С получателями
+                                <input type="radio" name="clone_mode" value="none" checked>
+                                Без адресатов
+                            </label>
+                            <label class="campaign-clone-form__option">
+                                <input type="radio" name="clone_mode" value="recipients">
+                                С адресатами
+                            </label>
+                            <label class="campaign-clone-form__option">
+                                <input type="radio" name="clone_mode" value="recipients_with_contacts">
+                                С адресатами и контактами
                             </label>
                         </form>
                     </div>

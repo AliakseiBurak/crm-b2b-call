@@ -28,7 +28,7 @@ class CampaignAttachment
      * Ключ файла в хранилище (var/storage/campaign-attachments/<storageKey>);
      * в БД — только метаданные (design campaign-entity, решение 2).
      */
-    #[ORM\Column(name: 'storage_key', length: 128, unique: true)]
+    #[ORM\Column(name: 'storage_key', length: 128)]
     public private(set) string $storageKey;
 
     #[ORM\Column(name: 'mime_type', length: 255, nullable: true)]

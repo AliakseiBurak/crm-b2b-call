@@ -37,7 +37,6 @@ final class Version20260826120000 extends AbstractMigration
             mime_type VARCHAR(255) DEFAULT NULL,
             size INT DEFAULT NULL,
             created_at DATETIME NOT NULL,
-            UNIQUE INDEX UNIQ_C1E7F5A8F5B7E5A2 (storage_key),
             INDEX IDX_C1E7F5A832C8A3DE (campaign_id),
             PRIMARY KEY(id)
         ) DEFAULT CHARACTER SET utf8mb4 COLLATE `utf8mb4_unicode_ci` ENGINE = InnoDB');
@@ -53,6 +52,7 @@ final class Version20260826120000 extends AbstractMigration
             campaign_id BIGINT NOT NULL,
             organization_id BIGINT NOT NULL,
             contact_id BIGINT DEFAULT NULL,
+            replacement_count INT NOT NULL DEFAULT 0,
             created_at DATETIME NOT NULL,
             INDEX IDX_A6B9C1D232C8A3DE (campaign_id),
             INDEX IDX_A6B9C1D3989D9B62_2 (organization_id),

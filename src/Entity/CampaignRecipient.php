@@ -35,14 +35,18 @@ class CampaignRecipient
     #[ORM\JoinColumn(name: 'contact_id', referencedColumnName: 'id', nullable: true, onDelete: 'CASCADE')]
     public private(set) ?Contact $contact = null;
 
+    #[ORM\Column(name: 'replacement_count', type: 'integer', options: ['default' => 0])]
+    public private(set) int $replacementCount = 0;
+
     #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
     public private(set) \DateTimeImmutable $createdAt;
 
-    public function __construct(Campaign $campaign, Organization $organization, ?Contact $contact = null)
+    public function __construct(Campaign $campaign, Organization $organization, ?Contact $contact = null, int $replacementCount = 0)
     {
         $this->campaign = $campaign;
         $this->organization = $organization;
         $this->contact = $contact;
+        $this->replacementCount = $replacementCount;
         $this->createdAt = new \DateTimeImmutable();
         $campaign->addRecipient($this);
     }

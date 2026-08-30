@@ -105,6 +105,12 @@ main {
     color: #fff;
 }
 
+.alert--warning {
+    background: #fef3c7;
+    border: 1px solid #f59e0b;
+    color: #92400e;
+}
+
 // Согласие на обработку данных (в формах)
 .field__consent {
     display: flex;

@@ -307,6 +307,34 @@ class AppFixtures extends Fixture
         $manager->persist(new CampaignRecipient($campaignStandalone, $organizations[0])); // Ромашка — вся организация
         $manager->persist(new CampaignRecipient($campaignStandalone, $organizations[1], $contacts[2])); // Вектор → контакт
 
+        // Адресаты для «Акция» (запущена) — несколько организаций, часть с контактами.
+        $recipientLaunched1 = new CampaignRecipient($campaignLaunched, $organizations[0], $contacts[0]); // Ромашка → Иван
+        $manager->persist($recipientLaunched1);
+
+        $recipientLaunched2 = new CampaignRecipient($campaignLaunched, $organizations[1], $contacts[2]); // Вектор → Пётр
+        $manager->persist($recipientLaunched2);
+
+        $recipientLaunched3 = new CampaignRecipient($campaignLaunched, $organizations[2]); // Сидоров — вся организация
+        $manager->persist($recipientLaunched3);
+
+        $recipientLaunched4 = new CampaignRecipient($campaignLaunched, $organizations[5], $contacts[9]); // Закат → Ольга
+        $manager->persist($recipientLaunched4);
+
+        // Адресаты для «Осенняя рассылка» (готова) — все доступные организации.
+        $manager->persist(new CampaignRecipient($campaignReady, $organizations[0], $contacts[1])); // Ромашка → Иван Иванович
+        $manager->persist(new CampaignRecipient($campaignReady, $organizations[1], $contacts[3])); // Вектор → Наталья
+        $manager->persist(new CampaignRecipient($campaignReady, $organizations[2], $contacts[6])); // Сидоров → Анна
+        $manager->persist(new CampaignRecipient($campaignReady, $organizations[3], $contacts[7])); // Конкурент → Дмитрий
+        $manager->persist(new CampaignRecipient($campaignReady, $organizations[4])); // Горизонт — вся организация
+
+        // Адресаты для «Новые курсы» (черновик) — две организации.
+        $manager->persist(new CampaignRecipient($campaignDraft, $organizations[0])); // Ромашка
+        $manager->persist(new CampaignRecipient($campaignDraft, $organizations[1], $contacts[5])); // Вектор → Марина
+
+        // Адресаты для архивной рассылки (только просмотр).
+        $manager->persist(new CampaignRecipient($campaignArchived, $organizations[0], $contacts[0])); // Ромашка → Иван
+        $manager->persist(new CampaignRecipient($campaignArchived, $organizations[3])); // Конкурент — вся организация
+
         $manager->flush();
     }
 

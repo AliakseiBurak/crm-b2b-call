@@ -1,0 +1,123 @@
+{#
+    Страница адресатов рассылки: список, добавление, удаление.
+    Редактирование доступно для всех статусов, кроме archived.
+    Ожидает: campaign (Campaign), availableOrganizations (Organization[]).
+#}
+{% extends 'base.html.twig' %}
+
+{% block title %}Адресаты — {{ campaign.name }}{% endblock %}
+
+{% block body %}
+    <section class="section section--white">
+        <div class="container">
+            <h1>Адресаты рассылки «{{ campaign.name }}»</h1>
+
+            {% set canEdit = campaign.status.value != 'archived' %}
+
+            {% if canEdit and availableOrganizations is not empty %}
+                <div class="campaign-recipients__bulk">
+                    <form method="post" action="{{ path('app_campaign_recipient_bulk', { id: campaign.id }) }}">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('campaign_recipient') }}">
+                        {{ include('components/button.html.twig', {
+                            variant: 'secondary',
+                            text: 'Выбрать все организации',
+                            sm: true,
+                        }) }}
+                    </form>
+                </div>
+            {% endif %}
+
+            {% if canEdit %}
+                <div class="campaign-recipients__add">
+                    <form method="post" action="{{ path('app_campaign_recipient_add', { id: campaign.id }) }}" class="campaign-recipients__add-form">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('campaign_recipient') }}">
+                        <select class="field__input" name="organization" id="recipient-organization" required>
+                            <option value="">Выберите организацию…</option>
+                            {% for org in availableOrganizations %}
+                                <option value="{{ org.id }}">{{ org.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <select class="field__input" name="contact" id="recipient-contact">
+                            <option value="">— вся организация —</option>
+                        </select>
+                        {{ include('components/button.html.twig', {
+                            variant: 'primary',
+                            text: 'Добавить',
+                            sm: true,
+                        }) }}
+                    </form>
+                </div>
+
+                <script>
+                    (() => {
+                        const contactsByOrg = {{ contactsByOrg|json_encode|raw }};
+                        const orgSelect = document.getElementById('recipient-organization');
+                        const contactSelect = document.getElementById('recipient-contact');
+
+                        orgSelect.addEventListener('change', () => {
+                            const orgId = orgSelect.value;
+                            const contacts = contactsByOrg[orgId] || [];
+                            contactSelect.innerHTML = '<option value="">— вся организация —</option>';
+                            contacts.forEach(c => {
+                                const opt = document.createElement('option');
+                                opt.value = c.id;
+                                opt.textContent = c.name + (c.email ? ' (' + c.email + ')' : '');
+                                contactSelect.appendChild(opt);
+                            });
+                        });
+                    })();
+                </script>
+            {% endif %}
+
+            {% if campaign.recipients is not empty %}
+                <div class="table-wrap">
+                    <table class="table campaign-recipients__table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Организация</th>
+                                <th scope="col">Контакт</th>
+                                <th scope="col">П/отправка</th>
+                                <th scope="col"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for recipient in campaign.recipients %}
+                                <tr>
+                                    <td>{{ recipient.organization.name }}</td>
+                                    <td>
+                                        {% if recipient.contact %}
+                                            {{ recipient.contact.name }}{% if recipient.contact.email %} ({{ recipient.contact.email }}){% endif %}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ recipient.replacementCount }}</td>
+            {% if canEdit %}
+                                        <td class="campaign-recipients__actions">
+                                            <form method="post" action="{{ path('app_campaign_recipient_remove', { id: campaign.id, recipientId: recipient.id }) }}"
+                                                  onsubmit="return confirm('Убрать адресата?')">
+                                                <input type="hidden" name="_csrf_token" value="{{ csrf_token('campaign_recipient') }}">
+                                                <button type="submit" class="btn btn--secondary btn--sm">Убрать</button>
+                                            </form>
+                                        </td>
+                                    {% endif %}
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="campaign-recipients__empty">Адресатов пока нет.</p>
+            {% endif %}
+
+            <div class="campaign-recipients__back">
+                {{ include('components/button.html.twig', {
+                    variant: 'secondary',
+                    text: '← Назад к рассылке',
+                    href: path('app_campaign_show', { id: campaign.id }),
+                    type: 'button',
+                }) }}
+            </div>
+        </div>
+    </section>
+{% endblock %}
