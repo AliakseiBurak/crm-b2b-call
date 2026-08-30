@@ -18,7 +18,7 @@ The system SHALL let the administrator and managers create campaigns with a name
 - **THEN** рассылка создаётся, а письмо формируется без вложений
 
 ### Requirement: Статусы рассылки
-The system SHALL support the following campaign statuses: `draft`, `ready`, `launched`, `failed`, `archived`. Each status SHALL have a localized label. The `failedAt` timestamp SHALL be recorded when a campaign transitions to `failed`. The `launchedAt` timestamp SHALL be recorded when a campaign transitions to `launched`.
+The system SHALL support the following campaign statuses: `draft`, `ready`, `launched`, `failed`, `archived`. Each status SHALL have a localized label. The `failed` status SHALL be a technical status set exclusively by the MailingService when a sending error occurs; users SHALL NOT be able to set `failed` manually via the form. Users SHALL be able to reset a `failed` campaign to `ready` for re-launch. The `failedAt` timestamp SHALL be recorded when a campaign transitions to `failed`. The `launchedAt` timestamp SHALL be recorded when a campaign transitions to `launched`.
 
 #### Scenario: Черновик
 - **WHEN** менеджер создаёт новую рассылку
@@ -29,7 +29,7 @@ The system SHALL support the following campaign statuses: `draft`, `ready`, `lau
 - **THEN** поле `failedAt` заполняется текущим временем
 
 ### Requirement: Формирование адресатов
-The system SHALL let managers add recipients to campaigns manually. Each organization SHALL have at most one recipient per campaign (unique constraint on `campaign_id`, `organization_id`). A recipient MAY specify a contact; when a contact is set, the email SHALL be sent to that contact's email address instead of the organization. Recipients SHALL only be editable when the campaign status is `ready` or `launched`; the add/remove UI SHALL be hidden for other statuses via client-side JavaScript. When a recipient already exists for an organization, the system SHALL prompt the user with a replacement confirmation; on confirmation, the existing recipient is removed and a new one is created.
+The system SHALL let managers add recipients to campaigns manually. Each organization SHALL have at most one recipient per campaign (unique constraint on `campaign_id`, `organization_id`). A recipient MAY specify a contact; when a contact is set, the email SHALL be sent to that contact's email address instead of the organization. Recipients SHALL be editable for all campaign statuses except `archived`; for archived campaigns, the recipients list SHALL be view-only (no add/remove). When a recipient already exists for an organization, the system SHALL prompt the user with a replacement confirmation; on confirmation, the existing recipient is removed and a new one is created.
 
 #### Scenario: Адресаты для standalone-рассылки
 - **WHEN** менеджер создаёт standalone-рассылку «Акция» со статусом «Готова»
@@ -53,14 +53,30 @@ The system SHALL let managers add recipients to campaigns manually. Each organiz
 - **THEN** система отклоняет запрос с ошибкой 403
 - **AND** организация не включается в получатели
 
-#### Scenario: Адресаты нельзя добавить для черновика
-- **WHEN** рассылка «Новые курсы» имеет статус `draft`
-- **AND** менеджер пытается добавить адресата
-- **THEN** система отклоняет запрос с ошибкой
+#### Scenario: Адресаты нельзя добавить для архивированной рассылки
+- **WHEN** рассылка «Новые курсы» имеет статус `archived`
+- **AND** менеджер пытается добавить или удалить адресата
+- **THEN** система отклоняет запрос с сообщением «Адресаты недоступны для рассылки в статусе «В архиве»»
 
-#### Scenario: Интерфейс адресатов скрыт для черновика
-- **WHEN** рассылка имеет статус `draft`
+#### Scenario: Интерфейс адресатов скрыт для архивированной рассылки
+- **WHEN** рассылка имеет статус `archived`
 - **THEN** форма добавления адресатов и кнопки «Убрать» не отображаются (скрыты через JS)
+
+#### Scenario: Адресаты доступны для черновика
+- **WHEN** рассылка имеет статус `draft`
+- **THEN** менеджер может добавлять и удалять адресатов через страницу адресатов
+
+#### Scenario: Адресаты доступны для готовой рассылки
+- **WHEN** рассылка имеет статус `ready`
+- **THEN** менеджер может добавлять и удалять адресатов через страницу адресатов
+
+#### Scenario: Адресаты доступны для запущенной рассылки
+- **WHEN** рассылка имеет статус `launched`
+- **THEN** менеджер может добавлять и удалять адресатов через страницу адресатов
+
+#### Scenario: Адресаты доступны для рассылки с ошибкой
+- **WHEN** рассылка имеет статус `failed`
+- **THEN** менеджер может добавлять и удалять адресатов через страницу адресатов
 
 ### Requirement: Генерация письма по шаблону
 The system SHALL generate each email from the campaign's stored subject, preview text, and body by filling tokens (`{{greeting}}`, `{{contact_name}}`, `{{organization_name}}`). The `{{greeting}}` token SHALL resolve to "Уважаемый(ая) {contact_name}" when a contact is set, or "Уважаемые сотрудники {organization_name}" otherwise.
