@@ -1,0 +1,665 @@
+<?php
+
+namespace App\Tests\Functional\Controller;
+
+use App\Entity\Campaign;
+use App\Entity\CampaignAttachment;
+use App\Entity\CampaignRecipient;
+use App\Entity\Enum\CampaignStatus;
+use App\Entity\Enum\GroupType;
+use App\Entity\Enum\UserRole;
+use App\Entity\Organization;
+use App\Entity\OrganizationGroup;
+use App\Entity\OrgGroupMembership;
+use App\Entity\User;
+use App\Service\CampaignAttachmentStorage;
+use App\Tests\DatabaseWebTestCase;
+use Symfony\Component\DomCrawler\Crawler;
+
+/**
+ * Функциональные тесты CampaignController (change campaign-entity):
+ * создание/редактирование администратором и менеджерами, валидация,
+ * ручной запуск/остановка/сброс, вложения (upload/remove с файлами в
+ * storage), клонирование, ручные адресаты.
+ */
+final class CampaignControllerTest extends DatabaseWebTestCase
+{
+    public function testAdminCreatesCampaignWithDefaults(): void
+    {
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+        $this->open('/campaigns/new');
+        $this->submitFormByButton('Создать', [
+            'name' => 'Новые курсы',
+            'subject' => 'Приглашаем на курсы 2026',
+            'body' => '{{greeting}}! Приглашаем вас на курсы.',
+            'status' => 'draft',
+        ]);
+
+        $this->assertResponseRedirects();
+
+        $this->em()->clear();
+        $campaign = $this->findCampaign('Новые курсы');
+        self::assertNotNull($campaign);
+        self::assertSame('Приглашаем на курсы 2026', $campaign->subject);
+        self::assertSame(CampaignStatus::Draft, $campaign->status);
+        self::assertNull($campaign->launchedAt);
+    }
+
+    public function testManagerCanCreateCampaign(): void
+    {
+        $this->login($this->makeUser('manager@b2b-crm.loc', UserRole::Manager));
+        $this->open('/campaigns/new');
+        $this->submitFormByButton('Создать', [
+            'name' => 'Приглашение на вебинар',
+            'subject' => 'Вебинар по аналитике',
+            'body' => 'Добрый день!',
+        ]);
+
+        $this->assertResponseRedirects();
+
+        $this->em()->clear();
+        self::assertNotNull($this->findCampaign('Приглашение на вебинар'));
+    }
+
+    public function testCreateWithBlankRequiredFieldsShowsRussianErrors(): void
+    {
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+        $this->open('/campaigns/new');
+        $this->submitFormByButton('Создать', [
+            'name' => '',
+            'subject' => '',
+            'body' => '',
+        ]);
+
+        $this->assertResponseStatusCodeSame(422);
+        $html = $this->client->getResponse()->getContent();
+        self::assertStringContainsString('Название обязательно для заполнения', $html);
+        self::assertStringContainsString('Тема письма обязательна для заполнения', $html);
+        self::assertStringContainsString('Текст письма обязателен для заполнения', $html);
+
+        self::assertSame(0, $this->em()->getRepository(Campaign::class)->count([]));
+    }
+
+    public function testCreateWithFailedStatusShowsError(): void
+    {
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+        $this->open('/campaigns/new');
+        $this->submitFormByButton('Создать', [
+            'name' => 'Тест',
+            'subject' => 'Тема',
+            'body' => 'Текст',
+            'status' => 'failed',
+        ]);
+
+        $this->assertResponseStatusCodeSame(422);
+        $html = $this->client->getResponse()->getContent();
+        self::assertStringContainsString('Статус «Ошибка» устанавливается автоматически сервисом отправки', $html);
+
+        self::assertSame(0, $this->em()->getRepository(Campaign::class)->count([]));
+    }
+
+    public function testIndexListsCampaigns(): void
+    {
+        $this->persistCampaign('Новые курсы');
+        $this->persistCampaign('Акция');
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $this->open('/campaigns');
+
+        $this->assertResponseIsSuccessful();
+        $this->assertSelectorTextContains('h1', 'Рассылки');
+        $this->assertSelectorTextContains('body', 'Новые курсы');
+        $this->assertSelectorTextContains('body', 'Акция');
+    }
+
+    public function testShowDisplaysCampaignFields(): void
+    {
+        $campaign = $this->persistCampaign('Новые курсы');
+        $campaign->setStatus(CampaignStatus::Ready);
+        $attachment = new CampaignAttachment($campaign, 'брошюра.pdf', bin2hex(random_bytes(16)));
+        $attachment->setSize(2048);
+        $this->em()->persist($attachment);
+        $this->em()->flush();
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $crawler = $this->open('/campaigns/' . $campaign->id);
+
+        $this->assertResponseIsSuccessful();
+        $this->assertSelectorTextContains('h1', 'Рассылка «Новые курсы»');
+        $this->assertSelectorTextContains('body', 'Приглашаем на курсы');
+        $this->assertSelectorTextContains('body', 'брошюра.pdf');
+        // Кнопка «Запустить» видна для статуса ready.
+        $this->assertSelectorExists('form[action="' . $this->launchPath($campaign->id) . '"]');
+    }
+
+    public function testLaunchSetsLaunchedAtAndStatusOnce(): void
+    {
+        $campaign = $this->persistCampaign('Новые курсы');
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $token = $this->campaignToken($campaign->id);
+        $this->client->request('POST', $this->launchPath($campaign->id), ['_csrf_token' => $token]);
+        $this->assertResponseRedirects();
+
+        $this->em()->clear();
+        $launched = $this->findCampaign('Новые курсы');
+        self::assertNotNull($launched->launchedAt);
+        self::assertSame(CampaignStatus::Launched, $launched->status);
+        $firstLaunch = $launched->launchedAt;
+
+        // Повторный запуск не перезаписывает момент запуска.
+        $this->client->request('POST', $this->launchPath($campaign->id), ['_csrf_token' => $token]);
+        $this->em()->clear();
+        self::assertSame($firstLaunch->format(\DateTimeInterface::ATOM), $this->findCampaign('Новые курсы')->launchedAt->format(\DateTimeInterface::ATOM));
+    }
+
+    public function testStopSetsReadyStatus(): void
+    {
+        $campaign = $this->persistCampaign('Акция');
+        $campaign->launch();
+        $this->em()->flush();
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $token = $this->campaignToken($campaign->id);
+        $this->client->request('POST', '/campaigns/' . $campaign->id . '/stop', ['_csrf_token' => $token]);
+        $this->assertResponseRedirects();
+
+        $this->em()->clear();
+        $stopped = $this->findCampaign('Акция');
+        self::assertSame(CampaignStatus::Ready, $stopped->status);
+    }
+
+    public function testResetSetsReadyStatus(): void
+    {
+        $campaign = $this->persistCampaign('Рассылка с ошибкой');
+        $campaign->fail();
+        $this->em()->flush();
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $token = $this->campaignToken($campaign->id);
+        $this->client->request('POST', '/campaigns/' . $campaign->id . '/reset', ['_csrf_token' => $token]);
+        $this->assertResponseRedirects();
+
+        $this->em()->clear();
+        $reset = $this->findCampaign('Рассылка с ошибкой');
+        self::assertSame(CampaignStatus::Ready, $reset->status);
+    }
+
+    public function testDeleteRemovesCampaignAndAttachments(): void
+    {
+        $storage = $this->storage();
+        $campaign = $this->persistCampaign('Акция');
+        $storageKey = bin2hex(random_bytes(16));
+        // Write test file directly into storage to avoid UploadedFile test-mode issues.
+        $dir = dirname($storage->path($storageKey));
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0777, true);
+        }
+        @chmod($dir, 0777);
+        file_put_contents($storage->path($storageKey), 'PDF-DATA');
+        $attachment = new CampaignAttachment($campaign, 'брошюра.pdf', $storageKey);
+        $this->em()->persist($attachment);
+        $this->em()->flush();
+        self::assertFileExists($storage->path($storageKey));
+        $campaignId = $campaign->id;
+        $attachmentId = $attachment->id;
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $token = $this->campaignToken($campaignId);
+        $this->client->request('POST', '/campaigns/' . $campaignId . '/delete', ['_csrf_token' => $token]);
+
+        $this->assertResponseRedirects('/campaigns');
+
+        $em = $this->em();
+        $em->clear();
+        self::assertNull($em->find(Campaign::class, $campaignId));
+        self::assertNull($em->find(CampaignAttachment::class, $attachmentId));
+        self::assertFileDoesNotExist($storage->path($storageKey));
+    }
+
+    public function testAttachmentUploadStoresFileAndMetadata(): void
+    {
+        $storage = $this->storage();
+        $campaign = $this->persistCampaign('Акция');
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $token = $this->attachmentCsrfToken($campaign->id);
+        $tmp = tempnam(sys_get_temp_dir(), 'upload');
+        file_put_contents($tmp, '%PDF-1.4 attachment body');
+        $this->client->request(
+            'POST',
+            '/campaigns/' . $campaign->id . '/attachments',
+            ['_csrf_token' => $token],
+            ['attachment' => [
+                'name' => 'брошюра.pdf',
+                'type' => 'application/pdf',
+                'tmp_name' => $tmp,
+                'error' => UPLOAD_ERR_OK,
+                'size' => filesize($tmp),
+            ]],
+        );
+
+        $this->assertResponseRedirects();
+
+        $this->em()->clear();
+        $campaign = $this->findCampaign('Акция');
+        self::assertCount(1, $campaign->attachments);
+        $attachment = $campaign->attachments->first();
+        self::assertSame('брошюра.pdf', $attachment->filename);
+        self::assertFileExists($storage->path($attachment->storageKey));
+
+        // Удаление вложения: токен берётся из data-csrf кнопки «Удалить».
+        $attachmentToken = $this->attachmentCsrfToken($campaign->id);
+        $this->client->request(
+            'POST',
+            '/campaigns/' . $campaign->id . '/attachments/' . $attachment->id . '/delete',
+            ['_csrf_token' => $attachmentToken],
+        );
+        $this->assertResponseRedirects();
+
+        $this->em()->clear();
+        self::assertNull($this->em()->find(CampaignAttachment::class, $attachment->id));
+        self::assertFileDoesNotExist($storage->path($attachment->storageKey));
+    }
+
+    public function testEditShowsAttachmentsWithDeleteActions(): void
+    {
+        $campaign = $this->persistCampaign('Акция');
+        $attachment = new CampaignAttachment($campaign, 'прайс.xlsx', bin2hex(random_bytes(16)));
+        $this->em()->persist($attachment);
+        $this->em()->flush();
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $crawler = $this->open('/campaigns/' . $campaign->id . '/edit');
+
+        $this->assertResponseIsSuccessful();
+        $this->assertSelectorTextContains('body', 'прайс.xlsx');
+        $this->assertSelectorExists('input[type="file"][name="attachments[]"]');
+    }
+
+    public function testGuestCannotAccessCampaignPages(): void
+    {
+        $this->client->request('GET', '/campaigns');
+
+        $this->assertResponseRedirects('/login');
+    }
+
+    public function testManagerCannotAddInaccessibleOrganizationAsRecipient(): void
+    {
+        [$manager1, , $romashka, $zavod] = $this->makeTwoManagersWithOrganizations();
+        $campaign = $this->persistCampaign('Акция');
+        $this->login($manager1);
+
+        $token = $this->formToken($campaign->id);
+        $this->client->request('POST', '/campaigns/' . $campaign->id . '/recipients', [
+            'organization' => $zavod->id,
+            '_csrf_token' => $token,
+        ]);
+
+        $this->assertResponseStatusCodeSame(403);
+
+        $this->em()->clear();
+        self::assertCount(0, $this->findCampaign('Акция')->recipients);
+    }
+
+    public function testManagerAddsAccessibleOrganizationAsRecipient(): void
+    {
+        [$manager1] = $this->makeTwoManagersWithOrganizations();
+        $campaign = $this->persistCampaign('Акция');
+        $this->login($manager1);
+
+        $crawler = $this->open('/campaigns/' . $campaign->id . '/edit');
+        self::assertStringNotContainsString('ООО Завод', $crawler->filter('select[name="organization"]')->html());
+
+        $token = $this->formToken($campaign->id);
+        $this->client->request('POST', '/campaigns/' . $campaign->id . '/recipients', [
+            'organization' => $this->findOrganization('ООО Ромашка')->id,
+            '_csrf_token' => $token,
+        ]);
+        $this->assertResponseRedirects();
+
+        $this->em()->clear();
+        $recipients = $this->findCampaign('Акция')->recipients;
+        self::assertCount(1, $recipients);
+        self::assertSame('ООО Ромашка', $recipients->first()->organization->name);
+    }
+
+    public function testAdminCanAddAnyOrganizationAsRecipient(): void
+    {
+        [, $manager2, , $zavod] = $this->makeTwoManagersWithOrganizations();
+        $campaign = $this->persistCampaign('Акция');
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $token = $this->formToken($campaign->id);
+        $this->client->request('POST', '/campaigns/' . $campaign->id . '/recipients', [
+            'organization' => $zavod->id,
+            '_csrf_token' => $token,
+        ]);
+        $this->assertResponseRedirects();
+
+        $this->em()->clear();
+        self::assertCount(1, $this->findCampaign('Акция')->recipients);
+    }
+
+    public function testDuplicateRecipientIsIgnored(): void
+    {
+        [$manager1] = $this->makeTwoManagersWithOrganizations();
+        $campaign = $this->persistCampaign('Акция');
+        $romashka = $this->findOrganization('ООО Ромашка');
+        $recipient = new CampaignRecipient($campaign, $romashka);
+        $this->em()->persist($recipient);
+        $this->em()->flush();
+        $campaignId = $campaign->id;
+        $this->login($manager1);
+
+        $token = $this->formToken($campaignId);
+        $this->client->request('POST', '/campaigns/' . $campaignId . '/recipients', [
+            'organization' => $romashka->id,
+            '_csrf_token' => $token,
+        ]);
+        $this->assertResponseRedirects();
+
+        $this->em()->clear();
+        self::assertCount(1, $this->em()->getRepository(CampaignRecipient::class)->count([
+            'campaign' => $campaignId,
+        ]));
+    }
+
+    public function testRemoveRecipientDeletesLink(): void
+    {
+        $campaign = $this->persistCampaign('Акция');
+        $recipient = new CampaignRecipient($campaign, $this->persistOrganization('ООО Ромашка'));
+        $this->em()->persist($recipient);
+        $this->em()->flush();
+        $campaignId = $campaign->id;
+        $recipientId = $recipient->id;
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $token = $this->formToken($campaignId);
+        $this->client->request('POST', '/campaigns/' . $campaignId . '/recipients/' . $recipientId . '/delete', [
+            '_csrf_token' => $token,
+        ]);
+        $this->assertResponseRedirects();
+
+        $this->em()->clear();
+        self::assertNull($this->em()->find(CampaignRecipient::class, $recipientId));
+    }
+
+    public function testCloneCampaignCopiesFieldsAndRecipients(): void
+    {
+        $campaign = $this->persistCampaign('Оригинал');
+        $romashka = $this->persistOrganization('ООО Ромашка');
+        $recipient = new CampaignRecipient($campaign, $romashka);
+        $this->em()->persist($recipient);
+        $this->em()->flush();
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $token = $this->campaignToken($campaign->id);
+        $this->client->request('POST', '/campaigns/' . $campaign->id . '/clone', [
+            '_csrf_token' => $token,
+            'with_recipients' => '1',
+        ]);
+        $this->assertResponseRedirects();
+
+        $this->em()->clear();
+        $clones = $this->em()->getRepository(Campaign::class)->findBy(['name' => 'Оригинал (копия)']);
+        self::assertCount(1, $clones);
+        $clone = $clones[0];
+        self::assertSame(CampaignStatus::Draft, $clone->status);
+        self::assertCount(1, $clone->recipients);
+    }
+
+    public function testCloneWithoutRecipientsDoesNotCopyThem(): void
+    {
+        $campaign = $this->persistCampaign('Оригинал');
+        $campaign->setStatus(CampaignStatus::Ready);
+        $romashka = $this->persistOrganization('ООО Ромашка');
+        $recipient = new CampaignRecipient($campaign, $romashka);
+        $this->em()->persist($recipient);
+        $this->em()->flush();
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $token = $this->campaignToken($campaign->id);
+        $this->client->request('POST', '/campaigns/' . $campaign->id . '/clone', [
+            '_csrf_token' => $token,
+        ]);
+        $this->assertResponseRedirects();
+
+        $this->em()->clear();
+        $clones = $this->em()->getRepository(Campaign::class)->findBy(['name' => 'Оригинал (копия)']);
+        self::assertCount(1, $clones);
+        self::assertCount(0, $clones[0]->recipients);
+    }
+
+    public function testCloneFromDraftIsRejected(): void
+    {
+        $campaign = $this->persistCampaign('Черновик');
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $token = $this->campaignToken($campaign->id);
+        $this->client->request('POST', '/campaigns/' . $campaign->id . '/clone', [
+            '_csrf_token' => $token,
+        ]);
+
+        $this->assertResponseStatusCodeSame(404);
+    }
+
+    public function testRecipientAddRejectedForDraftStatus(): void
+    {
+        $campaign = $this->persistCampaign('Черновик');
+        $romashka = $this->persistOrganization('ООО Ромашка');
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $token = $this->formToken($campaign->id);
+        $this->client->request('POST', '/campaigns/' . $campaign->id . '/recipients', [
+            'organization' => $romashka->id,
+            '_csrf_token' => $token,
+        ]);
+
+        $this->assertResponseStatusCodeSame(404);
+
+        $this->em()->clear();
+        self::assertCount(0, $this->findCampaign('Черновик')->recipients);
+    }
+
+    public function testIndexSortingByNameDesc(): void
+    {
+        $this->persistCampaign('Я');
+        $this->persistCampaign('А');
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $crawler = $this->open('/campaigns?sort=name&dir=DESC');
+
+        $this->assertResponseIsSuccessful();
+        $rows = $crawler->filter('tbody tr');
+        self::assertSame('Я', $rows->first()->filter('td')->first()->text());
+    }
+
+    public function testIndexArchivedAtBottom(): void
+    {
+        $archived = $this->persistCampaign('Архивная');
+        $archived->setStatus(CampaignStatus::Archived);
+        $this->em()->flush();
+        $this->persistCampaign('Активная');
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $crawler = $this->open('/campaigns');
+
+        $rows = $crawler->filter('tbody tr');
+        $lastRow = $rows->last();
+        self::assertStringContainsString('Архивная', $lastRow->text());
+    }
+
+    public function testShowCloneRowHiddenForDraft(): void
+    {
+        $campaign = $this->persistCampaign('Черновик');
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $crawler = $this->open('/campaigns/' . $campaign->id);
+
+        $this->assertSelectorNotExists('.campaign-card__clone-row');
+    }
+
+    public function testShowCloneRowVisibleForReady(): void
+    {
+        $campaign = $this->persistCampaign('Готова');
+        $campaign->setStatus(CampaignStatus::Ready);
+        $this->em()->flush();
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $crawler = $this->open('/campaigns/' . $campaign->id);
+
+        $this->assertSelectorExists('.campaign-card__clone-row');
+    }
+
+    public function testShowLaunchButtonOnlyForReady(): void
+    {
+        $draft = $this->persistCampaign('Черновик');
+        $ready = $this->persistCampaign('Готова');
+        $ready->setStatus(CampaignStatus::Ready);
+        $this->em()->flush();
+        $launched = $this->persistCampaign('Запущена');
+        $launched->launch();
+        $this->em()->flush();
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $this->open('/campaigns/' . $draft->id);
+        $this->assertSelectorNotExists('form[action="' . $this->launchPath($draft->id) . '"]');
+
+        $this->open('/campaigns/' . $ready->id);
+        $this->assertSelectorExists('form[action="' . $this->launchPath($ready->id) . '"]');
+
+        $this->open('/campaigns/' . $launched->id);
+        $this->assertSelectorNotExists('form[action="' . $this->launchPath($launched->id) . '"]');
+    }
+
+    private function storage(): CampaignAttachmentStorage
+    {
+        /** @var CampaignAttachmentStorage $storage */
+        $storage = static::getContainer()->get(CampaignAttachmentStorage::class);
+
+        return $storage;
+    }
+
+    private function campaignToken(int $campaignId): string
+    {
+        return (string) $this->open('/campaigns/' . $campaignId . '/edit')
+            ->filter('input[name="_csrf_token"]')
+            ->first()
+            ->attr('value');
+    }
+
+    /**
+     * CSRF-токен для вложений: берётся из data-csrf существующей кнопки
+     * «Удалить» (campaign_attachment token ID).
+     */
+    private function attachmentCsrfToken(int $campaignId): string
+    {
+        $crawler = $this->open('/campaigns/' . $campaignId . '/edit');
+        $btn = $crawler->filter('button[data-action="remove-attachment"]');
+
+        if ($btn->count() > 0) {
+            return (string) $btn->first()->attr('data-csrf');
+        }
+
+        // Нет вложений — токен в скрытом поле рядом с upload.
+        return (string) $crawler->filter('input[name="_attachment_csrf"]')->first()->attr('value');
+    }
+
+    private function launchPath(int $id): string
+    {
+        return '/campaigns/' . $id . '/launch';
+    }
+
+    private function persistCampaign(string $name): Campaign
+    {
+        $campaign = (new Campaign())
+            ->setName($name)
+            ->setSubject('Приглашаем на курсы')
+            ->setBody('{{greeting}}!');
+        $this->em()->persist($campaign);
+        $this->em()->flush();
+
+        return $campaign;
+    }
+
+    private function persistOrganization(string $name): Organization
+    {
+        $organization = (new Organization())->setName($name)->setIndustry('IT');
+        $this->em()->persist($organization);
+        $this->em()->flush();
+
+        return $organization;
+    }
+
+    private function makeUser(string $email, UserRole $role): User
+    {
+        $user = (new User())
+            ->setEmail($email)
+            ->setRole($role);
+        $user->setPassword('test-password-hash');
+        $this->em()->persist($user);
+        $this->em()->flush();
+
+        return $user;
+    }
+
+    private function findCampaign(string $name): ?Campaign
+    {
+        return $this->em()->getRepository(Campaign::class)->findOneBy(['name' => $name]);
+    }
+
+    private function findOrganization(string $name): ?Organization
+    {
+        return $this->em()->getRepository(Organization::class)->findOneBy(['name' => $name]);
+    }
+
+    private function makeTwoManagersWithOrganizations(): array
+    {
+        $em = $this->em();
+        $manager1 = $this->makeUser('manager1@b2b-crm.loc', UserRole::Manager);
+        $manager2 = $this->makeUser('manager2@b2b-crm.loc', UserRole::Manager);
+        $em->flush();
+
+        $personal1 = (new OrganizationGroup())
+            ->setName('Личная группа ' . $manager1->email)
+            ->setSlug('user-' . $manager1->id . '-group')
+            ->setType(GroupType::User)
+            ->setOwnerUser($manager1);
+        $personal2 = (new OrganizationGroup())
+            ->setName('Личная группа ' . $manager2->email)
+            ->setSlug('user-' . $manager2->id . '-group')
+            ->setType(GroupType::User)
+            ->setOwnerUser($manager2);
+        $em->persist($personal1);
+        $em->persist($personal2);
+
+        $romashka = $this->persistOrganization('ООО Ромашка');
+        $zavod = $this->persistOrganization('ООО Завод');
+
+        $em->persist(new OrgGroupMembership($romashka, $personal1));
+        $em->persist(new OrgGroupMembership($zavod, $personal2));
+        $em->flush();
+
+        return [$manager1, $manager2, $romashka, $zavod];
+    }
+
+    private function formToken(int $campaignId): string
+    {
+        $crawler = $this->open('/campaigns/' . $campaignId . '/edit');
+
+        // Предпочтительно: data-csrf кнопки «Добавить».
+        $btn = $crawler->filter('[data-action="add-recipient"]');
+        if ($btn->count() > 0) {
+            return (string) $btn->first()->attr('data-csrf');
+        }
+
+        // Fallback: скрытое поле _recipient_csrf (всегда на странице редактирования).
+        $hidden = $crawler->filter('input[name="_recipient_csrf"]');
+        if ($hidden->count() > 0) {
+            return (string) $hidden->first()->attr('value');
+        }
+
+        return (string) $crawler->filter('input[name="_csrf_token"]')->first()->attr('value');
+    }
+}
