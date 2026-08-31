@@ -22,8 +22,6 @@ erDiagram
     CAMPAIGN ||--o{ CAMPAIGN_RECIPIENT : "ручные адресаты standalone"
     ORGANIZATION ||--o{ CAMPAIGN_RECIPIENT : "адресат standalone-рассылки"
     CONTACT ||--o{ CAMPAIGN_RECIPIENT : "адресат-контакт (nullable)"
-    CAMPAIGN ||--o{ EMAIL_OUTBOX : "письма к отправке"
-    EMAIL_OUTBOX ||--o{ EMAIL_STATUS_LOG : "история статусов"
     COMMUNICATION_TEMPLATE o|--o{ COURSE : "embedded courses (0..N)"
 
     USER {
@@ -102,6 +100,7 @@ erDiagram
         enum status "draft|ready|launched|failed|archived, default draft"
         datetime launched_at "nullable; ручной запуск — кнопка «Запустить»"
         datetime failed_at "nullable; фиксируется при ошибке отправки"
+        text failure_reason "nullable; описание ошибки для пользователя"
         datetime created_at
     }
 
@@ -120,29 +119,14 @@ erDiagram
         bigint campaign_id FK "ON DELETE CASCADE"
         bigint organization_id FK "ON DELETE CASCADE; менеджеру — только область доступа (ADR-0007), отказ 403"
         bigint contact_id FK "nullable, ON DELETE CASCADE; рассылка на email контакта"
+        enum status "pending|sending|delivered|bounced|failed|opened"
+        datetime sent_at "nullable"
+        text error_message "nullable; описание ошибки для пользователя"
+        string tracking_token UK "для opened через pixel"
+        int retry_count "default 0; макс 3 для transient ошибек"
+        datetime retry_at "nullable; когда повторить (exponential backoff + jitter)"
         datetime created_at
         "unique(campaign_id, organization_id)"
-    }
-
-    EMAIL_OUTBOX {
-        bigint id PK
-        bigint campaign_id FK
-        bigint organization_id FK
-        bigint contact_id FK
-        enum status "pending|sent|delivered|bounced|opened"
-        string recipient_email
-        string tracking_token UK "для opened через pixel"
-        text rendered_subject
-        text rendered_body
-        datetime sent_at
-        datetime updated_at
-    }
-
-    EMAIL_STATUS_LOG {
-        bigint id PK
-        bigint outbox_id FK
-        enum status
-        datetime changed_at
     }
 
     COMMUNICATION_TEMPLATE {
@@ -186,16 +170,102 @@ erDiagram
    (одна `campaign_id`, `is_deal`, `next_call_id`); факт звонка всегда
    фиксируется (`made_at`, `made_by`).
 7. **Рассылки** не привязаны к одной организации; формируются из результатов
-   звонков и/или вручную (standalone). Отправка — outbox через SMTP, статусы
-   per-письмо + `opened` через tracking-pixel (ADR-0010).
+   звонков и/или вручную (standalone). Отправка — outbox на `CampaignRecipient`,
+   статусы per-письмо (`pending`→`sending`→`delivered`/`bounced`/`failed`/`opened`),
+   retry для transient ошибек (max 3, exponential backoff + jitter) (ADR-0010).
 8. **`Campaign`** (change `campaign-entity`) хранит тему, текст письма и вложения на
    себе; адресаты — в `campaign_recipient` (contact_id nullable).
    запуск — ручной (кнопка «Запустить») —
    проставляет `launched_at` и `status = launched`.
+   `failureReason` заполняется при ошибке отправки.
 
 ## Скоуп первой реализации
 
 Таблицы **ядра**: `user`, `organization_group`, `group_assignment`,
 `org_group_membership`, `organization`, `contact`. Обзвон (`call`) реализован;
-рассылки — `campaign` и `campaign_attachment` (change `campaign-entity`);
-`email_outbox`/`call_result` — следующие шаги (e-mail → результаты звонков).
+рассылки — `campaign`, `campaign_attachment`, `campaign_recipient`
+(change `campaign-entity` + `mailing-service`). Per-letter статусы и retry
+хранятся на `campaign_recipient`.
+
+## Mailing Service: архитектура и жизненный цикл
+
+```mermaid
+flowchart TB
+    subgraph User ["Пользователь"]
+        U["Менеджер/Админ"]
+    end
+
+    subgraph Campaign ["Campaign"]
+        C["Campaign<br/>status: draft → ready → launched → failed"]
+        CR["CampaignRecipient<br/>status: pending|sending|delivered|bounced|failed|opened<br/>retryCount, retryAt, errorMessage, trackingToken"]
+    end
+
+    subgraph Worker ["Фоновая команда (continuous loop)"]
+        W["app:campaign:send<br/>MAILING_BATCH_SIZE (default 50)"]
+        L["Lock file"]
+    end
+
+    subgraph Mailing ["MailingService"]
+        MS["SMTP (Symfony Mailer)<br/>one-by-one"]
+        T["Token resolution<br/>{{greeting}}, {{contact_name}}, {{organization_name}}"]
+    end
+
+    subgraph SSE ["Realtime"]
+        SSE_EP["GET /campaigns/{id}/stream<br/>EventStreamResponse"]
+    end
+
+    subgraph UI ["UI"]
+        PROGRESS["Счётчик «обработано X из Y»"]
+        STATS["Колонка «Статистика» в списке"]
+        ERRORS["Красное сообщение об ошибке<br/>на странице Адресаты"]
+    end
+
+    subgraph Tracking ["Tracking"]
+        PIXEL["GET /t/{token}.png<br/>→ opened"]
+    end
+
+    U -->|"Запустить (ready→launched)"| C
+    C --> W
+    L --> W
+    W -->|"polls: status=launched<br/>AND (pending OR failed+retryAt)"| CR
+    W --> MS
+    MS --> T
+    T --> CR
+    CR -->|"delivered/bounced/failed/opened"| SSE_EP
+    SSE_EP --> PROGRESS
+    SSE_EP --> STATS
+    CR -->|"errorMessage"| ERRORS
+    PIXEL -->|"opened"| CR
+
+    style W fill:#f9f,stroke:#333,stroke-width:2px
+    style MS fill:#bbf,stroke:#333,stroke-width:2px
+    style SSE_EP fill:#bfb,stroke:#333,stroke-width:2px
+```
+
+### Статусы CampaignRecipient
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending: Создан
+    pending --> sending: Worker берёт в обработку
+    sending --> delivered: SMTP OK
+    sending --> bounced: SMTP 5xx (permanent)
+    sending --> failed: SMTP timeout/4xx (transient)
+    sending --> failed: Нет email-адреса (permanent)
+    failed --> pending: retryAt reached AND retryCount < 3
+    delivered --> opened: Tracking-pixel запрос
+    failed --> [*]: retryCount >= 3 (permanent)
+```
+
+### Жизненный цикл Campaign
+
+```mermaid
+stateDiagram-v2
+    [*] --> draft: Создание
+    draft --> ready: Добавлены адресаты
+    ready --> launched: Кнопка «Запустить»
+    launched --> failed: Неустранимая ошибка
+    failed --> launched: Кнопка «Запустить» (retries pending)
+    launched --> ready: Кнопка «Остановить»
+    ready --> archived: Ручной архив
+```
