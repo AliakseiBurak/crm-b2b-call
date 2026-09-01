@@ -1,7 +1,7 @@
-.PHONY: help up build down migrate fixtures styles exec e2e test logs
+.PHONY: help up build down migrate fixtures styles exec e2e test logs mysql-log-config mysql-log-drop mysql-log-tail
 
 help:
-	@echo "help up build down migrate fixtures styles exec e2e test logs"
+	@echo "help up build down migrate fixtures styles exec e2e test logs mysql-log-config mysql-log-drop mysql-log-tail"
 
 up:
 	docker compose up -d
@@ -32,3 +32,14 @@ test:
 
 logs:
 	docker compose logs -f
+
+mysql-log-config:
+	docker compose exec mysql touch /var/log/query.log
+	docker compose exec mysql chown mysql:mysql /var/log/query.log
+	docker compose exec mysql mysql -uroot -p$${MYSQL_ROOT_PASSWORD} -e "SET global log_output = 'FILE'; SET global general_log_file='/var/log/query.log'; SET global general_log = 1;"
+
+mysql-log-drop:
+	docker compose exec mysql sh -c '> /var/log/query.log'
+
+mysql-log-tail:
+	docker compose exec mysql tail -f /var/log/query.log
