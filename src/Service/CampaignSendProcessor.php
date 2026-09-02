@@ -3,14 +3,16 @@
 namespace App\Service;
 
 use App\Repository\CampaignRecipientRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Lock\LockFactory;
 
-final class CampaignSendProcessor
+class CampaignSendProcessor
 {
     public const string LOCK_RESOURCE = 'app.campaign.send';
 
     public function __construct(
+        private readonly EntityManagerInterface $em,
         private readonly CampaignRecipientRepository $recipientRepository,
         private readonly MailingService $mailingService,
         private readonly LockFactory $lockFactory,
@@ -44,8 +46,6 @@ final class CampaignSendProcessor
             }
 
             $processed = 0;
-            $em = $this->recipientRepository->getEntityManager();
-
             foreach ($ids as $id) {
                 $recipient = $this->recipientRepository->find($id);
                 if (null === $recipient) {
@@ -54,7 +54,7 @@ final class CampaignSendProcessor
 
                 $this->mailingService->processRecipient($recipient);
                 ++$processed;
-                $em->clear();
+                $this->em->clear();
             }
 
             return $processed;

@@ -20,6 +20,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 readonly class MailingService
 {
     public function __construct(
+        private EntityManagerInterface $em,
         private MailerInterface $mailer,
         private CampaignRepository $campaignRepository,
         private CampaignRecipientRepository $recipientRepository,
@@ -40,9 +41,7 @@ readonly class MailingService
      */
     public function processRecipient(CampaignRecipient $recipient): void
     {
-        $em = $this->em();
-
-        if (!$em->contains($recipient)) {
+        if (!$this->em->contains($recipient)) {
             $recipient = $this->recipientRepository->find($recipient->id);
             if (null === $recipient) {
                 return;
@@ -52,13 +51,13 @@ readonly class MailingService
         $campaign = $recipient->campaign;
 
         $recipient->markSending();
-        $em->flush();
+        $this->em->flush();
 
         $resolved = $this->resolveEmailTargets($recipient);
 
         if (null === $resolved) {
             $recipient->markFailed('Отсутствует email-адрес организации/контакта', false);
-            $em->flush();
+            $this->em->flush();
             $this->checkCampaignEscalation($campaign);
 
             return;
@@ -75,7 +74,7 @@ readonly class MailingService
             ]);
 
             $recipient->markDelivered();
-            $em->flush();
+            $this->em->flush();
         } catch (\Throwable $e) {
             $message = $e->getMessage();
 
@@ -87,7 +86,7 @@ readonly class MailingService
                 ]);
 
                 $recipient->markBounced((string) $this->smtpStatusCode($e));
-                $em->flush();
+                $this->em->flush();
                 $this->checkCampaignEscalation($campaign);
 
                 return;
@@ -102,7 +101,7 @@ readonly class MailingService
             ]);
 
             $recipient->markFailed($message, $isTransient);
-            $em->flush();
+            $this->em->flush();
             $this->checkCampaignEscalation($campaign);
         }
     }
@@ -286,7 +285,7 @@ readonly class MailingService
 
             $reason = $this->failureReason($campaignId, $total);
             $managed->fail($reason);
-            $this->em()->flush();
+            $this->em->flush();
             $this->notifyAdmin($managed, $reason);
         }
     }
@@ -339,10 +338,5 @@ readonly class MailingService
                 ]);
             }
         }
-    }
-
-    private function em(): EntityManagerInterface
-    {
-        return $this->recipientRepository->getEntityManager();
     }
 }

@@ -1,0 +1,324 @@
+<?php
+
+namespace App\Tests\Unit\Service;
+
+use App\Entity\Campaign;
+use App\Entity\CampaignRecipient;
+use App\Entity\Contact;
+use App\Entity\Enum\CampaignStatus;
+use App\Entity\Enum\RecipientStatus;
+use App\Entity\Organization;
+use App\Entity\User;
+use App\Repository\CampaignRecipientRepository;
+use App\Repository\CampaignRepository;
+use App\Repository\UserRepository;
+use App\Service\CampaignAttachmentStorage;
+use App\Service\MailingService;
+use Doctrine\ORM\EntityManagerInterface;
+use PHPUnit\Framework\MockObject\MockObject;
+use PHPUnit\Framework\TestCase;
+use Psr\Log\NullLogger;
+use Symfony\Component\Mailer\MailerInterface;
+use Symfony\Component\Mime\Address;
+use Symfony\Component\Mime\Email;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+
+final class MailingServiceTest extends TestCase
+{
+    /** @var list<Email> */
+    private array $sent = [];
+
+    private MailerInterface&MockObject $mailer;
+
+    private CampaignRepository&MockObject $campaigns;
+
+    private CampaignRecipientRepository&MockObject $recipients;
+
+    private UserRepository&MockObject $users;
+
+    private EntityManagerInterface&MockObject $em;
+
+    private MailingService $service;
+
+    protected function setUp(): void
+    {
+        $this->sent = [];
+        $this->mailer = $this->createMock(MailerInterface::class);
+
+        $this->em = $this->createMock(EntityManagerInterface::class);
+        $this->em->method('contains')->willReturn(true);
+
+        $this->campaigns = $this->createMock(CampaignRepository::class);
+        $this->recipients = $this->createMock(CampaignRecipientRepository::class);
+        $this->users = $this->createMock(UserRepository::class);
+
+        $this->service = $this->createService($this->em);
+    }
+
+    public function testSpecifiedContactWithEmailIsSoleToAndDelivered(): void
+    {
+        $this->captureSentMail();
+        $org = $this->organization();
+        $alice = $this->contact($org, 'Алиса', 'alice@example.ru');
+        $this->contact($org, 'Борис', 'boris@example.ru');
+        $recipient = $this->recipient($org, $alice);
+
+        $this->service->processRecipient($recipient);
+
+        self::assertCount(1, $this->sent);
+        self::assertSame(['alice@example.ru'], $this->addresses($this->sent[0]->getTo()));
+        self::assertSame([], $this->addresses($this->sent[0]->getCc()));
+        self::assertSame('Для ООО Ромашка', $this->sent[0]->getSubject());
+        $html = (string) $this->sent[0]->getHtmlBody();
+        self::assertStringContainsString('Уважаемый(ая) Алиса', $html);
+        self::assertStringContainsString('mso-hide:all', $html);
+        self::assertStringContainsString('https://b2b-crm.local/t/'.$recipient->trackingToken.'.png', $html);
+        self::assertSame(RecipientStatus::Delivered, $recipient->status);
+    }
+
+    public function testOrganizationWithoutSpecifiedContactSendsOneEmailWithCc(): void
+    {
+        $this->captureSentMail();
+        $org = $this->organization();
+        $this->contact($org, 'Алиса', 'alice@example.ru');
+        $this->contact($org, 'Борис', 'boris@example.ru');
+        $recipient = $this->recipient($org);
+
+        $this->service->processRecipient($recipient);
+
+        self::assertCount(1, $this->sent);
+        self::assertSame(['alice@example.ru'], $this->addresses($this->sent[0]->getTo()));
+        self::assertSame(['boris@example.ru'], $this->addresses($this->sent[0]->getCc()));
+        self::assertSame(RecipientStatus::Delivered, $recipient->status);
+    }
+
+    public function testSpecifiedContactWithoutEmailFallsBackToOrganizationAddresses(): void
+    {
+        $this->captureSentMail();
+        $org = $this->organization();
+        $noEmail = $this->contact($org, 'Без почты', null);
+        $this->contact($org, 'Алиса', 'alice@example.ru');
+        $this->contact($org, 'Борис', 'boris@example.ru');
+        $recipient = $this->recipient($org, $noEmail);
+
+        $this->service->processRecipient($recipient);
+
+        self::assertCount(1, $this->sent);
+        self::assertSame(['alice@example.ru'], $this->addresses($this->sent[0]->getTo()));
+        self::assertSame(['boris@example.ru'], $this->addresses($this->sent[0]->getCc()));
+        self::assertSame(RecipientStatus::Delivered, $recipient->status);
+    }
+
+    public function testMissingEmailMarksPermanentFailedWithoutSending(): void
+    {
+        $org = $this->organization();
+        $this->contact($org, 'Без почты', null);
+        $recipient = $this->recipient($org);
+
+        $this->service->processRecipient($recipient);
+
+        self::assertSame([], $this->sent);
+        self::assertSame(RecipientStatus::Failed, $recipient->status);
+        self::assertSame('Отсутствует email-адрес организации/контакта', $recipient->errorMessage);
+        self::assertSame(0, $recipient->retryCount);
+        self::assertNull($recipient->retryAt);
+    }
+
+    public function testSmtp5xxMarksBounced(): void
+    {
+        $this->mailer->method('send')->willThrowException(
+            new \RuntimeException('got code "550" mailbox unavailable'),
+        );
+        $org = $this->organization();
+        $this->contact($org, 'Алиса', 'alice@example.ru');
+        $recipient = $this->recipient($org);
+
+        $this->service->processRecipient($recipient);
+
+        self::assertSame(RecipientStatus::Bounced, $recipient->status);
+        self::assertSame('550', $recipient->errorMessage);
+    }
+
+    public function testSmtp4xxMarksRetriableFailed(): void
+    {
+        $this->mailer->method('send')->willThrowException(
+            new \RuntimeException('got code "421" try again later'),
+        );
+        $org = $this->organization();
+        $this->contact($org, 'Алиса', 'alice@example.ru');
+        $recipient = $this->recipient($org);
+
+        $this->service->processRecipient($recipient);
+
+        self::assertSame(RecipientStatus::Failed, $recipient->status);
+        self::assertSame(1, $recipient->retryCount);
+        self::assertNotNull($recipient->retryAt);
+        self::assertSame(CampaignStatus::Launched, $recipient->campaign->status);
+    }
+
+    public function testSmtpTimeoutMarksRetriableFailed(): void
+    {
+        $this->mailer->method('send')->willThrowException(new \RuntimeException('Connection timed out'));
+        $org = $this->organization();
+        $this->contact($org, 'Алиса', 'alice@example.ru');
+        $recipient = $this->recipient($org);
+
+        $this->service->processRecipient($recipient);
+
+        self::assertSame(RecipientStatus::Failed, $recipient->status);
+        self::assertSame(1, $recipient->retryCount);
+        self::assertNotNull($recipient->retryAt);
+        self::assertSame(CampaignStatus::Launched, $recipient->campaign->status);
+    }
+
+    public function testReloadsRecipientWhenEntityIsDetached(): void
+    {
+        $this->captureSentMail();
+        $org = $this->organization();
+        $this->contact($org, 'Алиса', 'alice@example.ru');
+        $managed = $this->recipient($org);
+        $this->setId($managed, 41);
+        $stale = $this->recipient($this->organization());
+        $this->setId($stale, 41);
+
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('contains')->willReturn(false);
+        $this->recipients->method('find')->with(41)->willReturn($managed);
+
+        $this->createService($em)->processRecipient($stale);
+
+        self::assertSame(RecipientStatus::Pending, $stale->status);
+        self::assertSame(RecipientStatus::Delivered, $managed->status);
+        self::assertCount(1, $this->sent);
+    }
+
+    public function testSkipsWhenDetachedRecipientIsMissing(): void
+    {
+        $stale = $this->recipient($this->organization());
+        $this->setId($stale, 42);
+
+        $em = $this->createMock(EntityManagerInterface::class);
+        $em->method('contains')->willReturn(false);
+        $this->recipients->method('find')->with(42)->willReturn(null);
+        $this->mailer->expects($this->never())->method('send');
+
+        $this->createService($em)->processRecipient($stale);
+
+        self::assertSame(RecipientStatus::Pending, $stale->status);
+    }
+
+    public function testAllUndeliverableEscalatesCampaignAndNotifiesAdmin(): void
+    {
+        $this->captureSentMail();
+        $admin = (new User())->setEmail('admin@b2b-crm.loc');
+        $this->users->method('findAdmins')->willReturn([$admin]);
+
+        $org = $this->organization();
+        $campaign = $this->campaign();
+        $this->setId($campaign, 22);
+        $this->campaigns->method('find')->with(22)->willReturn($campaign);
+        $this->recipients->method('countStillProcessing')->with(22)->willReturn(0);
+        $this->recipients->method('countDeliveredOrOpened')->with(22)->willReturn(0);
+        $this->recipients->method('countByCampaign')->with(22)->willReturn(1);
+        $this->recipients->method('countNoEmailFailures')->with(22)->willReturn(1);
+
+        $recipient = new CampaignRecipient($campaign, $org);
+        $this->service->processRecipient($recipient);
+
+        self::assertSame(CampaignStatus::Failed, $campaign->status);
+        self::assertStringContainsString('отсутствует email-адрес', (string) $campaign->failureReason);
+        self::assertCount(1, $this->sent);
+        self::assertSame(['admin@b2b-crm.loc'], $this->addresses($this->sent[0]->getTo()));
+        self::assertSame('Ошибка рассылки #22: Акция', $this->sent[0]->getSubject());
+    }
+
+    public function testRetriableFailuresDoNotEscalateCampaign(): void
+    {
+        $this->mailer->method('send')->willThrowException(new \RuntimeException('Connection timed out'));
+        $org = $this->organization();
+        $this->contact($org, 'Алиса', 'alice@example.ru');
+        $campaign = $this->campaign();
+        $this->setId($campaign, 7);
+        $this->recipients->method('countStillProcessing')->with(7)->willReturn(1);
+        $recipient = new CampaignRecipient($campaign, $org);
+
+        $this->service->processRecipient($recipient);
+
+        self::assertSame(CampaignStatus::Launched, $campaign->status);
+        self::assertNull($campaign->failureReason);
+        self::assertSame([], $this->sent);
+    }
+
+    private function createService(EntityManagerInterface $em): MailingService
+    {
+        $storage = new CampaignAttachmentStorage(sys_get_temp_dir());
+
+        $urls = $this->createMock(UrlGeneratorInterface::class);
+        $urls->method('generate')->willReturnCallback(
+            static fn (string $name, array $params): string => 'https://b2b-crm.local/t/'.$params['trackingToken'].'.png',
+        );
+
+        return new MailingService(
+            $em,
+            $this->mailer,
+            $this->campaigns,
+            $this->recipients,
+            $this->users,
+            $storage,
+            $urls,
+            new NullLogger(),
+            'user@b2b-crm.local',
+            'B2B Call CRM',
+        );
+    }
+
+    private function captureSentMail(): void
+    {
+        $this->mailer->method('send')->willReturnCallback(function (Email $email): void {
+            $this->sent[] = $email;
+        });
+    }
+
+    private function campaign(): Campaign
+    {
+        return (new Campaign())
+            ->setName('Акция')
+            ->setSubject('Для {{organization_name}}')
+            ->setPreviewText('{{greeting}}')
+            ->setBody('{{greeting}}! Письмо для {{contact_name}}.')
+            ->launch();
+    }
+
+    private function organization(): Organization
+    {
+        return (new Organization())->setName('ООО Ромашка')->setIndustry('IT');
+    }
+
+    private function contact(Organization $org, string $name, ?string $email): Contact
+    {
+        $contact = (new Contact())->setOrganization($org)->setName($name)->setEmail($email);
+        $org->contacts->add($contact);
+
+        return $contact;
+    }
+
+    private function recipient(Organization $org, ?Contact $contact = null): CampaignRecipient
+    {
+        return new CampaignRecipient($this->campaign(), $org, $contact);
+    }
+
+    private function setId(object $entity, int $id): void
+    {
+        new \ReflectionProperty($entity, 'id')->setValue($entity, $id);
+    }
+
+    /**
+     * @param Address[] $addresses
+     *
+     * @return list<string>
+     */
+    private function addresses(array $addresses): array
+    {
+        return array_values(array_map(static fn (Address $a): string => $a->getAddress(), $addresses));
+    }
+}

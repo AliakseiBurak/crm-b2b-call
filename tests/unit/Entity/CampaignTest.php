@@ -109,10 +109,36 @@ final class CampaignTest extends TestCase
 
         self::assertNull($campaign->failedAt);
 
-        $campaign->fail();
+        $campaign->fail('Проверьте MAILER_DSN.');
 
         self::assertSame(CampaignStatus::Failed, $campaign->status);
         self::assertNotNull($campaign->failedAt);
+        self::assertSame('Проверьте MAILER_DSN.', $campaign->failureReason);
+    }
+
+    public function testLaunchClearsFailureReason(): void
+    {
+        $campaign = (new Campaign())->setName('Тест');
+        $campaign->fail('Сбой SMTP');
+
+        $campaign->launch();
+
+        self::assertSame(CampaignStatus::Launched, $campaign->status);
+        self::assertNull($campaign->failureReason);
+    }
+
+    public function testRenderSubjectAndPreviewFillTokens(): void
+    {
+        $campaign = (new Campaign())
+            ->setSubject('Для {{organization_name}}')
+            ->setPreviewText('{{greeting}}');
+
+        $org = (new Organization())->setName('ООО Ромашка');
+        $contact = (new Contact())->setOrganization($org)->setName('Иван Петров');
+
+        self::assertSame('Для ООО Ромашка', $campaign->renderSubject($contact, $org));
+        self::assertSame('Уважаемый(ая) Иван Петров', $campaign->renderPreviewText($contact, $org));
+        self::assertNull((new Campaign())->renderPreviewText($contact, $org));
     }
 
     public function testCloneFromCopiesFieldsAndSuffix(): void
