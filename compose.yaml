@@ -19,6 +19,8 @@ services:
       APP_SECRET: ${APP_SECRET}
       DEFAULT_URI: ${DEFAULT_URI}
       XDEBUG_MODE: ${XDEBUG_MODE:-debug}
+      GIT_AUTHOR_NAME: ${GIT_AUTHOR_NAME:-Developer}
+      GIT_AUTHOR_EMAIL: ${GIT_AUTHOR_EMAIL:-dev@b2b-crm.loc}
     depends_on:
       mysql:
         condition: service_healthy

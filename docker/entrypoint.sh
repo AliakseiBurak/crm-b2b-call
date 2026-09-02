@@ -28,6 +28,13 @@ else
     echo "[entrypoint] ENABLE_FIXTURES != 1, fixtures пропущены."
 fi
 
+echo "[entrypoint] Настройка git..."
+if [ -n "${GIT_AUTHOR_NAME:-}" ]; then
+    git config --global user.name "$GIT_AUTHOR_NAME"
+    git config --global user.email "$GIT_AUTHOR_EMAIL"
+    echo "[entrypoint] Git настроен: $GIT_AUTHOR_NAME <$GIT_AUTHOR_EMAIL>"
+fi
+
 echo "[entrypoint] Установка npm-зависимостей..."
 if [ -d node_modules ]; then
     echo "[entrypoint] node_modules уже установлен, npm ci пропущен."
