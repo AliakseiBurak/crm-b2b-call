@@ -200,18 +200,14 @@ flowchart TB
         CR["CampaignRecipient<br/>status: pending|sending|delivered|bounced|failed|opened<br/>retryCount, retryAt, errorMessage, trackingToken"]
     end
 
-    subgraph Worker ["Фоновая команда (continuous loop)"]
-        W["app:campaign:send<br/>MAILING_BATCH_SIZE (default 50)"]
+    subgraph Worker ["Фоновая команда (Symfony Scheduler)"]
+        W["app:campaign:send<br/>MAILING_BATCH_SIZE (default 10)<br/>SendCampaignBatch every 1 min"]
         L["Lock file"]
     end
 
     subgraph Mailing ["MailingService"]
-        MS["SMTP (Symfony Mailer)<br/>one-by-one"]
+        MS["SMTP (Symfony Mailer)<br/>one email per org (TO+CC)"]
         T["Token resolution<br/>{{greeting}}, {{contact_name}}, {{organization_name}}"]
-    end
-
-    subgraph SSE ["Realtime"]
-        SSE_EP["GET /campaigns/{id}/stream<br/>EventStreamResponse"]
     end
 
     subgraph UI ["UI"]
@@ -231,15 +227,13 @@ flowchart TB
     W --> MS
     MS --> T
     T --> CR
-    CR -->|"delivered/bounced/failed/opened"| SSE_EP
-    SSE_EP --> PROGRESS
-    SSE_EP --> STATS
+    CR -->|"delivered/opened"| STATS
+    CR -->|"processed vs total"| PROGRESS
     CR -->|"errorMessage"| ERRORS
     PIXEL -->|"opened"| CR
 
     style W fill:#f9f,stroke:#333,stroke-width:2px
     style MS fill:#bbf,stroke:#333,stroke-width:2px
-    style SSE_EP fill:#bfb,stroke:#333,stroke-width:2px
 ```
 
 ### Статусы CampaignRecipient
@@ -265,7 +259,7 @@ stateDiagram-v2
     draft --> ready: Добавлены адресаты
     ready --> launched: Кнопка «Запустить»
     launched --> failed: Неустранимая ошибка
-    failed --> launched: Кнопка «Запустить» (retries pending)
+    failed --> ready: Кнопка «Сбросить»
     launched --> ready: Кнопка «Остановить»
     ready --> archived: Ручной архив
 ```

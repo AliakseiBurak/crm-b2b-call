@@ -24,7 +24,7 @@ The system SHALL support the following campaign statuses: `draft`, `ready`, `lau
 - **THEN** получатели уже существуют как записи `CampaignRecipient` до момента запуска
 
 ### Requirement: Отправка писем (фоновая обработка, MailingService)
-The system SHALL provide a `MailingService` invoked by a background command (`app:campaign:send` or similar) that polls for campaigns in `launched` status having `CampaignRecipient` rows with status `pending` or `failed` with `retry_at <= NOW()` and `retry_count < 3`. The worker SHALL process up to `MAILING_BATCH_SIZE` recipients globally (configurable via .env, default 10) per iteration and be invoked periodically via cron. The service SHALL read the email subject, preview text and body from the **campaign's own stored fields**, fill tokens `{{greeting}}`, `{{contact_name}}`, `{{organization_name}}`, and send via SMTP (Symfony Mailer). The system SHALL send one email per recipient organization. If a recipient specifies a contact with an email address, the email SHALL be sent to that contact only (TO). If a recipient specifies a contact without an email address, the email SHALL be sent to the first email address of the organization (TO) with all remaining organization email addresses in CC. If no contact is specified, the email SHALL be sent to the first email address of the organization (TO) with all remaining organization email addresses in CC. Each recipient SHALL be processed independently; a failure for one recipient SHALL NOT affect others. When the campaign starts processing its status remains `launched`; on an unrecoverable error it becomes `failed`.
+The system SHALL provide a `MailingService` invoked by a background command (`app:campaign:send` or similar) that polls for campaigns in `launched` status having `CampaignRecipient` rows with status `pending` or `failed` with `retry_at <= NOW()` and `retry_count < 3`. The worker SHALL process up to `MAILING_BATCH_SIZE` recipients globally (configurable via .env, default 10) per iteration and be invoked periodically by Symfony Scheduler (`SendCampaignBatch` every minute; consume `scheduler_default`). The command SHALL accept an optional `--limit` CLI option that overrides `MAILING_BATCH_SIZE` for a single run, allowing the operator to control the batch size on each invocation (e.g. `app:campaign:send --limit=20`). The service SHALL read the email subject, preview text and body from the **campaign's own stored fields**, fill tokens `{{greeting}}`, `{{contact_name}}`, `{{organization_name}}`, and send via SMTP (Symfony Mailer). The system SHALL send one email per recipient organization. If a recipient specifies a contact with an email address, the email SHALL be sent to that contact only (TO). If a recipient specifies a contact without an email address, the email SHALL be sent to the first email address of the organization (TO) with all remaining organization email addresses in CC. If no contact is specified, the email SHALL be sent to the first email address of the organization (TO) with all remaining organization email addresses in CC. Organization email addresses SHALL be the unique email addresses of the organization's contacts. Each recipient SHALL be processed independently; a failure for one recipient SHALL NOT affect others. When the campaign starts processing its status remains `launched`; on an unrecoverable error it becomes `failed`. The sent HTML SHALL include a tracking-pixel image pointing at `GET /t/{trackingToken}.png`. Campaign attachments SHALL be sent as email attachments.
 
 #### Scenario: Обработка запущенной рассылки фоновой командой
 - **WHEN** фоновая команда запускается
@@ -38,6 +38,11 @@ The system SHALL provide a `MailingService` invoked by a background command (`ap
 #### Scenario: Источник шаблона — поля рассылки
 - **WHEN** фоновая команда формирует письмо получателю
 - **THEN** она использует тему, превью и текст, сохранённые на самой рассылке
+
+#### Scenario: Ограничение количества сообщений через --limit
+- **WHEN** оператор запускает команду с опцией `--limit=N`
+- **THEN** команда обрабатывает не более N получателей за один запуск
+- **AND** если `--limit` не указан, используется значение `MAILING_BATCH_SIZE` из конфигурации
 
 ### Requirement: Статус получателя рассылки (per-letter)
 The system SHALL track per-recipient send status on `CampaignRecipient` with the values `pending` → `sending` → (`delivered` | `bounced` | `failed`), plus `opened`. `pending` — создан, ещё не отправлен; `sending` — передан в обработку (SMTP); `delivered`/`bounced`/`failed` — результат SMTP-отправки; `opened` — по tracking-pixel. For transient errors (SMTP timeout, 4xx) the recipient SHALL be marked `failed` with `retry_count` and `retry_at` (exponential backoff + jitter, max 3 retries). After max retries the failure becomes permanent. This implements per-letter statuses from ADR-0010.
@@ -60,7 +65,7 @@ The system SHALL track per-recipient send status on `CampaignRecipient` with the
 - **THEN** ошибка становится permanent, получатель остаётся `failed` без повторных попыток
 
 #### Scenario: Пометка прочтения
-- **WHEN** запрашивается tracking-pixel конкретного получателя
+- **WHEN** получатель открывает письмо и клиент запрашивает tracking-pixel конкретного получателя
 - **THEN** его статус становится `opened`
 
 ### Requirement: Счётчик отправленных писем
@@ -71,18 +76,18 @@ The system SHALL display on the campaign page a counter of processed recipients 
 - **THEN** на странице показан счётчик «обработано X из Y»
 
 ### Requirement: Статистика доставки в списке рассылок
-The system SHALL show a statistics column in the campaigns list table displaying "x из y", where x is the number of the campaign's recipients with status `delivered` and y is the total number of recipients of the campaign. The value SHALL be derived from `CampaignRecipient` statuses (count of `delivered` vs total recipients).
+The system SHALL show a statistics column in the campaigns list table displaying "x из y", where x is the number of the campaign's recipients with status `delivered` or `opened` and y is the total number of recipients of the campaign. The value SHALL be derived from `CampaignRecipient` statuses (count of `delivered` or `opened` vs total recipients). Opened implies the letter was delivered; after the tracking-pixel the status is `opened` rather than `delivered`.
 
 #### Scenario: Колонка статистики в списке
 - **WHEN** менеджер открывает список рассылок
-- **THEN** в таблице есть колонка «Статистика» со значением «x из y», где x — число получателей со статусом `delivered`, y — общее число получателей рассылки
+- **THEN** в таблице есть колонка «Статистика» со значением «x из y», где x — число получателей со статусом `delivered` или `opened`, y — общее число получателей рассылки
 
 #### Scenario: Статистика отражает доставку
-- **WHEN** у рассылки 10 получателей и 7 из них доставлены (статус `delivered`)
+- **WHEN** у рассылки 10 получателей, 6 из них доставлены (`delivered`) и 1 открыт (`opened`)
 - **THEN** в колонке «Статистика» показано «7 из 10»
 
 ### Requirement: Обработка ошибок отправки
-The system SHALL, on an unrecoverable error during processing (например, неверная конфигурация SMTP, отсутствие доставляемого адреса у всех получателей, ошибка формирования письма), установить статус рассылки `failed`, записать понятное и действие-ориентированное описание в `failureReason` (что сломалось и как исправить) и отправить email-уведомление администратору сайта. Пользователь исправляет проблему и запускает рассылку заново (статус возвращается в `launched`, `failureReason` очищается, команда продолжает обработку оставшихся `pending` получателей).
+The system SHALL, on an unrecoverable error during processing (например, неверная конфигурация SMTP, отсутствие доставляемого адреса у всех получателей, ошибка формирования письма), установить статус рассылки `failed`, записать понятное и действие-ориентированное описание в `failureReason` (что сломалось и как исправить) и отправить email-уведомление администратору сайта. Пользователь исправляет проблему, нажимает «Сбросить» (статус становится `ready`, `failureReason` очищается), затем «Запустить» (статус `launched`); команда продолжает обработку оставшихся `pending` получателей. Campaign-level escalation SHALL NOT occur while any recipient is still `pending`, `sending`, or retriable `failed` (`retry_count < 3` and `retry_at` is set).
 
 #### Scenario: Переход в статус ошибка
 - **WHEN** во время отправки возникает неустранимая ошибка
@@ -94,8 +99,9 @@ The system SHALL, on an unrecoverable error during processing (например,
 - **THEN** администратору сайта отправляется email-уведомление об ошибке с описанием из `failureReason`
 
 #### Scenario: Повторный запуск после исправления
-- **WHEN** пользователь исправляет ошибку и запускает рассылку заново
-- **THEN** статус возвращается в `launched`, `failureReason` очищается, и фоновая команда продолжает обработку оставшихся получателей со статусом `pending`
+- **WHEN** пользователь исправляет ошибку, нажимает «Сбросить», затем «Запустить»
+- **THEN** статус сначала становится `ready` и `failureReason` очищается, после запуска — `launched`
+- **AND** фоновая команда продолжает обработку оставшихся получателей со статусом `pending`
 
 ### Requirement: Получатель без адреса доставки
 The system SHALL handle a `CampaignRecipient` whose organization (and specified contact, if any) has no email: the recipient is marked `failed` with an `errorMessage` describing the cause (e.g., "Отсутствует email-адрес организации") and processing continues with the other recipients; это не прерывает рассылку целиком (но если недоставляемы все получатели, возможна эскалация в `failed` согласно "Обработка ошибок отправки").
