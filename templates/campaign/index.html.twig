@@ -39,6 +39,7 @@
                             <tr>
                                 <th scope="col">{{ _self.sort_link('name', 'Название', sort, direction, highlight) }}</th>
                                 <th scope="col">{{ _self.sort_link('status', 'Статус', sort, direction, highlight) }}</th>
+                                <th scope="col">Статистика</th>
                                 <th scope="col"></th>
                                 <th scope="col">{{ _self.sort_link('subject', 'Тема письма', sort, direction, highlight) }}</th>
                             </tr>
@@ -71,6 +72,16 @@
                                         </span>
                                     </td>
                                     <td class="campaign-table__status-cell">{{ campaign.status.label() }}</td>
+                                    <td class="campaign-table__stats-cell">
+                                        {% set total = campaign.recipients|length %}
+                                        {% set delivered = 0 %}
+                                        {% for r in campaign.recipients %}
+                                            {% if r.status.value in ['delivered','opened'] %}
+                                                {% set delivered = delivered + 1 %}
+                                            {% endif %}
+                                        {% endfor %}
+                                        {{ delivered }} из {{ total }}
+                                    </td>
                                     <td class="campaign-table__actions-cell">
                                         {{ include('components/button.html.twig', {
                                             variant: 'secondary',

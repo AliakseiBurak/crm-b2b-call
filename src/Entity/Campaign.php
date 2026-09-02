@@ -28,7 +28,7 @@ class Campaign
     #[Assert\Length(max: 255, maxMessage: 'Тема письма не должна превышать {{ limit }} символов')]
     public private(set) string $subject = '';
 
-    #[ORM\Column(length: 255, name: 'preview_text', nullable: true)]
+    #[ORM\Column(name: 'preview_text', length: 255, nullable: true)]
     public private(set) ?string $previewText = null;
 
     #[ORM\Column(type: 'text')]
@@ -44,6 +44,13 @@ class Campaign
     #[ORM\Column(name: 'failed_at', type: 'datetime_immutable', nullable: true)]
     public private(set) ?\DateTimeImmutable $failedAt = null;
 
+    #[ORM\Column(name: 'failure_reason', type: 'text', nullable: true)]
+    private(set) ?string $failureReason = null {
+        get {
+            return $this->failureReason;
+        }
+    }
+
     #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
     public private(set) \DateTimeImmutable $createdAt;
 
@@ -53,14 +60,14 @@ class Campaign
      * удаление строк вложений вместе с кампанией; файлы в storage
      * удаляет сервисный слой (CampaignAttachmentStorage).
      */
-    #[ORM\OneToMany(mappedBy: 'campaign', targetEntity: CampaignAttachment::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: CampaignAttachment::class, mappedBy: 'campaign', cascade: ['persist', 'remove'], orphanRemoval: true)]
     public private(set) Collection $attachments;
 
     /**
      * Ручные адресаты standalone-рассылки; уникальность пары
      * (campaign_id, organization_id) гарантирует схема БД.
      */
-    #[ORM\OneToMany(mappedBy: 'campaign', targetEntity: CampaignRecipient::class, cascade: ['persist', 'remove'], orphanRemoval: true)]
+    #[ORM\OneToMany(targetEntity: CampaignRecipient::class, mappedBy: 'campaign', cascade: ['persist', 'remove'], orphanRemoval: true)]
     public private(set) Collection $recipients;
 
     public function __construct()
@@ -144,6 +151,7 @@ class Campaign
     public function launch(): self
     {
         $this->launchedAt ??= new \DateTimeImmutable();
+        $this->failureReason = null;
         $this->status = CampaignStatus::Launched;
 
         return $this;
@@ -159,21 +167,47 @@ class Campaign
      * Вызывается сервисом MailingService при ошибке отправки; недоступен
      * пользователю через форму.
      */
-    public function fail(): self
+    public function fail(?string $reason = null): self
     {
         $this->failedAt ??= new \DateTimeImmutable();
+        $this->failureReason = $reason;
         $this->status = CampaignStatus::Failed;
 
         return $this;
     }
 
+    public function clearFailureReason(): self
+    {
+        $this->failureReason = null;
+
+        return $this;
+    }
+
     /**
-     * Рендеринг текста письма: подстановка приветствия в зависимости от
-     * наличия контакта. Если contact — «Уважаемый(ая) Имя»;
-     * иначе — «Уважаемые сотрудники Название организации».
-     * Токены {{contact_name}}, {{organization_name}} подставляются из данных.
+     * Подстановка токенов {{greeting}}, {{contact_name}}, {{organization_name}}
+     * в тему, превью и текст: приветствие «Уважаемый(ая) Имя» при контакте,
+     * иначе «Уважаемые сотрудники Название организации».
      */
+    public function renderSubject(?Contact $contact, Organization $organization): string
+    {
+        return $this->fillTokens($this->subject, $contact, $organization);
+    }
+
+    public function renderPreviewText(?Contact $contact, Organization $organization): ?string
+    {
+        if (null === $this->previewText) {
+            return null;
+        }
+
+        return $this->fillTokens($this->previewText, $contact, $organization);
+    }
+
     public function renderBody(?Contact $contact, Organization $organization): string
+    {
+        return $this->fillTokens($this->body, $contact, $organization);
+    }
+
+    private function fillTokens(string $template, ?Contact $contact, Organization $organization): string
     {
         if (null !== $contact) {
             $greeting = 'Уважаемый(ая) ' . $contact->name;
@@ -184,7 +218,7 @@ class Campaign
         return str_replace(
             ['{{contact_name}}', '{{organization_name}}', '{{greeting}}'],
             [$contact?->name ?? '', $organization->name, $greeting],
-            $this->body,
+            $template,
         );
     }
 
@@ -196,7 +230,7 @@ class Campaign
      */
     public static function cloneFrom(self $source, bool $withRecipients, bool $withContacts = false): self
     {
-        $clone = (new self())
+        $clone = new self()
             ->setName($source->name . ' (копия)')
             ->setSubject($source->subject)
             ->setPreviewText($source->previewText)

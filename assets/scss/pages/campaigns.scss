@@ -387,6 +387,41 @@
         color: var(--color-text-secondary, #6b7280);
     }
 
+    &__error-message {
+        color: var(--color-danger, #b91c1c);
+        font-size: 13px;
+    }
+
+    &__status {
+        font-weight: 600;
+        font-size: 13px;
+        white-space: nowrap;
+
+        &--pending {
+            color: var(--color-text-secondary, #6b7280);
+        }
+
+        &--sending {
+            color: var(--color-info, #2563eb);
+        }
+
+        &--delivered {
+            color: var(--color-success, #15803d);
+        }
+
+        &--opened {
+            color: var(--color-success, #15803d);
+        }
+
+        &--bounced {
+            color: var(--color-warning, #d97706);
+        }
+
+        &--failed {
+            color: var(--color-danger, #b91c1c);
+        }
+    }
+
     &__back {
         margin-top: 24px;
     }

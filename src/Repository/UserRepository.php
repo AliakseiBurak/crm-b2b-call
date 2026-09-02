@@ -32,4 +32,19 @@ class UserRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * Все администраторы системы. Используется для отправки уведомлений.
+     *
+     * @return User[]
+     */
+    public function findAdmins(): array
+    {
+        return $this->createQueryBuilder('u')
+            ->where('u.role = :role')
+            ->setParameter('role', UserRole::Admin->value)
+            ->orderBy('u.email', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }

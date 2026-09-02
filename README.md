@@ -67,6 +67,8 @@ PHPMyAdmin, Playwright e2e. Приложение доступно только �
 | `make fixtures`         | Перезагрузить fixtures                             |
 | `make e2e`              | Запустить Playwright smoke-тесты (профиль `e2e`)   |
 | `make exec`             | Войти в контейнер `php` пользователем `app` (`docker compose exec --user app php bash`) |
+| `make app-send`         | Один прогон отправки рассылок (`app:campaign:send`) |
+| `make app-scheduler`    | Локально подержать Symfony Scheduler ~60 с (`messenger:consume scheduler_default`) |
 
 ## E2E-тесты
 
@@ -99,6 +101,40 @@ npm install
 npx playwright install chromium
 BASE_URL=https://host.docker.internal npm test
 ```
+
+## Отправка рассылок (worker)
+
+- **A.** systemd / Supervisord → `messenger:consume scheduler_default` → раз в минуту `SendCampaignBatch`
+- **B.** crontab `* * * * *` → `php bin/console app:campaign:send`
+
+### Локально (Docker)
+
+```bash
+# or run app:campaign:send
+make app-send
+# or run messenger:consume scheduler_default
+make app-scheduler
+```
+
+### Сервер без Docker
+
+Нужен **один** из вариантов.
+
+**A. Оставить Scheduler** — процесс-менеджер (systemd или Supervisord), не cron:
+
+```bash
+php bin/console messenger:consume scheduler_default --time-limit=3600
+```
+
+**B. Проще по эксплуатации** — cron раз в минуту вызывает команду (lock не даст наложиться, если прогон длится дольше минуты):
+
+```cron
+* * * * * cd /var/www/b2b-call-crm && /usr/bin/php bin/console app:campaign:send
+```
+
+Тогда `messenger:consume scheduler_default` на сервере не запускайте.
+
+В окружении CLI задайте `DEFAULT_URI` (абсолютный URL для tracking-pixel в письмах; без HTTP-запроса Symfony его не угадает).
 
 ## Пересоздание окружения (сброс)
 

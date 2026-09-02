@@ -207,6 +207,7 @@ class CampaignController extends AbstractController
 
         if (CampaignStatus::Failed === $campaign->status) {
             $campaign->setStatus(CampaignStatus::Ready);
+            $campaign->clearFailureReason();
             $this->em->flush();
         }
 

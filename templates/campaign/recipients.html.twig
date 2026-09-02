@@ -76,6 +76,7 @@
                             <tr>
                                 <th scope="col">Организация</th>
                                 <th scope="col">Контакт</th>
+                                <th scope="col">Статус</th>
                                 <th scope="col">П/отправка</th>
                                 <th scope="col"></th>
                             </tr>
@@ -83,13 +84,23 @@
                         <tbody>
                             {% for recipient in campaign.recipients %}
                                 <tr>
-                                    <td>{{ recipient.organization.name }}</td>
+                                    <td>
+                                        {{ recipient.organization.name }}
+                                        {% if recipient.errorMessage %}
+                                            <br><span class="campaign-recipients__error-message">{{ recipient.errorMessage }}</span>
+                                        {% endif %}
+                                    </td>
                                     <td>
                                         {% if recipient.contact %}
                                             {{ recipient.contact.name }}{% if recipient.contact.email %} ({{ recipient.contact.email }}){% endif %}
                                         {% else %}
                                             —
                                         {% endif %}
+                                    </td>
+                                    <td>
+                                        {% set statusValue = recipient.status.value %}
+                                        {% set statusClass = 'campaign-recipients__status--' ~ statusValue %}
+                                        <span class="campaign-recipients__status {{ statusClass }}">{{ recipient.status.label() }}</span>
                                     </td>
                                     <td>{{ recipient.replacementCount }}</td>
             {% if canEdit %}

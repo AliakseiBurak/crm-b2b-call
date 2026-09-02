@@ -1,7 +1,7 @@
-.PHONY: help up build down migrate fixtures styles exec e2e test logs mysql-log-config mysql-log-drop mysql-log-tail
+.PHONY: help up build down migrate fixtures styles exec e2e test logs app-send app-scheduler mysql-log-config mysql-log-drop mysql-log-tail
 
 help:
-	@echo "help up build down migrate fixtures styles exec e2e test logs mysql-log-config mysql-log-drop mysql-log-tail"
+	@echo "help up build down migrate fixtures styles exec e2e test logs app-send app-scheduler mysql-log-config mysql-log-drop mysql-log-tail"
 
 up:
 	docker compose up -d
@@ -32,6 +32,12 @@ test:
 
 logs:
 	docker compose logs -f
+
+app-send:
+	docker compose exec php php bin/console app:campaign:send
+
+app-scheduler:
+	docker compose exec php php bin/console messenger:consume scheduler_default --time-limit=60 -vv
 
 mysql-log-config:
 	docker compose exec mysql touch /var/log/query.log

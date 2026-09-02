@@ -1,4 +1,11 @@
 parameters:
+    lock.dsn: 'flock://%kernel.project_dir%/var/lock'
+    mailing.batch_size.default: 10
+    mailing.batch_size: '%env(default:mailing.batch_size.default:int:MAILING_BATCH_SIZE)%'
+    mailing.from_email.default: 'user@b2b-crm.local'
+    mailing.from_email: '%env(default:mailing.from_email.default:MAILING_FROM_EMAIL)%'
+    mailing.from_name.default: 'B2B Call CRM'
+    mailing.from_name: '%env(default:mailing.from_name.default:MAILING_FROM_NAME)%'
 
 services:
     _defaults:

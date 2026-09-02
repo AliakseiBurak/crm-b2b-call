@@ -39,9 +39,9 @@
                     <label class="field__label" for="status">Статус</label>
                     <select class="field__input" id="status" name="status">
                         {% for option in enum('App\\Entity\\Enum\\CampaignStatus').cases() %}
-                            {% if option.value != 'failed' %}
+                            {% if option.value != 'failed' or (isEdit and campaign.status.value == 'failed') %}
                                 {% set selected = campaign and campaign.id ? campaign.status == option : option.value == 'draft' %}
-                                <option value="{{ option.value }}"{% if selected %} selected{% endif %}>{{ option.label() }}</option>
+                                <option value="{{ option.value }}"{% if selected %} selected{% endif %}{% if option.value == 'failed' %} class="campaign-status--failed"{% endif %}>{{ option.label() }}</option>
                             {% endif %}
                         {% endfor %}
                     </select>

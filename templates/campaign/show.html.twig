@@ -1,7 +1,8 @@
 {#
     Карточка рассылки (change campaign-entity): тема, превью, текст письма,
     вложения, статус, кнопка «Запустить» (для не запущенных), индикация
-    запущенности (launched_at). Ожидает: campaign (Campaign).
+    запущенности (launched_at), счётчик прогресса.
+    Ожидает: campaign (Campaign).
 #}
 {% extends 'base.html.twig' %}
 
@@ -16,8 +17,33 @@
                 <dl class="campaign-card__fields campaign-card__fields--top">
                     <div class="campaign-card__row">
                         <dt>Статус</dt>
-                        <dd>{{ campaign.status.label() }}</dd>
+                        <dd>
+                            <span id="campaign-status">{{ campaign.status.label() }}</span>
+                            {% if campaign.status.value == 'launched' or campaign.status.value == 'failed' %}
+                                <span id="campaign-progress" class="campaign-progress">
+                                    {% set total = campaign.recipients|length %}
+                                    {% set processed = 0 %}
+                                    {% for r in campaign.recipients %}
+                                        {% if r.status.value in ['delivered','bounced','failed','opened'] %}
+                                            {% set processed = processed + 1 %}
+                                        {% endif %}
+                                    {% endfor %}
+                                    — обработано {{ processed }} из {{ total }}
+                                </span>
+                            {% endif %}
+                        </dd>
                     </div>
+                    {% if campaign.failureReason %}
+                        <div class="campaign-card__row">
+                            <dt>Причина ошибки</dt>
+                            <dd><span class="campaign-status campaign-status--failed" id="campaign-failure-reason">{{ campaign.failureReason }}</span></dd>
+                        </div>
+                    {% else %}
+                        <div class="campaign-card__row" id="campaign-failure-row" style="display:none">
+                            <dt>Причина ошибки</dt>
+                            <dd><span class="campaign-status campaign-status--failed" id="campaign-failure-reason"></span></dd>
+                        </div>
+                    {% endif %}
                     <div class="campaign-card__row">
                         <dt>Запуск</dt>
                         <dd>
