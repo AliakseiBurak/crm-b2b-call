@@ -83,12 +83,15 @@ final class CampaignControllerTest extends DatabaseWebTestCase
     public function testCreateWithFailedStatusShowsError(): void
     {
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
-        $this->open('/campaigns/new');
-        $this->submitFormByButton('Создать', [
+        $token = (string) $this->open('/campaigns/new')
+            ->filter('input[name="_csrf_token"]')
+            ->attr('value');
+        $this->client->request('POST', '/campaigns/new', [
             'name' => 'Тест',
             'subject' => 'Тема',
             'body' => 'Текст',
             'status' => 'failed',
+            '_csrf_token' => $token,
         ]);
 
         $this->assertResponseStatusCodeSame(422);
@@ -112,6 +115,34 @@ final class CampaignControllerTest extends DatabaseWebTestCase
         $this->assertSelectorTextContains('body', 'Акция');
     }
 
+    public function testIndexStatisticsCountDeliveredAndOpenedRecipients(): void
+    {
+        $campaign = $this->persistCampaign('Статистика');
+        for ($i = 1; $i <= 10; ++$i) {
+            $recipient = new CampaignRecipient(
+                $campaign,
+                $this->persistOrganization('Организация '.$i),
+            );
+            if ($i <= 6) {
+                $recipient->markDelivered();
+            } elseif (7 === $i) {
+                $recipient->markDelivered()->markOpened();
+            }
+            $this->em()->persist($recipient);
+        }
+        $this->em()->flush();
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $crawler = $this->open('/campaigns');
+
+        $this->assertResponseIsSuccessful();
+        $headers = $crawler->filter('thead th')->each(
+            static fn (Crawler $header): string => trim($header->text()),
+        );
+        self::assertContains('Статистика', $headers);
+        self::assertStringContainsString('7 из 10', $crawler->filter('tbody tr')->first()->text());
+    }
+
     public function testShowDisplaysCampaignFields(): void
     {
         $campaign = $this->persistCampaign('Новые курсы');
@@ -130,6 +161,30 @@ final class CampaignControllerTest extends DatabaseWebTestCase
         $this->assertSelectorTextContains('body', 'брошюра.pdf');
         // Кнопка «Запустить» видна для статуса ready.
         $this->assertSelectorExists('form[action="' . $this->launchPath($campaign->id) . '"]');
+    }
+
+    public function testShowDisplaysProcessedRecipientCounter(): void
+    {
+        $campaign = $this->persistCampaign('Рассылка в процессе');
+        $campaign->launch();
+
+        $delivered = new CampaignRecipient($campaign, $this->persistOrganization('Доставлено'));
+        $delivered->markDelivered();
+        $bounced = new CampaignRecipient($campaign, $this->persistOrganization('Отказ'));
+        $bounced->markBounced('550');
+        $failed = new CampaignRecipient($campaign, $this->persistOrganization('Ошибка'));
+        $failed->markFailed('Нет адреса', false);
+        $pending = new CampaignRecipient($campaign, $this->persistOrganization('Ожидает'));
+        foreach ([$delivered, $bounced, $failed, $pending] as $recipient) {
+            $this->em()->persist($recipient);
+        }
+        $this->em()->flush();
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $this->open('/campaigns/' . $campaign->id);
+
+        $this->assertResponseIsSuccessful();
+        $this->assertSelectorTextContains('#campaign-progress', 'обработано 3 из 4');
     }
 
     public function testLaunchSetsLaunchedAtAndStatusOnce(): void
@@ -172,7 +227,7 @@ final class CampaignControllerTest extends DatabaseWebTestCase
     public function testResetSetsReadyStatus(): void
     {
         $campaign = $this->persistCampaign('Рассылка с ошибкой');
-        $campaign->fail();
+        $campaign->fail('Проверьте MAILER_DSN.');
         $this->em()->flush();
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
 
@@ -183,6 +238,7 @@ final class CampaignControllerTest extends DatabaseWebTestCase
         $this->em()->clear();
         $reset = $this->findCampaign('Рассылка с ошибкой');
         self::assertSame(CampaignStatus::Ready, $reset->status);
+        self::assertNull($reset->failureReason);
     }
 
     public function testDeleteRemovesCampaignAndAttachments(): void
@@ -308,7 +364,7 @@ final class CampaignControllerTest extends DatabaseWebTestCase
         $campaign = $this->persistCampaign('Акция');
         $this->login($manager1);
 
-        $crawler = $this->open('/campaigns/' . $campaign->id . '/edit');
+        $crawler = $this->open('/campaigns/' . $campaign->id . '/recipients');
         self::assertStringNotContainsString('ООО Завод', $crawler->filter('select[name="organization"]')->html());
 
         $token = $this->formToken($campaign->id);
@@ -322,6 +378,33 @@ final class CampaignControllerTest extends DatabaseWebTestCase
         $recipients = $this->findCampaign('Акция')->recipients;
         self::assertCount(1, $recipients);
         self::assertSame('ООО Ромашка', $recipients->first()->organization->name);
+    }
+
+    public function testRecipientsPageDisplaysErrorMessageOnlyWhenPresent(): void
+    {
+        $campaign = $this->persistCampaign('Ошибки адресатов');
+        $failed = new CampaignRecipient(
+            $campaign,
+            $this->persistOrganization('Без адреса'),
+        );
+        $failed->markFailed('Отсутствует email-адрес организации', false);
+        $pending = new CampaignRecipient(
+            $campaign,
+            $this->persistOrganization('С адресом'),
+        );
+        $this->em()->persist($failed);
+        $this->em()->persist($pending);
+        $this->em()->flush();
+        $this->login($this->makeUser('admin-errors@b2b-crm.loc', UserRole::Admin));
+
+        $crawler = $this->open('/campaigns/' . $campaign->id . '/recipients');
+
+        $this->assertResponseIsSuccessful();
+        self::assertCount(1, $crawler->filter('.campaign-recipients__error-message'));
+        self::assertSame(
+            'Отсутствует email-адрес организации',
+            trim($crawler->filter('.campaign-recipients__error-message')->text()),
+        );
     }
 
     public function testAdminCanAddAnyOrganizationAsRecipient(): void
@@ -360,7 +443,7 @@ final class CampaignControllerTest extends DatabaseWebTestCase
         $this->assertResponseRedirects();
 
         $this->em()->clear();
-        self::assertCount(1, $this->em()->getRepository(CampaignRecipient::class)->count([
+        self::assertSame(1, $this->em()->getRepository(CampaignRecipient::class)->count([
             'campaign' => $campaignId,
         ]));
     }
@@ -444,7 +527,7 @@ final class CampaignControllerTest extends DatabaseWebTestCase
         $this->assertResponseStatusCodeSame(404);
     }
 
-    public function testRecipientAddRejectedForDraftStatus(): void
+    public function testRecipientAddedToDraftExistsBeforeCampaignLaunch(): void
     {
         $campaign = $this->persistCampaign('Черновик');
         $romashka = $this->persistOrganization('ООО Ромашка');
@@ -456,10 +539,21 @@ final class CampaignControllerTest extends DatabaseWebTestCase
             '_csrf_token' => $token,
         ]);
 
-        $this->assertResponseStatusCodeSame(404);
+        $this->assertResponseRedirects('/campaigns/' . $campaign->id . '/recipients');
 
         $this->em()->clear();
-        self::assertCount(0, $this->findCampaign('Черновик')->recipients);
+        $draft = $this->findCampaign('Черновик');
+        self::assertSame(CampaignStatus::Draft, $draft->status);
+        self::assertCount(1, $draft->recipients);
+
+        $draft->setStatus(CampaignStatus::Ready);
+        $draft->launch();
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $launched = $this->findCampaign('Черновик');
+        self::assertSame(CampaignStatus::Launched, $launched->status);
+        self::assertCount(1, $launched->recipients);
     }
 
     public function testIndexSortingByNameDesc(): void
@@ -646,7 +740,7 @@ final class CampaignControllerTest extends DatabaseWebTestCase
 
     private function formToken(int $campaignId): string
     {
-        $crawler = $this->open('/campaigns/' . $campaignId . '/edit');
+        $crawler = $this->open('/campaigns/' . $campaignId . '/recipients');
 
         // Предпочтительно: data-csrf кнопки «Добавить».
         $btn = $crawler->filter('[data-action="add-recipient"]');

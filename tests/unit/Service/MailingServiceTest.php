@@ -3,6 +3,7 @@
 namespace App\Tests\Unit\Service;
 
 use App\Entity\Campaign;
+use App\Entity\CampaignAttachment;
 use App\Entity\CampaignRecipient;
 use App\Entity\Contact;
 use App\Entity\Enum\CampaignStatus;
@@ -109,6 +110,40 @@ final class MailingServiceTest extends TestCase
         self::assertSame(RecipientStatus::Delivered, $recipient->status);
     }
 
+    public function testCampaignAttachmentsAreIncludedInEmail(): void
+    {
+        $this->captureSentMail();
+        $campaign = $this->campaign();
+        $org = $this->organization();
+        $this->contact($org, 'Алиса', 'alice@example.ru');
+        $recipient = new CampaignRecipient($campaign, $org);
+        $storage = new CampaignAttachmentStorage(sys_get_temp_dir());
+        $storageKey = 'mailing-service-test-'.bin2hex(random_bytes(8));
+        $path = $storage->path($storageKey);
+
+        if (!is_dir(dirname($path))) {
+            mkdir(dirname($path), 0777, true);
+        }
+        file_put_contents($path, 'attachment body');
+        (new CampaignAttachment($campaign, 'предложение.txt', $storageKey))
+            ->setMimeType('text/plain')
+            ->setSize(15);
+
+        try {
+            $this->service->processRecipient($recipient);
+
+            self::assertCount(1, $this->sent);
+            self::assertCount(1, $this->sent[0]->getAttachments());
+            self::assertSame(
+                'предложение.txt',
+                $this->sent[0]->getAttachments()[0]->getFilename(),
+            );
+            self::assertSame(RecipientStatus::Delivered, $recipient->status);
+        } finally {
+            $storage->delete($storageKey);
+        }
+    }
+
     public function testMissingEmailMarksPermanentFailedWithoutSending(): void
     {
         $org = $this->organization();
@@ -169,6 +204,36 @@ final class MailingServiceTest extends TestCase
         self::assertSame(1, $recipient->retryCount);
         self::assertNotNull($recipient->retryAt);
         self::assertSame(CampaignStatus::Launched, $recipient->campaign->status);
+    }
+
+    public function testFailureForOneRecipientDoesNotBlockTheNextRecipient(): void
+    {
+        $campaign = $this->campaign();
+        $this->setId($campaign, 31);
+        $failedOrg = $this->organization();
+        $this->contact($failedOrg, 'Ошибка', 'failed@example.ru');
+        $successfulOrg = $this->organization();
+        $this->contact($successfulOrg, 'Успех', 'success@example.ru');
+        $failed = new CampaignRecipient($campaign, $failedOrg);
+        $successful = new CampaignRecipient($campaign, $successfulOrg);
+        $this->recipients->method('countStillProcessing')->with(31)->willReturn(1);
+        $this->mailer->method('send')->willReturnCallback(function (Email $email): void {
+            if ('failed@example.ru' === $email->getTo()[0]->getAddress()) {
+                throw new \RuntimeException('got code "550" mailbox unavailable');
+            }
+            $this->sent[] = $email;
+        });
+
+        $this->service->processRecipient($failed);
+        $this->service->processRecipient($successful);
+
+        self::assertSame(RecipientStatus::Bounced, $failed->status);
+        self::assertSame(RecipientStatus::Delivered, $successful->status);
+        self::assertCount(1, $this->sent);
+        self::assertSame(
+            ['success@example.ru'],
+            $this->addresses($this->sent[0]->getTo()),
+        );
     }
 
     public function testReloadsRecipientWhenEntityIsDetached(): void
