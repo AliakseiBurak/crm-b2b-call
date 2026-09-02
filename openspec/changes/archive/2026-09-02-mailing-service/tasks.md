@@ -39,5 +39,5 @@
 
 ## 8. Документация
 
-- [ ] 8.1 Обновить `openspec/specs/campaigns/spec.md` при архивировании
+- [x] 8.1 Обновить `openspec/specs/campaigns/spec.md` при архивировании
 - [x] 8.2 Обновить `openspec/design/er.md`: `CampaignRecipient` получает поля статуса отправки (`status`, `sentAt`, `errorMessage`, `trackingToken`, `retryCount`, `retryAt`); `Campaign` — `failureReason`
