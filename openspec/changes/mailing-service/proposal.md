@@ -26,6 +26,6 @@
 - Поле `failureReason` (text, nullable) на `Campaign`; заполняется при переходе в `failed`, очищается при повторном запуске.
 - Сущность `CampaignRecipient`: расширена полями per-letter статуса (`pending`/`sending`/`delivered`/`bounced`/`failed`/`opened`, `sentAt`, `errorMessage`, `trackingToken`) — это outbox по ADR-0010. Поле `errorMessage` содержит описание ошибки (например, «Отсутствует email-адрес организации»); отображается красным сообщением под адресатом на странице Адресаты. Статус `opened` фиксируется через tracking-pixel.
 - Новый сервис `App\Service\MailingService` (SOLID, DI): `MailerInterface`, репозитории `Campaign`/`CampaignRecipient`.
-- Фоновая команда `app:campaign:send` опрашивает БД; запускается периодически через cron.
+- Фоновая команда `app:campaign:send` опрашивает БД; запускается периодически через Symfony Scheduler (`messenger:consume scheduler_default`).
 - Зависимости: `symfony/mailer` (есть); при необходимости — установка и конфигурация необходимых пакетов.
 - Шаблоны: счётчик и индикация прогресса на странице рассылки.

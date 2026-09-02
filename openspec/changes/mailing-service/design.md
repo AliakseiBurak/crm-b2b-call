@@ -17,6 +17,7 @@
 **Goals:**
 - `MailingService` отправляет письма по SMTP (Symfony Mailer) по одному.
 - Фоновая команда `app:campaign:send` опрашивает БД и обрабатывает `pending` получателей кампаний со статусом `launched`.
+- Периодический запуск — Symfony Scheduler (`SendCampaignBatch` каждую минуту) + `messenger:consume scheduler_default`.
 - Поле `failureReason` на `Campaign` с понятным описанием сбоя; email администратору.
 - Per-letter статусы на `CampaignRecipient`: `pending → sending → {delivered|bounced|failed}`, `+ opened` (tracking-pixel).
 
@@ -33,28 +34,33 @@
 
 > **Статистика в списке рассылок** (новое требование): колонка «Статистика»
 > («x из y») вычисляется из `CampaignRecipient` — x = число получателей со
-> статусом `delivered`, y = общее число получателей. Это **производное**
+> статусом `delivered` или `opened`, y = общее число получателей. Это **производное**
 > значение, отдельная колонка в БД не заводится (при росте нагрузки возможен
 > денормализованный счётчик, но пока не нужен).
 
-> **Tracking-pixel**: endpoint `GET /t/{trackingToken}.png` отдаёт прозрачную
-> картинку 1×1 и помечает получателя `opened`. Токен уникален для каждого
-> `CampaignRecipient`.
+> **Tracking-pixel**: в HTML письма встраивается `<img>` на
+> `GET /t/{trackingToken}.png`. Endpoint отдаёт прозрачную картинку 1×1 и
+> помечает получателя `opened` (только из статуса `delivered`). Токен уникален
+> для каждого `CampaignRecipient`.
 
 ### 2. Фоновая команда вместо событий
 **Решение**: убрать `CampaignLaunchedEvent`. Запуск —
 это перевод статуса `ready`→`launched` (вручную). Команда
 `app:campaign:send` опрашивает БД: `Campaign.status = launched` +
 `CampaignRecipient.status IN ('pending', 'failed' WHERE retry_at <= NOW())`.
-Лимит — `MAILING_BATCH_SIZE` (из .env, по умолчанию 50) на все кампании глобально.
-Команда запускается периодически через cron. Для предотвращения
+Лимит — `MAILING_BATCH_SIZE` (из .env, по умолчанию 10) на все кампании глобально.
+Команда принимает опциональный параметр `--limit`, который переопределяет `MAILING_BATCH_SIZE` на один запуск (например, `app:campaign:send --limit=20`).
+Команда запускается периодически через **Symfony Scheduler** (`SendCampaignBatch` каждую минуту; consumer `messenger:consume scheduler_default`, compose-сервис `scheduler`). Для предотвращения
 параллельного запуска нескольких экземпляров используется lock file.
-**Почему**: получатели создаются до запуска (и как результат звонка), поэтому event-триггер избыточен.
+**Почему**: получатели создаются до запуска (и как результат звонка), поэтому event-триггер избыточен. Scheduler заменяет внешний cron: тот же poll-цикл, но внутри приложения.
 
 ### 3. Индивидуальная отправка с фиксацией статуса
 **Решение**: каждое письмо отправляется отдельно; статус **каждого**
 `CampaignRecipient` пишется сразу после попытки. Ошибка одного получателя
-не влияет на остальных.
+не влияет на остальных. На организацию — **одно** письмо: указанный контакт
+с email → только TO; иначе первый email контактов организации TO, остальные CC.
+Вложения кампании прикрепляются к письму. `MailingService` получает
+`CampaignRepository` и `CampaignRecipientRepository` через DI.
 **Почему**: простая логика, максимальная изоляция ошибок, нет зависимости от размера
 батча или rate limits SMTP-сервера.
 
@@ -68,20 +74,28 @@
 ошибки (5xx, нет адреса) — нет. Exponential backoff + jitter предотвращают
 thundering herd.
 
-### 4. Шаблон хранится на самой рассылке
+### 5. Шаблон хранится на самой рассылке
 **Решение**: тема письма (`subject`), прехедер (`previewText`) и текст (`body`) —
 часть сущности `Campaign` (campaign-entity). Пользователь редактирует их напрямую
-на рассылке. `MailingService` при отправке читает **поля самой рассылки**.
+на рассылке. `MailingService` при отправке читает **поля самой рассылки** и
+подставляет токены `{{greeting}}` / `{{contact_name}}` / `{{organization_name}}`
+в тему, превью и тело. Превью вставляется в HTML как скрытый preheader
+(не заголовок `X-Preview`).
 **Почему**: рассылка — самостоятельная сущность; шаблон не привязан к компании
 и не копируется извне. Отредактированный шаблон сразу готов к отправке.
 
 ### 6. Обработка ошибок, `failed` и `failureReason`
 **Решение**: при неустранимой ошибке → `Campaign.status = failed`, `failedAt`
 заполняется, `failureReason` (текст на русском: что сломалось и как исправить), email
-администратору. Повторный запуск → `launched`, `failureReason` очищается, обработка
-`pending` продолжается.
+администратору. Уведомления отправляются **всем администраторам** системы —
+`MailingService` получает их из БД через `UserRepository::findAdmins()` (запрос
+пользователей с `role = 'admin'`). Повторный запуск: кнопка «Сбросить» → `ready`,
+`failureReason` очищается; затем «Запустить» → `launched`, обработка `pending`
+продолжается. Эскалация кампании в `failed` **не** выполняется, пока есть
+получатели `pending`/`sending` или retriable `failed` (`retry_count < 3`,
+`retry_at` задан).
 **Почему**: рассылка не должна «висеть» в `processing`; пользователь должен понять и
-исправить.
+исправить. Transient retry не должен обрываться эскалацией кампании.
 
 ### 7. Получатель без адреса
 **Решение**: нет email у организации/контакта → `CampaignRecipient.status = failed`,
@@ -92,12 +106,15 @@ thundering herd.
 **Почему**: звонок может быть без контакта (`calls/spec.md:16` — контакт опционален);
 пользователь должен видеть причину, по которой организация не получит письмо.
 
-## Worker / cron
+## Worker / scheduler
 
-- Команда `php bin/console app:campaign:send` запускается периодически через cron.
+- Symfony Scheduler каждую минуту диспатчит `SendCampaignBatch` (`App\Schedule`); handler вызывает
+  `CampaignSendProcessor` (тот же путь, что `php bin/console app:campaign:send`).
   Каждый запуск обрабатывает до `MAILING_BATCH_SIZE` получателей
-  (global, из .env) со статусом `pending` или `failed` с `retry_at <= NOW()` и
-  `retry_count < 3`. Lock file предотвращает параллельные запуски.
+  (global, из .env, по умолчанию 10) со статусом `pending` или `failed` с `retry_at <= NOW()` и
+  `retry_count < 3`. Параметр `--limit` позволяет переопределить размер батча на один ручной запуск.
+  Lock file предотвращает параллельные запуски (команда и scheduler).
+  Consumer: `php bin/console messenger:consume scheduler_default` (compose-сервис `scheduler`).
 
 ## Migration Plan
 
@@ -105,5 +122,5 @@ thundering herd.
    полями `status`, `sent_at`, `error_message` (text nullable), `tracking_token`,
    `retry_count` (int, default 0), `retry_at` (timestamp nullable).
 2. Пакеты: `symfony/mailer` (есть).
-3. Команда `app:campaign:send` + cron (периодический запуск); `MAILING_BATCH_SIZE` в .env.
+3. Команда `app:campaign:send` + Symfony Scheduler; `MAILING_BATCH_SIZE` в .env.
 4. Rollback: откат миграции; рассылка возвращается к поведению «только статус».
