@@ -50,7 +50,7 @@
 `CampaignRecipient.status IN ('pending', 'failed' WHERE retry_at <= NOW())`.
 Лимит — `MAILING_BATCH_SIZE` (из .env, по умолчанию 10) на все кампании глобально.
 Команда принимает опциональный параметр `--limit`, который переопределяет `MAILING_BATCH_SIZE` на один запуск (например, `app:campaign:send --limit=20`).
-Команда запускается периодически через **Symfony Scheduler** (`SendCampaignBatch` каждую минуту; consumer `messenger:consume scheduler_default`, compose-сервис `scheduler`). Для предотвращения
+Команда может запускаться периодически через **Symfony Scheduler** (`SendCampaignBatch` каждую минуту; consumer `messenger:consume scheduler_default` управляется окружением вне Docker Compose). В development consumer запускается вручную по необходимости. Для предотвращения
 параллельного запуска нескольких экземпляров используется lock file.
 **Почему**: получатели создаются до запуска (и как результат звонка), поэтому event-триггер избыточен. Scheduler заменяет внешний cron: тот же poll-цикл, но внутри приложения.
 
@@ -114,7 +114,7 @@ thundering herd.
   (global, из .env, по умолчанию 10) со статусом `pending` или `failed` с `retry_at <= NOW()` и
   `retry_count < 3`. Параметр `--limit` позволяет переопределить размер батча на один ручной запуск.
   Lock file предотвращает параллельные запуски (команда и scheduler).
-  Consumer: `php bin/console messenger:consume scheduler_default` (compose-сервис `scheduler`).
+  Consumer: `php bin/console messenger:consume scheduler_default`; отдельный compose-сервис не требуется. В development consumer запускается вручную по необходимости, в production процессом управляет инфраструктура окружения.
 
 ## Migration Plan
 

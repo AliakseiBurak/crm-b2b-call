@@ -11,7 +11,7 @@
 - [x] 2.3 Обрабатывать получателей по одному; обновлять `CampaignRecipient.status` индивидуально после каждой попытки
 - [x] 2.4 При SMTP timeout или 4xx — `failed` с `retryCount++` и `retryAt` (exponential backoff + jitter); при `retryCount >= 3` — permanent failure
 - [x] 2.5 При неустранимой ошибке: SMTP 5xx — `bounced` без retry; нет адреса — permanent `failed` без retry; при отсутствии доставляемых адресов у всех — эскалация кампании в `failed` с `failureReason`, email администратору
-- [x] 2.6 Настроить Symfony Scheduler: `SendCampaignBatch` каждую минуту; consumer `messenger:consume scheduler_default` (compose-сервис `scheduler`); lock file предотвращает параллельные экземпляры
+- [x] 2.6 Настроить Symfony Scheduler: `SendCampaignBatch` каждую минуту; consumer `messenger:consume scheduler_default` запускается вручную в development и управляется внешней инфраструктурой в production; отдельный compose-сервис не требуется; lock file предотвращает параллельные экземпляры
 
 ## 3. MailingService
 
