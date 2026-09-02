@@ -45,11 +45,7 @@ class Campaign
     public private(set) ?\DateTimeImmutable $failedAt = null;
 
     #[ORM\Column(name: 'failure_reason', type: 'text', nullable: true)]
-    private(set) ?string $failureReason = null {
-        get {
-            return $this->failureReason;
-        }
-    }
+    public private(set) ?string $failureReason = null;
 
     #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
     public private(set) \DateTimeImmutable $createdAt;
