@@ -17,6 +17,7 @@ services:
       MAILER_DSN: ${MAILER_DSN}
       ENABLE_FIXTURES: ${ENABLE_FIXTURES:-1}
       APP_SECRET: ${APP_SECRET}
+      DEFAULT_URI: ${DEFAULT_URI}
       XDEBUG_MODE: ${XDEBUG_MODE:-debug}
     depends_on:
       mysql:
