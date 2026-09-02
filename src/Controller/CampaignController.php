@@ -28,6 +28,7 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
  * клонирование, ручные адресаты (все статусы кроме archived) с заменой
  * подтверждением.
  */
+#[Route(requirements: ['id' => '\d+'])]
 class CampaignController extends AbstractController
 {
     public function __construct(
@@ -296,7 +297,7 @@ class CampaignController extends AbstractController
         $storageKey = $this->storage->store($file);
         // Метаданные пишутся после сохранения файла; при сбое flush ключ
         // остаётся без записи — файл удаляется вручную.
-        $attachment = (new CampaignAttachment($campaign, (string) $file->getClientOriginalName(), $storageKey))
+        $attachment = new CampaignAttachment($campaign, (string) $file->getClientOriginalName(), $storageKey)
             ->setMimeType($file->getMimeType())
             ->setSize((int) $file->getSize());
         $this->em->persist($attachment);

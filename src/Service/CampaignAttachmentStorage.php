@@ -24,7 +24,6 @@ final class CampaignAttachmentStorage
 
     /**
      * Сохраняет загруженный файл и возвращает сгенерированный ключ хранилища.
-     * @throws RandomException
      */
     public function store(UploadedFile $file): string
     {
@@ -32,7 +31,7 @@ final class CampaignAttachmentStorage
         if (!is_dir($directory) && !@mkdir($directory, 0775, true) && !is_dir($directory)) {
             throw new FileException(sprintf('Не удалось создать каталог хранилища "%s"', $directory));
         }
-
+        /** @noinspection PhpUnhandledExceptionInspection */
         $storageKey = bin2hex(random_bytes(16));
         $file->move($directory, $storageKey);
 

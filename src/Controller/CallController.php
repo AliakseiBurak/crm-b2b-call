@@ -19,6 +19,7 @@ use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
+#[Route(requirements: ['id' => '\d+'])]
 class CallController extends AbstractController
 {
     public function __construct(
