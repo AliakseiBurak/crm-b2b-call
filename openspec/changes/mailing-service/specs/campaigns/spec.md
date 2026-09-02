@@ -24,7 +24,7 @@ The system SHALL support the following campaign statuses: `draft`, `ready`, `lau
 - **THEN** получатели уже существуют как записи `CampaignRecipient` до момента запуска
 
 ### Requirement: Отправка писем (фоновая обработка, MailingService)
-The system SHALL provide a `MailingService` invoked by a background command (`app:campaign:send` or similar) that polls for campaigns in `launched` status having `CampaignRecipient` rows with status `pending` or `failed` with `retry_at <= NOW()` and `retry_count < 3`. The worker SHALL process up to `MAILING_BATCH_SIZE` recipients globally (configurable via .env, default 50) per iteration and run continuously under supervisor. The service SHALL read the email subject, preview text and body from the **campaign's own stored fields**, fill tokens `{{greeting}}`, `{{contact_name}}`, `{{organization_name}}`, and send via SMTP (Symfony Mailer). For each recipient the worker expands the organization to its contacts that have an email (or uses the recipient's specified contact) and sends one email per such contact. Each recipient SHALL be processed independently; a failure for one recipient SHALL NOT affect others. When the campaign starts processing its status remains `launched`; on an unrecoverable error it becomes `failed`.
+The system SHALL provide a `MailingService` invoked by a background command (`app:campaign:send` or similar) that polls for campaigns in `launched` status having `CampaignRecipient` rows with status `pending` or `failed` with `retry_at <= NOW()` and `retry_count < 3`. The worker SHALL process up to `MAILING_BATCH_SIZE` recipients globally (configurable via .env, default 10) per iteration and be invoked periodically via cron. The service SHALL read the email subject, preview text and body from the **campaign's own stored fields**, fill tokens `{{greeting}}`, `{{contact_name}}`, `{{organization_name}}`, and send via SMTP (Symfony Mailer). The system SHALL send one email per recipient organization. If a recipient specifies a contact with an email address, the email SHALL be sent to that contact only (TO). If a recipient specifies a contact without an email address, the email SHALL be sent to the first email address of the organization (TO) with all remaining organization email addresses in CC. If no contact is specified, the email SHALL be sent to the first email address of the organization (TO) with all remaining organization email addresses in CC. Each recipient SHALL be processed independently; a failure for one recipient SHALL NOT affect others. When the campaign starts processing its status remains `launched`; on an unrecoverable error it becomes `failed`.
 
 #### Scenario: Обработка запущенной рассылки фоновой командой
 - **WHEN** фоновая команда запускается
@@ -62,18 +62,6 @@ The system SHALL track per-recipient send status on `CampaignRecipient` with the
 #### Scenario: Пометка прочтения
 - **WHEN** запрашивается tracking-pixel конкретного получателя
 - **THEN** его статус становится `opened`
-
-### Requirement: Уведомления о процессе отправки (SSE)
-The system SHALL stream real-time progress over Server-Sent Events (SSE) using Symfony's `EventStreamResponse`. An endpoint `GET /campaigns/{id}/stream` SHALL stream, for the lifetime of the connection, the campaign progress (processed X of Y), per-recipient status changes, the `finished` state, and `failed` with `failureReason`. The SSE controller SHALL read the current campaign and recipient state from the database (polling every ~1s) and emit deltas; the worker only writes to the database.
-
-#### Scenario: Поток прогресса через SSE
-- **WHEN** пользователь открывает страницу рассылки в процессе отправки
-- **AND** браузер подключается к `GET /campaigns/{id}/stream`
-- **THEN** по SSE приходят сообщения с прогрессом обработки, отображаемые на сайте в реальном времени
-
-#### Scenario: SSE без выделенного сервера
-- **WHEN** включается realtime-уведомление
-- **THEN** используется нативный SSE (EventStreamResponse) внутри PHP-приложения
 
 ### Requirement: Счётчик отправленных писем
 The system SHALL display on the campaign page a counter of processed recipients versus total recipients based on `CampaignRecipient.status`.

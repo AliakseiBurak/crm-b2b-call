@@ -11,8 +11,6 @@
   Events-триггеров запуска (триггер — статус `ready`→`launched`).
 - Шаблон/тема/превью **хранятся на самой рассылке** (`Campaign`). Пользователь
   редактирует их напрямую на рассылке.
-- Realtime — **нативный SSE** (`EventStreamResponse`, Symfony 7.4), без выделенного
-  сервера.
 
 ## Goals / Non-Goals
 
@@ -21,7 +19,6 @@
 - Фоновая команда `app:campaign:send` опрашивает БД и обрабатывает `pending` получателей кампаний со статусом `launched`.
 - Поле `failureReason` на `Campaign` с понятным описанием сбоя; email администратору.
 - Per-letter статусы на `CampaignRecipient`: `pending → sending → {delivered|bounced|failed}`, `+ opened` (tracking-pixel).
-- Realtime через SSE.
 
 **Non-Goals:**
 - (none)
@@ -50,7 +47,7 @@
 `app:campaign:send` опрашивает БД: `Campaign.status = launched` +
 `CampaignRecipient.status IN ('pending', 'failed' WHERE retry_at <= NOW())`.
 Лимит — `MAILING_BATCH_SIZE` (из .env, по умолчанию 50) на все кампании глобально.
-Команда работает в непрерывном цикле под supervisor. Для предотвращения
+Команда запускается периодически через cron. Для предотвращения
 параллельного запуска нескольких экземпляров используется lock file.
 **Почему**: получатели создаются до запуска (и как результат звонка), поэтому event-триггер избыточен.
 
@@ -78,14 +75,6 @@ thundering herd.
 **Почему**: рассылка — самостоятельная сущность; шаблон не привязан к компании
 и не копируется извне. Отредактированный шаблон сразу готов к отправке.
 
-### 5. Realtime — нативный SSE
-**Решение**: endpoint `GET /campaigns/{id}/stream` на `EventStreamResponse`
-(Symfony 7.4). Контроллер опрашивает БД каждые ~1с и отдаёт дельты прогресса/статусов/
-`finished`/`failed`. Заголовки: `Content-Type: text/event-stream`,
-`Cache-Control: no-cache`, `X-Accel-Buffering: no`. Worker только
-пишет в БД.
-**Почему**: SSE — нативный механизм Symfony для прогресса/дашбордов.
-
 ### 6. Обработка ошибок, `failed` и `failureReason`
 **Решение**: при неустранимой ошибке → `Campaign.status = failed`, `failedAt`
 заполняется, `failureReason` (текст на русском: что сломалось и как исправить), email
@@ -103,26 +92,18 @@ thundering herd.
 **Почему**: звонок может быть без контакта (`calls/spec.md:16` — контакт опционален);
 пользователь должен видеть причину, по которой организация не получит письмо.
 
-## Worker / supervisor
+## Worker / cron
 
-- Команда `php bin/console app:campaign:send` работает в **непрерывном цикле** под
-  supervisor. Каждую итерацию обрабатывает до `MAILING_BATCH_SIZE` получателей
+- Команда `php bin/console app:campaign:send` запускается периодически через cron.
+  Каждый запуск обрабатывает до `MAILING_BATCH_SIZE` получателей
   (global, из .env) со статусом `pending` или `failed` с `retry_at <= NOW()` и
-  `retry_count < 3`. После обработки — пауза и следующая итерация.
-
-## SSE (детали)
-
-- `EventStreamResponse` (Symfony 7.4, HttpFoundation). Генератор `yield new ServerEvent(...)`.
-- Контроллер читает `Campaign` + агрегат `CampaignRecipient` из БД раз в ~1с, шлёт
-  только изменившиеся данные (прогресс X/Y, статус рассылки, failureReason).
-- Защита от буферизации прокси: `X-Accel-Buffering: no`; heartbeat-комментарий при простое.
-- Клиент: `EventSource('/campaigns/{id}/stream')`, обновляет счётчик/индикатор.
+  `retry_count < 3`. Lock file предотвращает параллельные запуски.
 
 ## Migration Plan
 
 1. Миграция: добавить `failureReason` (text nullable) в `campaign`; расширить `campaign_recipient`
    полями `status`, `sent_at`, `error_message` (text nullable), `tracking_token`,
    `retry_count` (int, default 0), `retry_at` (timestamp nullable).
-2. Пакеты: `symfony/mailer` (есть). SSE — встроен в Symfony 7.4.
-3. Команда `app:campaign:send` + supervisor (непрерывный цикл); `MAILING_BATCH_SIZE` в .env.
+2. Пакеты: `symfony/mailer` (есть).
+3. Команда `app:campaign:send` + cron (периодический запуск); `MAILING_BATCH_SIZE` в .env.
 4. Rollback: откат миграции; рассылка возвращается к поведению «только статус».
