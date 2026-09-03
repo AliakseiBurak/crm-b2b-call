@@ -420,7 +420,7 @@ final class CampaignControllerTest extends DatabaseWebTestCase
         self::assertCount(1, $this->findCampaign('Акция')->recipients);
     }
 
-    public function testDuplicateRecipientIsIgnored(): void
+    public function testDuplicateRecipientPromptsReplace(): void
     {
         [$manager1] = $this->makeTwoManagersWithOrganizations();
         $campaign = $this->persistCampaign('Акция');
@@ -437,6 +437,9 @@ final class CampaignControllerTest extends DatabaseWebTestCase
             '_csrf_token' => $token,
         ]);
         $this->assertResponseRedirects();
+
+        $location = $this->client->getResponse()->headers->get('Location');
+        self::assertStringContainsString('/recipients/' . $recipient->id . '/replace', (string) $location);
 
         $this->em()->clear();
         self::assertSame(1, $this->em()->getRepository(CampaignRecipient::class)->count([

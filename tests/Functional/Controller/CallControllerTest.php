@@ -3,7 +3,10 @@
 namespace App\Tests\Functional\Controller;
 
 use App\Entity\Call;
+use App\Entity\Campaign;
+use App\Entity\CampaignRecipient;
 use App\Entity\Contact;
+use App\Entity\Enum\CampaignStatus;
 use App\Entity\Enum\GroupType;
 use App\Entity\Enum\UserRole;
 use App\Entity\OrgGroupMembership;
@@ -331,6 +334,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         $this->open('/calls/' . $call->id . '/edit');
         $this->submitFormByButton('Сохранить', [
             'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
+            'made_at' => '24.08.2026 15:30',
             'is_deal' => '1',
         ]);
 
@@ -350,23 +354,51 @@ final class CallControllerTest extends DatabaseWebTestCase
         $this->open('/calls/' . $call->id . '/edit');
         $this->submitFormByButton('Сохранить', [
             'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
+            'made_at' => '24.08.2026 15:30',
             'next_call_date' => '2026-10-01',
         ]);
 
         $this->assertResponseRedirects();
 
         $this->em()->clear();
+        $updated = $this->findCallById($call->id);
+        self::assertNotNull($updated->nextCall);
         $calls = $this->em()->getRepository(Call::class)->findBy(['organization' => $organization]);
         self::assertCount(2, $calls);
 
-        $next = array_find(
-            $calls,
-            static fn (Call $c): bool => $c->id !== $call->id
-        );
-        self::assertNotNull($next);
-        // Следующий звонок создаётся запланированным по той же организации.
+        $next = $updated->nextCall;
         self::assertSame('2026-10-01 00:00', $next->scheduledAt->format('Y-m-d H:i'));
         self::assertNull($next->madeAt);
+    }
+
+    public function testAjaxUpdateWithNextCallReturnsNextCallRow(): void
+    {
+        [$organization, $contact] = $this->makeOrganizationWithContact('ООО Ромашка');
+        $call = $this->makeCallFor($organization, $contact, notes: 'Исходный');
+        $this->em()->flush();
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $this->submitCallAjax('/calls/' . $call->id . '/edit', '/calls/' . $call->id . '/edit', [
+            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
+            'made_at' => '24.08.2026 15:30',
+            'next_call_date' => '2026-10-01',
+            'notes' => 'Исходный',
+        ]);
+
+        $this->assertResponseIsSuccessful();
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true);
+        self::assertTrue($payload['ok']);
+        self::assertArrayHasKey('nextCallRow', $payload);
+        self::assertStringContainsString('data-call-row', $payload['nextCallRow']);
+        self::assertStringContainsString('01.10.2026', $payload['nextCallRow']);
+
+        $this->em()->clear();
+        $updated = $this->findCallById($call->id);
+        self::assertNotNull($updated->nextCall);
+        self::assertStringContainsString(
+            'data-call-id="' . $updated->nextCall->id . '"',
+            $payload['nextCallRow'],
+        );
     }
 
     public function testAjaxUpdateReturnsJsonRowAndPersistsChanges(): void
@@ -484,6 +516,192 @@ final class CallControllerTest extends DatabaseWebTestCase
         $this->assertResponseStatusCodeSame(403);
     }
 
+    public function testMailingOnCompletedCallCreatesRecipient(): void
+    {
+        [$organization, $contact] = $this->makeOrganizationWithContact('ООО Ромашка');
+        $campaign = $this->persistReadyCampaign('Осенняя рассылка');
+        $call = $this->makeCallFor($organization, $contact);
+        $this->em()->flush();
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $this->open('/calls/' . $call->id . '/edit');
+        $this->submitFormByButton('Сохранить', [
+            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
+            'made_at' => '24.08.2026 15:30',
+            'mailing_campaign' => (string) $campaign->id,
+            'mailing_contact' => (string) $contact->id,
+        ]);
+
+        $this->assertResponseRedirects();
+
+        $this->em()->clear();
+        $updated = $this->findCallById($call->id);
+        self::assertSame($campaign->id, $updated->campaign->id);
+        self::assertSame(1, $this->em()->getRepository(CampaignRecipient::class)->count([
+            'campaign' => $campaign->id,
+            'organization' => $organization->id,
+        ]));
+    }
+
+    public function testResubmitWithoutMailingCampaignDoesNotDuplicateRecipient(): void
+    {
+        [$organization, $contact] = $this->makeOrganizationWithContact('ООО Ромашка');
+        $admin = $this->makeUser('admin@b2b-crm.loc', UserRole::Admin);
+        $campaign = $this->persistReadyCampaign('Осенняя рассылка');
+        $call = $this->makeCallFor($organization, $contact);
+        $call->setMadeAt(new \DateTimeImmutable('2026-08-24 15:30'));
+        $call->setMadeBy($admin);
+        $this->em()->persist(new CampaignRecipient($campaign, $organization, $contact));
+        $call->setCampaign($campaign);
+        $this->em()->flush();
+        $this->login($admin);
+
+        $this->open('/calls/' . $call->id . '/edit');
+        $this->submitFormByButton('Сохранить', [
+            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
+            'made_at' => '24.08.2026 15:30',
+            'notes' => 'Обновили заметку',
+        ]);
+
+        $this->assertResponseRedirects();
+
+        $this->em()->clear();
+        self::assertSame(1, $this->em()->getRepository(CampaignRecipient::class)->count([
+            'campaign' => $campaign->id,
+        ]));
+    }
+
+    public function testLaunchedMailingReplaceIncrementsReplacementCount(): void
+    {
+        [$organization, $contact] = $this->makeOrganizationWithContact('ООО Ромашка');
+        $admin = $this->makeUser('admin@b2b-crm.loc', UserRole::Admin);
+        $campaign = $this->persistLaunchedCampaign('Акция');
+        $this->em()->persist(new CampaignRecipient($campaign, $organization, $contact));
+        $call = $this->makeCallFor($organization, $contact);
+        $call->setMadeAt(new \DateTimeImmutable('2026-08-24 15:30'));
+        $call->setMadeBy($admin);
+        $this->em()->flush();
+        $this->login($admin);
+
+        $this->open('/calls/' . $call->id . '/edit');
+        $this->submitFormByButton('Сохранить', [
+            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
+            'made_at' => '24.08.2026 15:30',
+            'mailing_campaign' => (string) $campaign->id,
+            'mailing_contact' => (string) $contact->id,
+        ]);
+
+        $this->assertResponseRedirects();
+
+        $this->em()->clear();
+        $recipient = $this->em()->getRepository(CampaignRecipient::class)->findOneBy([
+            'campaign' => $campaign->id,
+            'organization' => $organization->id,
+        ]);
+        self::assertNotNull($recipient);
+        self::assertSame(1, $recipient->replacementCount);
+    }
+
+    public function testDraftCampaignAvailableForMailing(): void
+    {
+        [$organization, $contact] = $this->makeOrganizationWithContact('ООО Ромашка');
+        $campaign = $this->persistDraftCampaign('Новые курсы');
+        $call = $this->makeCallFor($organization, $contact);
+        $this->em()->flush();
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $this->open('/calls/' . $call->id . '/edit');
+        $this->submitFormByButton('Сохранить', [
+            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
+            'made_at' => '24.08.2026 15:30',
+            'mailing_campaign' => (string) $campaign->id,
+            'mailing_contact' => (string) $contact->id,
+        ]);
+
+        $this->assertResponseRedirects();
+
+        $this->em()->clear();
+        self::assertSame(1, $this->em()->getRepository(CampaignRecipient::class)->count([
+            'campaign' => $campaign->id,
+            'organization' => $organization->id,
+        ]));
+    }
+
+    public function testArchivedCampaignNotAcceptedForMailing(): void
+    {
+        [$organization] = $this->makeOrganizationWithContact('ООО Ромашка');
+        $campaign = $this->persistArchivedCampaign('Прошлая акция');
+        $call = $this->makeCallFor($organization);
+        $this->em()->flush();
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $crawler = $this->open('/calls/' . $call->id . '/edit');
+        self::assertCount(0, $crawler->filter('#mailing-campaign option[value="' . $campaign->id . '"]'));
+    }
+
+    public function testResultActionWithoutMadeAtReturns422(): void
+    {
+        [$organization] = $this->makeOrganizationWithContact('ООО Ромашка');
+        $campaign = $this->persistReadyCampaign('Осенняя рассылка');
+        $call = $this->makeCallFor($organization);
+        $this->em()->flush();
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $this->open('/calls/' . $call->id . '/edit');
+        $this->submitFormByButton('Сохранить', [
+            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
+            'mailing_campaign' => (string) $campaign->id,
+        ]);
+
+        $this->assertResponseStatusCodeSame(422);
+        $this->assertSelectorTextContains('.field__error', 'Для действий результата звонка нужны фактическая дата и автор');
+
+        $this->em()->clear();
+        self::assertSame(0, $this->em()->getRepository(CampaignRecipient::class)->count([
+            'campaign' => $campaign->id,
+        ]));
+    }
+
+    public function testPastNextCallDateRestoresResultFields(): void
+    {
+        [$organization] = $this->makeOrganizationWithContact('ООО Ромашка');
+        $campaign = $this->persistReadyCampaign('Осенняя рассылка');
+        $call = $this->makeCallFor($organization);
+        $this->em()->flush();
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $this->open('/calls/' . $call->id . '/edit');
+        $this->submitFormByButton('Сохранить', [
+            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
+            'made_at' => '24.08.2026 15:30',
+            'mailing_campaign' => (string) $campaign->id,
+            'next_call_date' => '01.01.2020',
+        ]);
+
+        $this->assertResponseStatusCodeSame(422);
+        $this->assertSelectorTextContains('.field__error', 'Дата следующего звонка должна быть в будущем');
+
+        $crawler = $this->client->getCrawler();
+        self::assertSame((string) $campaign->id, $crawler->filter('#mailing-campaign option[selected]')->attr('value'));
+        self::assertSame('01.01.2020', $crawler->filter('#next-call-date')->attr('value'));
+    }
+
+    public function testDeletePageWarnsAboutCampaignRecipient(): void
+    {
+        [$organization, $contact] = $this->makeOrganizationWithContact('ООО Ромашка');
+        $campaign = $this->persistReadyCampaign('Осенняя рассылка');
+        $call = $this->makeCallFor($organization, $contact);
+        $call->setCampaign($campaign);
+        $this->em()->flush();
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $crawler = $this->open('/calls/' . $call->id . '/delete');
+
+        self::assertSelectorTextContains('[data-call-delete-mailing]', 'Адресат рассылки');
+        self::assertSelectorTextContains('[data-call-delete-mailing]', 'Осенняя рассылка');
+        self::assertSame('_blank', $crawler->filter('[data-call-delete-mailing] a')->attr('target'));
+    }
+
     // ------------------------------------------------------------------
     // Помощники
 
@@ -599,6 +817,57 @@ final class CallControllerTest extends DatabaseWebTestCase
         $call = $this->em()->getRepository(Call::class)->findOneBy(['organization' => $organization]);
 
         return $call;
+    }
+
+    private function persistReadyCampaign(string $name): Campaign
+    {
+        $campaign = new Campaign()
+            ->setName($name)
+            ->setSubject('Тема ' . $name)
+            ->setBody('{{greeting}}');
+        $campaign->setStatus(CampaignStatus::Ready);
+        $this->em()->persist($campaign);
+        $this->em()->flush();
+
+        return $campaign;
+    }
+
+    private function persistDraftCampaign(string $name): Campaign
+    {
+        $campaign = new Campaign()
+            ->setName($name)
+            ->setSubject('Тема ' . $name)
+            ->setBody('{{greeting}}');
+        $this->em()->persist($campaign);
+        $this->em()->flush();
+
+        return $campaign;
+    }
+
+    private function persistArchivedCampaign(string $name): Campaign
+    {
+        $campaign = new Campaign()
+            ->setName($name)
+            ->setSubject('Тема ' . $name)
+            ->setBody('{{greeting}}');
+        $campaign->setStatus(CampaignStatus::Archived);
+        $this->em()->persist($campaign);
+        $this->em()->flush();
+
+        return $campaign;
+    }
+
+    private function persistLaunchedCampaign(string $name): Campaign
+    {
+        $campaign = new Campaign()
+            ->setName($name)
+            ->setSubject('Тема ' . $name)
+            ->setBody('{{greeting}}');
+        $campaign->launch();
+        $this->em()->persist($campaign);
+        $this->em()->flush();
+
+        return $campaign;
     }
 
     /**
