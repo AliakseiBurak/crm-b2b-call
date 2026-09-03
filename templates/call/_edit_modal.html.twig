@@ -1,10 +1,5 @@
 {#
-    Модальное окно быстрого редактирования звонка (change calls-crud).
-    Одна копия на странице дашборда: данные строки подставляются в форму
-    JavaScript при открытии, контакты организации подгружаются динамически,
-    сохранение — AJAX (JSON), обновление строки — без перезагрузки страницы.
-    Форма содержит все изменяемые поля звонка, чтобы сохранение не затирало
-    значения, скрытые за пределами окна. Организация звонка не меняется.
+    Модальное окно быстрого редактирования звонка (change calls-crud, call-result).
 #}
 <div data-call-edit-modal>
     {% embed 'components/modal.html.twig' %}
@@ -18,7 +13,6 @@
 
                 <div class="field">
                     <label class="field__label" for="modal-call-scheduled-at">Запланированная дата звонка</label>
-                    {# Без required: серверная валидация показывает ошибку через AJAX (spec calls/crud) #}
                     <input class="field__input" type="text" id="modal-call-scheduled-at" name="scheduled_at"
                            data-date-picker="date" data-call-field="scheduled_at">
                     <span class="field__error" role="alert" data-call-error="scheduledAt" hidden></span>
@@ -51,12 +45,14 @@
                     </div>
                 {% endif %}
 
-                <div class="field">
-                    <label class="field__consent" for="modal-call-is-deal">
-                        <input type="checkbox" id="modal-call-is-deal" name="is_deal" value="1"
-                               data-call-field="is_deal">
-                        Сделка совершена
-                    </label>
+                <div data-call-result-fields>
+                    {{ include('call/_result_fields.html.twig', {
+                        call: null,
+                        mailingCampaigns: mailingCampaigns,
+                        contacts: [],
+                        isModal: true,
+                        errors: {},
+                    }) }}
                 </div>
 
                 <div class="field">

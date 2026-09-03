@@ -40,12 +40,16 @@ class Call
     #[ORM\Column(name: 'is_deal', type: 'boolean', options: ['default' => false])]
     public private(set) bool $isDeal = false;
 
+    #[ORM\Column(name: 'is_no_answer', type: 'boolean', options: ['default' => false])]
+    public private(set) bool $isNoAnswer = false;
+
     #[ORM\OneToOne(targetEntity: Call::class)]
     #[ORM\JoinColumn(name: 'next_call_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
     public private(set) ?Call $nextCall = null;
 
-    #[ORM\Column(name: 'campaign_id', type: 'bigint', nullable: true)]
-    public private(set) ?string $campaignId = null;
+    #[ORM\ManyToOne(targetEntity: Campaign::class)]
+    #[ORM\JoinColumn(name: 'campaign_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    public private(set) ?Campaign $campaign = null;
 
     #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
     public private(set) \DateTimeImmutable $createdAt;
@@ -104,6 +108,13 @@ class Call
         return $this;
     }
 
+    public function setIsNoAnswer(bool $isNoAnswer): self
+    {
+        $this->isNoAnswer = $isNoAnswer;
+
+        return $this;
+    }
+
     public function setNextCall(?Call $nextCall): self
     {
         $this->nextCall = $nextCall;
@@ -111,9 +122,9 @@ class Call
         return $this;
     }
 
-    public function setCampaignId(?string $campaignId): self
+    public function setCampaign(?Campaign $campaign): self
     {
-        $this->campaignId = $campaignId;
+        $this->campaign = $campaign;
 
         return $this;
     }

@@ -172,6 +172,11 @@
         font-family: $font-heading;
         font-weight: 700;
         color: $color-info-blue;
+        text-decoration: none;
+
+        &:hover {
+            text-decoration: underline;
+        }
     }
 
     .org-calls__all {

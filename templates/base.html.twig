@@ -21,6 +21,12 @@
 
     {{ include('components/header.html.twig', { menu: menu }) }}
 
+    {% for label, messages in app.flashes %}
+        {% for message in messages %}
+            <div class="alert alert--{{ label == 'error' ? 'error' : 'warning' }}" role="alert">{{ message }}</div>
+        {% endfor %}
+    {% endfor %}
+
     <main>
         {% block body %}{% endblock %}
     </main>

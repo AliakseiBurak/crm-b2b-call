@@ -3,6 +3,7 @@
 namespace App\Controller;
 
 use App\Entity\Call;
+use App\Entity\Campaign;
 use App\Entity\Contact;
 use App\Entity\Enum\UserRole;
 use App\Entity\Organization;
@@ -11,6 +12,7 @@ use App\Repository\CallRepository;
 use App\Repository\ContactRepository;
 use App\Repository\OrganizationRepository;
 use App\Repository\UserRepository;
+use App\Service\CallResultService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -22,11 +24,14 @@ use Symfony\Component\Validator\Validator\ValidatorInterface;
 #[Route(requirements: ['id' => '\d+'])]
 class CallController extends AbstractController
 {
+    private const string RESEND_FLASH = 'Письмо будет отправлено повторно.';
+
     public function __construct(
         private readonly CallRepository $calls,
         private readonly ContactRepository $contacts,
         private readonly OrganizationRepository $organizations,
         private readonly UserRepository $users,
+        private readonly CallResultService $callResults,
         private readonly EntityManagerInterface $em,
     ) {
     }
@@ -36,8 +41,6 @@ class CallController extends AbstractController
     public function new(Request $request, ?int $organizationId = null): Response
     {
         $organizations = $this->organizations->findAccessibleOrganizations($this->getUser());
-        // Предвыбор организации из ссылки «Добавить звонок»: только если
-        // организация есть в списке доступных.
         $selectedOrganizationId = null;
         foreach ($organizations as $organization) {
             if ($organization->id === $organizationId) {
@@ -49,16 +52,16 @@ class CallController extends AbstractController
 
         $isAdmin = $this->isAdmin();
 
-        return $this->render('call/form.html.twig', [
-            'call' => null,
-            'defaultScheduledAt' => $this->defaultScheduledDate(),
-            'organizations' => $organizations,
-            'selectedOrganizationId' => $selectedOrganizationId,
-            'contacts' => null === $selectedOrganizationId ? [] : $this->organizationContacts($selectedOrganizationId),
-            'errors' => [],
-            'isAdmin' => $isAdmin,
-            'users' => $isAdmin ? $this->users->findAdminsAndManagers() : [],
-        ]);
+        return $this->render('call/form.html.twig', $this->formContext(
+            call: null,
+            organizations: $organizations,
+            selectedOrganizationId: $selectedOrganizationId,
+            contacts: null === $selectedOrganizationId ? [] : $this->organizationContacts($selectedOrganizationId),
+            errors: [],
+            isAdmin: $isAdmin,
+            users: $isAdmin ? $this->users->findAdminsAndManagers() : [],
+            defaultScheduledAt: $this->defaultScheduledDate(),
+        ));
     }
 
     #[Route('/calls/new', name: 'app_call_create', methods: ['POST'])]
@@ -68,15 +71,13 @@ class CallController extends AbstractController
         $ajax = $request->isXmlHttpRequest();
 
         $call = new Call();
-        // Организация выбирается из области доступа (ADR-0007/0008). Пустой
-        // ввод — ошибка валидации; несуществующий или невидимый идентификатор —
-        // отказ (404/403).
         $requestedOrganizationId = (int) $request->request->get('organization', 0);
         if ($requestedOrganizationId > 0) {
             $call->setOrganization($this->accessibleOrganization($requestedOrganizationId));
         }
 
-        $errors = $this->applyRequest($request, $validator, $call);
+        $resultInput = $this->parseResultInput($request);
+        $errors = $this->applyRequest($request, $validator, $call, $resultInput);
         if ([] !== $errors) {
             if ($ajax) {
                 return $this->json(['ok' => false, 'errors' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
@@ -84,16 +85,16 @@ class CallController extends AbstractController
 
             $isAdmin = $this->isAdmin();
 
-            return $this->render('call/form.html.twig', [
-                'call' => $call,
-                'organizations' => $this->organizations->findAccessibleOrganizations($this->getUser()),
-                'selectedOrganizationId' => $requestedOrganizationId > 0 ? $requestedOrganizationId : null,
-                // Организация может быть не установлена (ошибка валидации).
-                'contacts' => isset($call->organization) ? $this->organizationContacts($call->organization->id) : [],
-                'errors' => $errors,
-                'isAdmin' => $isAdmin,
-                'users' => $isAdmin ? $this->users->findAdminsAndManagers() : [],
-            ], new Response(null, Response::HTTP_UNPROCESSABLE_ENTITY));
+            return $this->render('call/form.html.twig', $this->formContext(
+                call: $call,
+                organizations: $this->organizations->findAccessibleOrganizations($this->getUser()),
+                selectedOrganizationId: $requestedOrganizationId > 0 ? $requestedOrganizationId : null,
+                contacts: isset($call->organization) ? $this->organizationContacts($call->organization->id) : [],
+                errors: $errors,
+                isAdmin: $isAdmin,
+                users: $isAdmin ? $this->users->findAdminsAndManagers() : [],
+                resultInput: $resultInput,
+            ), new Response(null, Response::HTTP_UNPROCESSABLE_ENTITY));
         }
 
         $this->em->persist($call);
@@ -110,18 +111,17 @@ class CallController extends AbstractController
     public function edit(int $id): Response
     {
         $call = $this->accessibleCall($id);
-
         $isAdmin = $this->isAdmin();
 
-        return $this->render('call/form.html.twig', [
-            'call' => $call,
-            'organizations' => [$call->organization],
-            'selectedOrganizationId' => $call->organization->id,
-            'contacts' => $this->organizationContacts($call->organization->id),
-            'errors' => [],
-            'isAdmin' => $isAdmin,
-            'users' => $isAdmin ? $this->users->findAdminsAndManagers() : [],
-        ]);
+        return $this->render('call/form.html.twig', $this->formContext(
+            call: $call,
+            organizations: [$call->organization],
+            selectedOrganizationId: $call->organization->id,
+            contacts: $this->organizationContacts($call->organization->id),
+            errors: [],
+            isAdmin: $isAdmin,
+            users: $isAdmin ? $this->users->findAdminsAndManagers() : [],
+        ));
     }
 
     #[Route('/calls/{id}/edit', name: 'app_call_update', methods: ['POST'])]
@@ -129,11 +129,10 @@ class CallController extends AbstractController
     {
         $call = $this->accessibleCall($id);
         $ajax = $request->isXmlHttpRequest();
-
-        // Токен приходит из формы (FormData) или заголовком X-CSRF-Token.
         $this->assertCsrfToken($request);
 
-        $errors = $this->applyRequest($request, $validator, $call);
+        $resultInput = $this->parseResultInput($request);
+        $errors = $this->applyRequest($request, $validator, $call, $resultInput);
         if ([] !== $errors) {
             if ($ajax) {
                 return $this->json(['ok' => false, 'errors' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
@@ -141,36 +140,49 @@ class CallController extends AbstractController
 
             $isAdmin = $this->isAdmin();
 
-            return $this->render('call/form.html.twig', [
-                'call' => $call,
-                'organizations' => [$call->organization],
-                'selectedOrganizationId' => $call->organization->id,
-                'contacts' => $this->organizationContacts($call->organization->id),
-                'errors' => $errors,
-                'isAdmin' => $isAdmin,
-                'users' => $isAdmin ? $this->users->findAdminsAndManagers() : [],
-            ], new Response(null, Response::HTTP_UNPROCESSABLE_ENTITY));
+            return $this->render('call/form.html.twig', $this->formContext(
+                call: $call,
+                organizations: [$call->organization],
+                selectedOrganizationId: $call->organization->id,
+                contacts: $this->organizationContacts($call->organization->id),
+                errors: $errors,
+                isAdmin: $isAdmin,
+                users: $isAdmin ? $this->users->findAdminsAndManagers() : [],
+                resultInput: $resultInput,
+            ), new Response(null, Response::HTTP_UNPROCESSABLE_ENTITY));
         }
 
-        // Результат «следующий звонок»: новый запланированный звонок той же
-        // организации попадает в планирование (spec calls/crud).
-        $nextCallDate = $this->parseDate((string) $request->request->get('next_call_date', ''));
-        if (null !== $nextCallDate) {
-            $this->em->persist(new Call()
-                ->setOrganization($call->organization)
-                ->setScheduledAt($nextCallDate));
-        }
-
+        $hadNextCall = null !== $call->nextCall;
+        $resendFlash = $this->applyResultActions($call, $resultInput);
         $this->em->flush();
 
+        if ($resendFlash) {
+            $this->addFlash('notice', self::RESEND_FLASH);
+        }
+
         if ($ajax) {
-            return $this->json([
+            $this->em->refresh($call);
+            if (null !== $call->nextCall) {
+                $this->em->refresh($call->nextCall);
+            }
+
+            $payload = [
                 'ok' => true,
                 'row' => $this->renderView('call/_row.html.twig', [
                     'call' => $this->rowOf($call),
                     'callContact' => $call->contact,
                 ]),
-            ]);
+            ];
+
+            // Новый следующий звонок — отдельная строка в «Все звонки» без перезагрузки.
+            if (!$hadNextCall && null !== $call->nextCall) {
+                $payload['nextCallRow'] = $this->renderView('call/_row.html.twig', [
+                    'call' => $this->rowOf($call->nextCall),
+                    'callContact' => $call->nextCall->contact,
+                ]);
+            }
+
+            return $this->json($payload);
         }
 
         return $this->redirectToRoute('app_dashboard', ['highlight' => $call->organization->id]);
@@ -199,10 +211,6 @@ class CallController extends AbstractController
         return $this->redirectToRoute('app_dashboard', ['highlight' => $organizationId]);
     }
 
-    /**
-     * Контакты организации для динамической загрузки в форме звонка
-     * (AJAX): список id/имя по алфавиту.
-     */
     #[Route('/organizations/{id}/contacts.json', name: 'app_call_organization_contacts', methods: ['GET'])]
     public function organizationContactsAction(int $id): Response
     {
@@ -218,16 +226,12 @@ class CallController extends AbstractController
     }
 
     /**
-     * Заполняет звонок данными формы и возвращает ошибки валидации,
-     * сгруппированные по полям (organization, scheduledAt, contact).
-     *
      * @return array<string, string>
      */
-    private function applyRequest(Request $request, ValidatorInterface $validator, Call $call): array
+    private function applyRequest(Request $request, ValidatorInterface $validator, Call $call, array $resultInput): array
     {
         $errors = [];
 
-        // Контакт опционален и должен принадлежать организации звонка.
         $contactId = (int) $request->request->get('contact', 0);
         if ($contactId > 0) {
             $contact = $this->contacts->find($contactId);
@@ -247,25 +251,18 @@ class CallController extends AbstractController
         if (false === $scheduledAt) {
             $errors['scheduledAt'] = 'Некорректный формат даты звонка';
         } else {
-            // Значение пишется в entity и при ошибке: форма после 422
-            // восстанавливает введённое (сохранения на этом пути нет).
             $call->setScheduledAt($scheduledAt);
             if (null !== $scheduledAt && $scheduledAt < new \DateTimeImmutable('today')) {
                 $errors['scheduledAt'] = 'Запланированная дата звонка не может быть в прошлом';
             }
         }
 
-        // Факт звонка определяется наличием фактической даты. Если дата указана,
-        // звонок считается проведённым, автор — текущий пользователь (для
-        // администратора — выбранный в made_by, иначе текущий).
         $madeAtRaw = (string) $request->request->get('made_at', '');
         if ('' !== trim($madeAtRaw)) {
             $madeAt = $this->parseDateTime($madeAtRaw);
             if (false === $madeAt) {
                 $errors['madeAt'] = 'Некорректный формат даты звонка';
             } else {
-                // Значение пишется в entity и при ошибке: форма после 422
-                // восстанавливает введённое (сохранения на этом пути нет).
                 $call->setMadeAt($madeAt);
                 if ($madeAt > new \DateTimeImmutable()) {
                     $errors['madeAt'] = 'Фактическая дата звонка не может быть в будущем';
@@ -278,8 +275,23 @@ class CallController extends AbstractController
             $call->setMadeBy(null);
         }
 
-        $call->setIsDeal(null !== $request->request->get('is_deal'));
         $call->setNotes($this->optionalField($request, 'notes'));
+
+        if ($this->hasResultActions($request, $resultInput)) {
+            if (null === $call->madeAt || null === $call->madeBy) {
+                $errors['madeAt'] ??= 'Для действий результата звонка нужны фактическая дата и автор';
+            } else {
+                $call->setIsDeal(null !== $request->request->get('is_deal'));
+                $call->setIsNoAnswer(null !== $request->request->get('is_no_answer'));
+            }
+        } elseif (null !== $call->madeAt && null !== $call->madeBy) {
+            $call->setIsDeal(null !== $request->request->get('is_deal'));
+            $call->setIsNoAnswer(null !== $request->request->get('is_no_answer'));
+        }
+
+        if (!isset($errors['madeAt']) && null !== $call->madeAt && null !== $call->madeBy) {
+            $errors = array_merge($errors, $this->validateResultCommands($call, $resultInput));
+        }
 
         $violations = $validator->validate($call);
         foreach ($violations as $violation) {
@@ -290,13 +302,182 @@ class CallController extends AbstractController
     }
 
     /**
-     * Плановая дата звонка по умолчанию: через 3 дня от текущей даты;
-     * если выпадает на выходные (суббота/воскресенье), переносится на понедельник.
+     * @param array{mailingCampaignId: ?int, mailingContactId: ?int, nextCallDate: string} $resultInput
      */
+    private function applyResultActions(Call $call, array $resultInput): bool
+    {
+        $resendFlash = false;
+
+        if (null === $call->madeAt || null === $call->madeBy) {
+            return false;
+        }
+
+        $mailingCampaignId = $resultInput['mailingCampaignId'];
+
+        if (null !== $mailingCampaignId) {
+            $mailingCampaign = $this->callResults->findMailableCampaign($mailingCampaignId);
+            if (null !== $mailingCampaign) {
+                // Пустой контакт в форме = вся организация; предвыбор
+                // контакта звонка делается только в разметке (defaultMailingContactId).
+                $recipientContact = $this->resolveMailingContact(
+                    $call->organization,
+                    $resultInput['mailingContactId'],
+                );
+                if ($this->callResults->upsertRecipient($mailingCampaign, $call->organization, $recipientContact)) {
+                    $resendFlash = true;
+                }
+                $call->setCampaign($mailingCampaign);
+            }
+        }
+
+        if ('' !== $resultInput['nextCallDate'] && null === $call->nextCall) {
+            $nextCallDate = $this->parseDate($resultInput['nextCallDate']);
+            if (null !== $nextCallDate) {
+                $this->callResults->createNextCall($call, $nextCallDate);
+            }
+        }
+
+        return $resendFlash;
+    }
+
+    /**
+     * @param array{mailingCampaignId: ?int, mailingContactId: ?int, nextCallDate: string} $resultInput
+     *
+     * @return array<string, string>
+     */
+    private function validateResultCommands(Call $call, array $resultInput): array
+    {
+        $errors = [];
+
+        if ('' !== $resultInput['nextCallDate'] && null === $call->nextCall) {
+            $nextCallDate = $this->parseDate($resultInput['nextCallDate']);
+            if (null === $nextCallDate) {
+                $errors['nextCallDate'] = 'Некорректный формат даты следующего звонка';
+            } elseif ($nextCallDate <= new \DateTimeImmutable('today')) {
+                $errors['nextCallDate'] = 'Дата следующего звонка должна быть в будущем';
+            }
+        }
+
+        if (null !== $resultInput['mailingCampaignId']) {
+            $campaign = $this->callResults->findMailableCampaign($resultInput['mailingCampaignId']);
+            if (null === $campaign) {
+                $errors['mailingCampaign'] = 'Выберите рассылку (архивные недоступны)';
+            } elseif (null !== $resultInput['mailingContactId']) {
+                $contact = $this->contacts->find($resultInput['mailingContactId']);
+                if (null === $contact || $contact->organization->id !== $call->organization->id) {
+                    $errors['mailingContact'] = 'Контакт адресата не принадлежит организации звонка';
+                }
+            }
+        }
+
+        return $errors;
+    }
+
+    /**
+     * @param array{mailingCampaignId: ?int, mailingContactId: ?int, nextCallDate: string} $resultInput
+     */
+    private function hasResultActions(Request $request, array $resultInput): bool
+    {
+        if ('' !== $resultInput['nextCallDate']) {
+            return true;
+        }
+        if (null !== $resultInput['mailingCampaignId']) {
+            return true;
+        }
+        if (null !== $request->request->get('is_deal') || null !== $request->request->get('is_no_answer')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * @return array{mailingCampaignId: ?int, mailingContactId: ?int, nextCallDate: string}
+     */
+    private function parseResultInput(Request $request): array
+    {
+        $mailingCampaignId = (int) $request->request->get('mailing_campaign', 0);
+
+        return [
+            'mailingCampaignId' => $mailingCampaignId > 0 ? $mailingCampaignId : null,
+            'mailingContactId' => $this->optionalInt($request, 'mailing_contact'),
+            'nextCallDate' => trim((string) $request->request->get('next_call_date', '')),
+        ];
+    }
+
+    private function optionalInt(Request $request, string $field): ?int
+    {
+        $raw = $request->request->get($field);
+        if (null === $raw || '' === $raw) {
+            return null;
+        }
+
+        $value = (int) $raw;
+
+        return $value > 0 ? $value : null;
+    }
+
+    private function resolveMailingContact(Organization $organization, ?int $contactId): ?Contact
+    {
+        if (null === $contactId) {
+            return null;
+        }
+
+        $contact = $this->contacts->find($contactId);
+        if (null !== $contact && $contact->organization->id === $organization->id) {
+            return $contact;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param Organization[] $organizations
+     * @param Contact[]      $contacts
+     * @param User[]         $users
+     * @param array{mailingCampaignId: ?int, mailingContactId: ?int, nextCallDate: string}|null $resultInput
+     *
+     * @return array<string, mixed>
+     */
+    private function formContext(
+        ?Call $call,
+        array $organizations,
+        ?int $selectedOrganizationId,
+        array $contacts,
+        array $errors,
+        bool $isAdmin,
+        array $users,
+        ?array $resultInput = null,
+        ?\DateTimeImmutable $defaultScheduledAt = null,
+    ): array {
+        $defaultMailingContact = $call?->contact?->id;
+        if (null !== $resultInput && null !== $resultInput['mailingContactId']) {
+            $defaultMailingContact = $resultInput['mailingContactId'];
+        }
+
+        return [
+            'call' => $call,
+            'defaultScheduledAt' => $defaultScheduledAt,
+            'organizations' => $organizations,
+            'selectedOrganizationId' => $selectedOrganizationId,
+            'contacts' => $contacts,
+            'errors' => $errors,
+            'isAdmin' => $isAdmin,
+            'users' => $users,
+            'mailingCampaigns' => $this->callResults->findMailableCampaigns(),
+            'resultInput' => $resultInput ?? [
+                'mailingCampaignId' => null,
+                'mailingContactId' => $defaultMailingContact,
+                'nextCallDate' => '',
+            ],
+            'defaultMailingContactId' => $defaultMailingContact,
+        ];
+    }
+
     private function defaultScheduledDate(): \DateTimeImmutable
     {
         $date = new \DateTimeImmutable('+3 days');
-        $weekday = (int) $date->format('w'); // 0 — воскресенье, 6 — суббота
+        $weekday = (int) $date->format('w');
         if (0 === $weekday) {
             $date = $date->modify('+1 day');
         } elseif (6 === $weekday) {
@@ -306,9 +487,6 @@ class CallController extends AbstractController
         return $date;
     }
 
-    /**
-     * Дата следующего звонка (input type=date): Y-m-d, опционально.
-     */
     private function parseDate(string $value): ?\DateTimeImmutable
     {
         $value = trim($value);
@@ -324,9 +502,6 @@ class CallController extends AbstractController
         return false === $date ? null : $date;
     }
 
-    /**
-     * datetime-local: пусто — null; неразборчивая строка — false.
-     */
     private function parseDateTime(string $value): \DateTimeImmutable|false|null
     {
         $value = trim($value);
@@ -334,8 +509,6 @@ class CallController extends AbstractController
             return null;
         }
 
-        // Формат ввода/вывода формы — d.m.Y H:i (как в таблице панели), плюс
-        // обратная совместимость с ISO-форматами datetime-local.
         foreach (['d.m.Y H:i:s', 'd.m.Y H:i', 'Y-m-d\TH:i:s', 'Y-m-d\TH:i', 'Y-m-d H:i:s', 'Y-m-d H:i', 'd.m.Y', 'Y-m-d'] as $format) {
             $date = \DateTimeImmutable::createFromFormat($format, $value);
             if (false !== $date) {
@@ -353,11 +526,6 @@ class CallController extends AbstractController
         return '' === $value ? null : $value;
     }
 
-    /**
-     * Звонок в области доступа пользователя: менеджеру — только звонки
-     * организаций личной и назначенных групп (ADR-0007), администратору —
-     * все (ADR-0008, группы не проверяются).
-     */
     private function accessibleCall(int $id): Call
     {
         $call = $this->calls->find($id);
@@ -372,10 +540,6 @@ class CallController extends AbstractController
         return $call;
     }
 
-    /**
-     * Текущий пользователь — администратор (видит всех и может назначать
-     * автора звонка из числа администраторов и менеджеров).
-     */
     private function isAdmin(): bool
     {
         $user = $this->getUser();
@@ -383,11 +547,6 @@ class CallController extends AbstractController
         return $user instanceof User && UserRole::Admin === $user->role;
     }
 
-    /**
-     * Автор зафиксированного звонка: администратор может выбрать любого
-     * менеджера/администратора через поле made_by; иначе — текущий
-     * пользователь. Недопустимый выбор игнорируется в пользу текущего.
-     */
     private function resolveMadeBy(Request $request): ?User
     {
         $current = $this->getUser();
@@ -441,11 +600,10 @@ class CallController extends AbstractController
     }
 
     /**
-     * Данные строки звонка на панели: те же поля, что отдаёт
-     * CallRepository::findAllCallsByOrganizations().
-     *
      * @return array{id: int, organizationId: int, contactId: int, date: ?\DateTimeImmutable,
-     *     scheduledAt: ?\DateTimeImmutable, madeAt: ?\DateTimeImmutable, isDeal: bool, notes: ?string}
+     *     scheduledAt: ?\DateTimeImmutable, madeAt: ?\DateTimeImmutable, madeById: ?int,
+     *     isDeal: bool, isNoAnswer: bool, campaignId: ?int, campaignName: ?string,
+     *     nextCallId: ?int, nextCallScheduledAt: ?\DateTimeImmutable, notes: ?string}
      */
     private function rowOf(Call $call): array
     {
@@ -458,14 +616,15 @@ class CallController extends AbstractController
             'madeAt' => $call->madeAt,
             'madeById' => $call->madeBy?->id,
             'isDeal' => $call->isDeal,
+            'isNoAnswer' => $call->isNoAnswer,
+            'campaignId' => $call->campaign?->id,
+            'campaignName' => $call->campaign?->name,
+            'nextCallId' => $call->nextCall?->id,
+            'nextCallScheduledAt' => $call->nextCall?->scheduledAt,
             'notes' => $call->notes,
         ];
     }
 
-    /**
-     * Защита state-changing форм от CSRF; для AJAX-запросов токен передаётся
-     * в заголовке X-CSRF-Token.
-     */
     private function assertCsrfToken(Request $request): void
     {
         $token = $request->headers->get('X-CSRF-Token') ?? (string) $request->request->get('_csrf_token', '');

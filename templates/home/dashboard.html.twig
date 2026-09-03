@@ -24,5 +24,10 @@
     {{ include('contact/_create_modal.html.twig', { organizations: organizations }) }}
 
     {# Модальное окно быстрого редактирования звонка (calls-crud) #}
-    {{ include('call/_edit_modal.html.twig', { isAdmin: isAdmin, users: users }) }}
+    {{ include('call/_edit_modal.html.twig', {
+        isAdmin: isAdmin,
+        users: users,
+        mailingCampaigns: mailingCampaigns,
+        contactsByOrganization: contactsByOrganization,
+    }) }}
 {% endblock %}

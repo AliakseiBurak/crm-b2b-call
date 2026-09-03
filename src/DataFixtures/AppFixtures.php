@@ -335,6 +335,43 @@ class AppFixtures extends Fixture
         $manager->persist(new CampaignRecipient($campaignArchived, $organizations[0], $contacts[0])); // Ромашка → Иван
         $manager->persist(new CampaignRecipient($campaignArchived, $organizations[3])); // Конкурент — вся организация
 
+        // ── Звонки с комбинациями результата (change call-result) ────────
+
+        // Письмо + следующий звонок (Ромашка → Осенняя рассылка + будущий звонок).
+        $callMailingNext = new Call()
+            ->setOrganization($organizations[0])
+            ->setContact($contacts[0])
+            ->setMadeAt($today->modify('-5 days')->setTime(11, 0))
+            ->setMadeBy($manager1)
+            ->setNotes('Отправили осеннюю рассылку, перезвонить')
+            ->setCampaign($campaignReady);
+        $manager->persist($callMailingNext);
+        $nextFromMailing = new Call()
+            ->setOrganization($organizations[0])
+            ->setContact($contacts[0])
+            ->setScheduledAt($today->modify('+5 days')->setTime(10, 0));
+        $manager->persist($nextFromMailing);
+        $callMailingNext->setNextCall($nextFromMailing);
+
+        // Нет ответа + письмо (Вектор → запущенная «Акция»).
+        $manager->persist(new Call()
+            ->setOrganization($organizations[1])
+            ->setContact($contacts[2])
+            ->setMadeAt($today->modify('-2 days')->setTime(15, 0))
+            ->setMadeBy($manager1)
+            ->setIsNoAnswer(true)
+            ->setCampaign($campaignLaunched)
+            ->setNotes('Не взяли трубку, отправили акцию'));
+
+        // Сделка (Сидоров).
+        $manager->persist(new Call()
+            ->setOrganization($organizations[2])
+            ->setContact($contacts[6])
+            ->setMadeAt($today->modify('-1 day')->setTime(16, 0))
+            ->setMadeBy($manager1)
+            ->setIsDeal(true)
+            ->setNotes('Договорились о курсе'));
+
         $manager->flush();
     }
 

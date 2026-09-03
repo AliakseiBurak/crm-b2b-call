@@ -1,13 +1,9 @@
-// Модальное окно быстрого редактирования звонка (change calls-crud):
-// открытие по клику на кнопку «Изменить» строки звонка, заполнение формы
-// данными data-атрибутов строки, динамическая загрузка контактов организации,
-// закрытие по крестику/оверлею/Esc/«Отмене». Сохранение — AJAX (fetch),
-// ошибки валидации выводятся под полями, строка заменяется отрисованным
-// с сервера HTML без перезагрузки страницы.
+// Модальное окно быстрого редактирования звонка (change calls-crud, call-result).
 
-const modal = document.querySelector('[data-call-edit-modal] .modal');
+const modalRoot = document.querySelector('[data-call-edit-modal]');
+const modal = modalRoot?.querySelector('.modal');
 
-if (modal) {
+if (modal && modalRoot) {
     const form = modal.querySelector('[data-call-edit-form]');
     const fields = {
         scheduled_at: modal.querySelector('[data-call-field="scheduled_at"]'),
@@ -15,6 +11,10 @@ if (modal) {
         made_at: modal.querySelector('[data-call-field="made_at"]'),
         made_by: modal.querySelector('[data-call-field="made_by"]'),
         is_deal: modal.querySelector('[data-call-field="is_deal"]'),
+        is_no_answer: modal.querySelector('[data-call-field="is_no_answer"]'),
+        mailing_campaign: modal.querySelector('[data-call-field="mailing_campaign"]'),
+        mailing_contact: modal.querySelector('[data-call-field="mailing_contact"]'),
+        next_call_date: modal.querySelector('[data-call-field="next_call_date"]'),
         notes: modal.querySelector('[data-call-field="notes"]'),
     };
     const deleteLink = modal.querySelector('[data-call-delete-link]');
@@ -27,17 +27,26 @@ if (modal) {
         });
     };
 
-    // Контакты организации звонка: подгрузка в выпадающий список.
-    const loadContacts = async (orgId, selectedId) => {
+    const loadContacts = async (orgId, selectedId, mailingSelectedId) => {
         const select = fields.contact;
+        const mailingSelect = fields.mailing_contact;
         if (!select || !orgId) {
             return;
         }
+
         select.innerHTML = '';
         const empty = document.createElement('option');
         empty.value = '';
         empty.textContent = '— контакт не выбран —';
         select.appendChild(empty);
+
+        if (mailingSelect) {
+            mailingSelect.innerHTML = '';
+            const mailingEmpty = document.createElement('option');
+            mailingEmpty.value = '';
+            mailingEmpty.textContent = '— вся организация —';
+            mailingSelect.appendChild(mailingEmpty);
+        }
 
         try {
             const response = await fetch(`/organizations/${orgId}/contacts.json`);
@@ -50,9 +59,41 @@ if (modal) {
                     option.selected = true;
                 }
                 select.appendChild(option);
+
+                if (mailingSelect) {
+                    const mailingOption = document.createElement('option');
+                    mailingOption.value = contact.id;
+                    mailingOption.textContent = contact.name;
+                    if (String(contact.id) === String(mailingSelectedId ?? selectedId)) {
+                        mailingOption.selected = true;
+                    }
+                    mailingSelect.appendChild(mailingOption);
+                }
             });
         } catch {
             // Список остаётся с единственным пустым вариантом.
+        }
+    };
+
+    const toggleNextCallField = (row) => {
+        const nextCallField = fields.next_call_date?.closest('.field');
+        const nextCallContext = modal.querySelector('[data-call-next-call-context]');
+        const nextCallHint = modal.querySelector('[data-call-next-call-hint]');
+        const hasNextCall = Boolean(row.dataset.callNextCallId);
+        if (nextCallField) {
+            nextCallField.hidden = hasNextCall;
+        }
+        if (fields.next_call_date) {
+            fields.next_call_date.value = '';
+            fields.next_call_date.disabled = hasNextCall;
+        }
+        if (nextCallContext) {
+            nextCallContext.hidden = !hasNextCall;
+            if (nextCallHint && hasNextCall) {
+                const date = row.dataset.callNextCallDate || '—';
+                nextCallHint.textContent =
+                    `Запланирован на ${date}. Изменить или удалить его можно через строку этого звонка в списке организации.`;
+            }
         }
     };
 
@@ -70,9 +111,17 @@ if (modal) {
             fields.made_by.value = row.dataset.callMadeBy ?? '';
         }
         fields.is_deal.checked = row.dataset.callIsDeal === '1';
+        if (fields.is_no_answer) {
+            fields.is_no_answer.checked = row.dataset.callIsNoAnswer === '1';
+        }
+        if (fields.mailing_campaign) {
+            fields.mailing_campaign.value = '';
+        }
         fields.notes.value = row.dataset.callNotes ?? '';
 
-        await loadContacts(row.dataset.callOrgId, row.dataset.callContactId);
+        toggleNextCallField(row);
+
+        await loadContacts(row.dataset.callOrgId, row.dataset.callContactId, row.dataset.callContactId);
 
         modal.hidden = false;
         (fields.scheduled_at ?? form).focus();
@@ -83,7 +132,6 @@ if (modal) {
         activeRow = null;
     };
 
-    // Открытие: делегирование, кнопка внутри строки звонка.
     document.addEventListener('click', (event) => {
         const trigger = event.target.closest('[data-call-edit]');
         if (trigger) {
@@ -91,7 +139,6 @@ if (modal) {
             open(trigger.closest('[data-call-row]'));
             return;
         }
-        // Закрытие по «Отмене»/крестику/оверлею только для этого окна.
         if (!modal.hidden && event.target.closest('[data-modal-close]')?.closest('[data-call-edit-modal]')) {
             close();
         }
@@ -103,7 +150,6 @@ if (modal) {
         }
     });
 
-    // AJAX-отправка формы модального окна.
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         if (!activeRow) {
@@ -135,18 +181,24 @@ if (modal) {
             return;
         }
 
-        // Обновление строки на дашборде без перезагрузки страницы:
-        // сервер возвращает отрисованную строку целиком.
         if (payload.row && activeRow.parentNode) {
+            const list = activeRow.closest('.org-calls__list');
             activeRow.outerHTML = payload.row;
+
+            if (payload.nextCallRow && list) {
+                list.insertAdjacentHTML('afterbegin', payload.nextCallRow);
+                const summary = list.closest('.org-calls__all')?.querySelector('.org-calls__all-summary');
+                if (summary) {
+                    const count = list.querySelectorAll('[data-call-row]').length;
+                    summary.textContent = `Все звонки (${count})`;
+                }
+            }
         }
 
         close();
     });
 }
 
-// Страница формы звонка (/calls/new, /calls/{id}/edit): динамическая
-// загрузка контактов при выборе организации (change calls-crud).
 const callForm = document.querySelector('[data-call-form]');
 
 if (callForm) {
@@ -187,8 +239,6 @@ if (callForm) {
     if (organizationSelect && contactSelect) {
         organizationSelect.addEventListener('change', () => fillContacts(organizationSelect.value));
 
-        // Первичная загрузка для предвыбранной организации (ссылка
-        // «Добавить звонок») или фиксированной организации редактирования.
         const initialOrganization =
             organizationSelect.value || callForm.dataset.initialOrganization || '';
         if (initialOrganization) {
@@ -196,5 +246,4 @@ if (callForm) {
             fillContacts(initialOrganization, selected ? selected.value : '');
         }
     }
-
 }

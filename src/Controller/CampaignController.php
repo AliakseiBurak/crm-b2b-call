@@ -423,7 +423,7 @@ class CampaignController extends AbstractController
             }
         }
 
-        // Точное совпадение (org + contact) — тихое игнорирование.
+        // Точное совпадение (org + contact) — замена с подтверждением.
         $exact = $this->em->getRepository(CampaignRecipient::class)->findOneBy([
             'campaign' => $campaign,
             'organization' => $organization,
@@ -431,9 +431,18 @@ class CampaignController extends AbstractController
         ]);
         if (null !== $exact) {
             if ($request->headers->get('X-Requested-With') === 'XMLHttpRequest') {
-                return $this->json(['redirect' => $this->generateUrl('app_campaign_recipients', ['id' => $campaign->id])]);
+                return $this->json(['redirect' => $this->generateUrl('app_campaign_recipient_replace_confirm', [
+                    'id' => $campaign->id,
+                    'recipientId' => $exact->id,
+                    'newContact' => $contact?->id,
+                ])]);
             }
-            return $this->redirectToRoute('app_campaign_recipients', ['id' => $campaign->id]);
+
+            return $this->redirectToRoute('app_campaign_recipient_replace_confirm', [
+                'id' => $campaign->id,
+                'recipientId' => $exact->id,
+                'newContact' => $contact?->id,
+            ]);
         }
 
         // Проверка: есть ли другой адресат для той же организации
@@ -530,6 +539,10 @@ class CampaignController extends AbstractController
             $shouldIncrement ? $existing->replacementCount + 1 : $existing->replacementCount,
         ));
         $this->em->flush();
+
+        if ($shouldIncrement) {
+            $this->addFlash('notice', 'Письмо будет отправлено повторно.');
+        }
 
         return $this->redirectToRoute('app_campaign_recipients', ['id' => $campaign->id]);
     }

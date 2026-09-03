@@ -104,24 +104,15 @@
                     </div>
                 {% endif %}
 
-                {# Результат — комбинация независимых отметок #}
-                <div class="field">
-                    <label class="field__consent" for="is_deal">
-                        <input type="checkbox" id="is_deal" name="is_deal" value="1"
-                               {% if call and call.isDeal %}checked{% endif %}>
-                        Сделка совершена
-                    </label>
-                </div>
-
-                {% if isEdit %}
-                    <div class="field{% if errors.nextCallDate|default(null) %} field--error{% endif %}">
-                        <label class="field__label" for="next_call_date">Следующий звонок (дата)</label>
-                        <input class="field__input" type="text" id="next_call_date" name="next_call_date"
-                           data-date-picker="date">
-                        <span class="field__hint">Формат: дд.мм.гггг. Создаст новый запланированный звонок по этой организации</span>
-                        {% if errors.nextCallDate|default(null) %}<span class="field__error" role="alert">{{ errors.nextCallDate }}</span>{% endif %}
-                    </div>
-                {% endif %}
+                {# Результат — комбинация независимых действий (change call-result) #}
+                {{ include('call/_result_fields.html.twig', {
+                    call: call,
+                    mailingCampaigns: mailingCampaigns,
+                    contacts: contacts,
+                    resultInput: resultInput,
+                    defaultMailingContactId: defaultMailingContactId,
+                    errors: errors,
+                }) }}
 
                 <div class="field">
                     <label class="field__label" for="notes">Заметка</label>

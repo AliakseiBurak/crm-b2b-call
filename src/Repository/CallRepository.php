@@ -208,7 +208,9 @@ class CallRepository extends ServiceEntityRepository
      *
      * @return array<int, list<array{id: int, organizationId: int, contactId: int,
      *     date: ?\DateTimeImmutable, scheduledAt: ?\DateTimeImmutable,
-     *     madeAt: ?\DateTimeImmutable, isDeal: bool, notes: ?string}>>
+     *     madeAt: ?\DateTimeImmutable, isDeal: bool, isNoAnswer: bool,
+     *     campaignId: ?int, campaignName: ?string, nextCallId: ?int,
+     *     nextCallScheduledAt: ?\DateTimeImmutable, notes: ?string}>>
      */
     public function findAllCallsByOrganizations(array $organizationIds): array
     {
@@ -217,7 +219,9 @@ class CallRepository extends ServiceEntityRepository
         }
 
         $rows = $this->createQueryBuilder('c')
-            ->select('c.id', 'IDENTITY(c.organization) AS organizationId', 'IDENTITY(c.contact) AS contactId', 'COALESCE(c.madeAt, c.scheduledAt) AS callDate', 'c.notes', 'c.scheduledAt', 'c.madeAt', 'c.isDeal', 'IDENTITY(c.madeBy) AS madeById')
+            ->select('c.id', 'IDENTITY(c.organization) AS organizationId', 'IDENTITY(c.contact) AS contactId', 'COALESCE(c.madeAt, c.scheduledAt) AS callDate', 'c.notes', 'c.scheduledAt', 'c.madeAt', 'c.isDeal', 'c.isNoAnswer', 'IDENTITY(c.madeBy) AS madeById', 'IDENTITY(c.campaign) AS campaignId', 'camp.name AS campaignName', 'IDENTITY(c.nextCall) AS nextCallId', 'nc.scheduledAt AS nextCallScheduledAt')
+            ->leftJoin('c.campaign', 'camp')
+            ->leftJoin('c.nextCall', 'nc')
             ->where('IDENTITY(c.organization) IN (:organizationIds)')
             ->setParameter('organizationIds', $organizationIds)
             ->orderBy('callDate', 'DESC')
@@ -236,6 +240,11 @@ class CallRepository extends ServiceEntityRepository
                 'madeAt' => $row['madeAt'],
                 'madeById' => $row['madeById'] ? (int) $row['madeById'] : null,
                 'isDeal' => (bool) $row['isDeal'],
+                'isNoAnswer' => (bool) $row['isNoAnswer'],
+                'campaignId' => $row['campaignId'] ? (int) $row['campaignId'] : null,
+                'campaignName' => $row['campaignName'],
+                'nextCallId' => $row['nextCallId'] ? (int) $row['nextCallId'] : null,
+                'nextCallScheduledAt' => $row['nextCallScheduledAt'],
             ];
         }
 

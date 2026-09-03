@@ -1,11 +1,5 @@
 {#
-    Строка звонка в списке «Все звонки» организации на панели
-    (change calls-crud). Вынесена отдельным шаблоном, чтобы AJAX-обновление
-    модального окна заменяло строку целиком без перезагрузки страницы.
-    Атрибуты data-call-* питают окно быстрого редактирования.
-    Ожидает: call (array{id, organizationId, contactId, date: ?DateTimeImmutable,
-    scheduledAt: ?DateTimeImmutable, madeAt: ?DateTimeImmutable, isDeal, notes}),
-    callContact (?Contact).
+    Строка звонка в списке «Все звонки» организации на панели.
 #}
 <li class="org-calls__item"
     data-call-row
@@ -17,10 +11,17 @@
     data-call-made-at="{{ call.madeAt ? call.madeAt|date('d.m.Y H:i') : '' }}"
     data-call-made-by="{{ call.madeById ?? '' }}"
     data-call-is-deal="{{ call.isDeal ? '1' : '0' }}"
+    data-call-is-no-answer="{{ call.isNoAnswer ? '1' : '0' }}"
+    data-call-campaign-id="{{ call.campaignId ?? '' }}"
+    data-call-campaign-name="{{ call.campaignName ?? '' }}"
+    data-call-next-call-id="{{ call.nextCallId ?? '' }}"
+    data-call-next-call-date="{{ call.nextCallScheduledAt ? call.nextCallScheduledAt|date('d.m.Y') : '' }}"
     data-call-notes="{{ call.notes }}">
     <span class="org-calls__body">
-        <span class="org-calls__status" title="{{ call.madeAt ? 'Проведён' : 'Запланирован' }}" aria-hidden="true">{{ call.madeAt ? '☎️' : '⏰' }}</span><span class="org-calls__date">{{ call.date ? call.date|date('d.m.Y') : '—' }}</span>{% if call.notes %} — {{ call.notes }}{% endif %}
-        {% if call.isDeal %}<span class="org-calls__deal">— сделка совершена</span>{% endif %}
+        <span class="org-calls__status" title="{{ call.madeAt ? 'Проведён' : 'Запланирован' }}" aria-hidden="true">{{ call.madeAt ? '☎️' : '⏰' }}</span><a class="org-calls__date" href="{{ path('app_call_edit', { id: call.id }) }}">{{ call.date ? call.date|date('d.m.Y') : '—' }}</a>{% if call.notes %} — {{ call.notes }}{% endif %}
+        {% if call.isDeal %}<span class="org-calls__deal">— сделка</span>{% endif %}
+        {% if call.isNoAnswer %}<span class="org-calls__no-answer">— нет ответа</span>{% endif %}
+        {% if call.campaignName %}<span class="org-calls__mailing">— рассылка: {{ call.campaignName }}</span>{% endif %}
         {% if callContact %}
             <span class="org-calls__item-contact">
                 контакт: <em>{{ callContact.name }}</em>

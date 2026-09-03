@@ -8,6 +8,7 @@ use App\Repository\CallRepository;
 use App\Repository\ContactRepository;
 use App\Repository\OrganizationRepository;
 use App\Repository\UserRepository;
+use App\Service\CallResultService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -47,6 +48,7 @@ class HomeController extends AbstractController
         OrganizationRepository $organizationRepository,
         ContactRepository $contactRepository,
         UserRepository $userRepository,
+        CallResultService $callResults,
     ): Response {
         $user = $this->getUser();
         $organizationIds = $organizationRepository->findAccessibleIds($user);
@@ -77,6 +79,7 @@ class HomeController extends AbstractController
             'contactsByOrganization' => $contactsByOrganization,
             'contactById' => $contactById,
             'callsByOrganization' => $callRepository->findAllCallsByOrganizations($ids),
+            'mailingCampaigns' => $callResults->findMailableCampaigns(),
             'isAdmin' => $isAdmin,
             'users' => $adminUsers,
             'search' => $search,

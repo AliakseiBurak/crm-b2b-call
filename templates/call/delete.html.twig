@@ -1,6 +1,5 @@
 {#
-    Подтверждение удаления звонка (change calls-crud). Отмена возвращает
-    к форме звонка. Ожидает: call (Call).
+    Подтверждение удаления звонка (change calls-crud, call-result).
 #}
 {% extends 'base.html.twig' %}
 
@@ -16,6 +15,21 @@
                 {% if call.scheduledAt %}от {{ call.scheduledAt|date('d.m.Y') }}{% endif %}
                 будет удалён. Действие необратимо.
             </p>
+
+            {% if call.campaign %}
+                <p class="organization-delete__warning" data-call-delete-mailing>
+                    Адресат рассылки «{{ call.campaign.name }}» не будет удалён.
+                    <a href="{{ path('app_campaign_recipients', { id: call.campaign.id }) }}" target="_blank" rel="noopener">
+                        Открыть адресатов рассылки
+                    </a>
+                </p>
+            {% endif %}
+
+            {% if call.nextCall %}
+                <p class="field__hint">
+                    Связанный следующий звонок на {{ call.nextCall.scheduledAt|date('d.m.Y') }} останется в системе.
+                </p>
+            {% endif %}
 
             <form method="post" action="{{ path('app_call_remove', { id: call.id }) }}" class="organization-form__actions">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token('call') }}">

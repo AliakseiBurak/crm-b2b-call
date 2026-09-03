@@ -1,0 +1,102 @@
+{#
+    Командные и липкие поля результата звонка (change call-result).
+    Ожидает: call (?Call), mailingCampaigns (Campaign[]), contacts (Contact[]),
+    resultInput, defaultMailingContactId (?int), errors, isModal (bool, default false).
+#}
+{% set prefix = isModal|default(false) ? 'modal-call-' : '' %}
+{% set resultInput = resultInput|default({
+    mailingCampaignId: null,
+    mailingContactId: defaultMailingContactId|default(null),
+    nextCallDate: '',
+}) %}
+
+<div class="field">
+    <label class="field__consent" for="{{ prefix }}is-deal">
+        <input type="checkbox" id="{{ prefix }}is-deal" name="is_deal" value="1"
+               {% if call and call.isDeal %}checked{% endif %}
+               {% if isModal|default(false) %}data-call-field="is_deal"{% endif %}>
+        Сделка совершена
+    </label>
+</div>
+
+<div class="field">
+    <label class="field__consent" for="{{ prefix }}is-no-answer">
+        <input type="checkbox" id="{{ prefix }}is-no-answer" name="is_no_answer" value="1"
+               {% if call and call.isNoAnswer %}checked{% endif %}
+               {% if isModal|default(false) %}data-call-field="is_no_answer"{% endif %}>
+        Нет ответа
+    </label>
+</div>
+
+{% if call and call.campaign %}
+    <div class="field">
+        <span class="field__label">Последняя рассылка с этого звонка</span>
+        <p class="field__hint">
+            <a href="{{ path('app_campaign_show', { id: call.campaign.id }) }}" target="_blank" rel="noopener">
+                {{ call.campaign.name }}
+            </a>
+        </p>
+    </div>
+{% endif %}
+
+<div class="field{% if errors.mailingCampaign|default(null) %} field--error{% endif %}">
+    <label class="field__label" for="{{ prefix }}mailing-campaign">Рассылка</label>
+    <select class="field__input" id="{{ prefix }}mailing-campaign" name="mailing_campaign"
+            {% if isModal|default(false) %}data-call-field="mailing_campaign"{% endif %}>
+        <option value="">— не выбирать —</option>
+        {% for campaign in mailingCampaigns %}
+            <option value="{{ campaign.id }}"{% if resultInput.mailingCampaignId == campaign.id %} selected{% endif %}>
+                {{ campaign.name }} ({{ campaign.status.label }})
+            </option>
+        {% endfor %}
+    </select>
+    <span class="field__hint">Все рассылки, кроме архивных</span>
+    {% if errors.mailingCampaign|default(null) %}<span class="field__error" role="alert">{{ errors.mailingCampaign }}</span>{% endif %}
+    {% if isModal|default(false) %}<span class="field__error" role="alert" data-call-error="mailingCampaign" hidden></span>{% endif %}
+</div>
+
+<div class="field{% if errors.mailingContact|default(null) %} field--error{% endif %}">
+    <label class="field__label" for="{{ prefix }}mailing-contact">Контакт адресата</label>
+    <select class="field__input" id="{{ prefix }}mailing-contact" name="mailing_contact"
+            {% if isModal|default(false) %}data-call-field="mailing_contact"{% endif %}>
+        <option value="">— вся организация —</option>
+        {% for contact in contacts %}
+            <option value="{{ contact.id }}"
+                {% if resultInput.mailingContactId == contact.id or (resultInput.mailingContactId is null and defaultMailingContactId|default(null) == contact.id) %} selected{% endif %}>
+                {{ contact.name }}
+            </option>
+        {% endfor %}
+    </select>
+    {% if errors.mailingContact|default(null) %}<span class="field__error" role="alert">{{ errors.mailingContact }}</span>{% endif %}
+    {% if isModal|default(false) %}<span class="field__error" role="alert" data-call-error="mailingContact" hidden></span>{% endif %}
+</div>
+
+{% if isModal|default(false) or (call and call.id) %}
+    {% if call and call.nextCall and not isModal|default(false) %}
+        <div class="field">
+            <span class="field__label">Следующий звонок</span>
+            <p class="field__hint">
+                Запланирован на {{ call.nextCall.scheduledAt|date('d.m.Y') }}.
+                Изменить или удалить его можно через строку этого звонка в списке организации.
+            </p>
+        </div>
+    {% else %}
+        <div class="field{% if errors.nextCallDate|default(null) %} field--error{% endif %}"
+             {% if isModal|default(false) %}data-call-next-call-field{% endif %}>
+            <label class="field__label" for="{{ prefix }}next-call-date">Следующий звонок (дата)</label>
+            <input class="field__input" type="text" id="{{ prefix }}next-call-date" name="next_call_date"
+                   value="{{ resultInput.nextCallDate }}"
+                   data-date-picker="date"
+                   {% if isModal|default(false) %}data-call-field="next_call_date"{% endif %}>
+            <span class="field__hint">Формат: дд.мм.гггг. Пустое поле ничего не создаёт</span>
+            {% if errors.nextCallDate|default(null) %}<span class="field__error" role="alert">{{ errors.nextCallDate }}</span>{% endif %}
+            {% if isModal|default(false) %}<span class="field__error" role="alert" data-call-error="nextCallDate" hidden></span>{% endif %}
+        </div>
+        {% if isModal|default(false) %}
+            <div class="field" data-call-next-call-context hidden>
+                <span class="field__label">Следующий звонок</span>
+                <p class="field__hint" data-call-next-call-hint></p>
+            </div>
+        {% endif %}
+    {% endif %}
+{% endif %}
