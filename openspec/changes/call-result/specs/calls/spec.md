@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Результат звонка
-The call result SHALL be a combination of independent actions: at most one mailing campaign per save (see `campaigns`) which creates or replaces a recipient, optional removal of the organization from a campaign it already belongs to, a deal mark, a no-answer mark, and a next call created from a submitted date; a call MAY have none of them, recording only the fact of the call. Mailing and next call MAY be combined. Refusal of campaign A and mailing of campaign B MAY be combined. Refusal and mailing of the same campaign SHALL replace the recipient (mailing action). Deal and no-answer SHALL NOT prevent mailing.
+The call result SHALL be a combination of independent actions: at most one mailing campaign per save (see `campaigns`) which creates or replaces a recipient for any non-archived campaign, a deal mark, a no-answer mark, and a next call created from a submitted date; a call MAY have none of them, recording only the fact of the call. Mailing and next call MAY be combined. Deal and no-answer SHALL NOT prevent mailing. The call result SHALL NOT remove an organization from a campaign (refusal); recipients are managed on the campaign recipients page.
 
 #### Scenario: Результат — рассылка
 - **WHEN** менеджер завершает звонок по организации «ООО Ромашка»
@@ -29,21 +29,9 @@ The call result SHALL be a combination of independent actions: at most one maili
 - **AND** одновременно выбирает рассылку «Осенняя рассылка», отмечает сделку, «нет ответа» и назначает следующий звонок
 - **THEN** все выбранные действия выполняются вместе со звонком
 
-#### Scenario: Отказ и другое письмо
-- **WHEN** организация «ООО Ромашка» уже адресат рассылки «Акция»
-- **AND** менеджер убирает её из «Акция» и выбирает рассылку «Осенняя рассылка»
-- **THEN** организация больше не адресат «Акция»
-- **AND** организация становится адресатом «Осенняя рассылка»
-
-#### Scenario: Отказ и письмо одной кампании
-- **WHEN** организация «ООО Ромашка» уже адресат рассылки «Осенняя рассылка»
-- **AND** менеджер убирает её из «Осенняя рассылка» и снова выбирает рассылку «Осенняя рассылка»
-- **THEN** адресат заменяется по правилам действия «рассылка»
-- **AND** организация остаётся адресатом «Осенняя рассылка»
-
 #### Scenario: Звонок без результата
 - **WHEN** менеджер завершает звонок по организации «ООО Ромашка»
-- **AND** не выбирает рассылку, отказ, сделку, «нет ответа» и следующий звонок
+- **AND** не выбирает рассылку, сделку, «нет ответа» и следующий звонок
 - **THEN** фиксируется только факт звонка (кто и когда)
 
 ### Requirement: Сущность звонка

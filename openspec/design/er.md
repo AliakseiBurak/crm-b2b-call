@@ -14,6 +14,7 @@ erDiagram
     ORGANIZATION_GROUP ||--o{ ORG_GROUP_MEMBERSHIP : "содержит организации"
     ORGANIZATION ||--o{ ORG_GROUP_MEMBERSHIP : "состоит в группах"
     ORGANIZATION ||--o{ CONTACT : "имеет контакты"
+    CALL ||--o| CAMPAIGN : "campaign_id (0..1, last mailing)"
     USER ||--o{ CALL : "сделал звонок (made_by)"
     ORGANIZATION ||--o{ CALL : "история звонков"
     CONTACT ||--o{ CALL : "звонки по контакту"
@@ -86,8 +87,9 @@ erDiagram
         bigint made_by FK "факт звонка: кто"
         text notes
         boolean is_deal "результат: сделка"
+        boolean is_no_answer "результат: нет ответа"
         bigint next_call_id FK "self-ref: вновь созданный Call (0..1)"
-        bigint campaign_id FK "результат: одна рассылка (0..1)"
+        bigint campaign_id FK "последняя рассылка с звонка (0..1, ON DELETE SET NULL)"
         datetime created_at
     }
 
@@ -166,9 +168,10 @@ erDiagram
    many-to-many (ADR-0006).
 5. **Область доступа менеджера** — бинарная: организации собственной группы +
    назначенных custom-групп (ADR-0007); per-org ACL не вводится.
-6. **Сущность `Call`** (ADR-0004): результат — комбинация независимых отметок
-   (одна `campaign_id`, `is_deal`, `next_call_id`); факт звонка всегда
-   фиксируется (`made_at`, `made_by`).
+6. **Сущность `Call`** (ADR-0004): результат — комбинация независимых действий
+   (`campaign_id` FK на последнюю рассылку, `is_deal`, `is_no_answer`,
+   `next_call_id`); факт звонка всегда фиксируется (`made_at`, `made_by`).
+   Отдельной таблицы `call_result` нет.
 7. **Рассылки** не привязаны к одной организации; формируются из результатов
    звонков и/или вручную (standalone). Отправка — outbox на `CampaignRecipient`,
    статусы per-письмо (`pending`→`sending`→`delivered`/`bounced`/`failed`/`opened`),

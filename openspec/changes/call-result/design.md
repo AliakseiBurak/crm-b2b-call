@@ -5,13 +5,14 @@ See proposal.md — Why. `Call` already has `is_deal`, unused `campaign_id` (sca
 ## Goals / Non-Goals
 
 **Goals:**
-- Keep result data on `Call`; wire mailing/refusal to `CampaignRecipient`
+- Keep result data on `Call`; wire mailing to `CampaignRecipient`
 - Command-style next-call date and campaign select (empty unless the user acts)
 - Same-contact replace + resend when `launchedAt` is set
 - Manual call form, dashboard modal, delete warning, fixtures, ADR-0004, ER
 
 **Non-Goals:**
 - `CallResult` table or result-type enum
+- Refusal-remove from the call result form (recipients removed only on campaign page)
 - Auto-launch of campaigns
 - Call session / launch window after a batch of calls
 - Automated tests (manual checklist only)
@@ -25,21 +26,22 @@ See proposal.md — Why. `Call` already has `is_deal`, unused `campaign_id` (sca
 **Альтернатива**: таблица `CallResult` — лишние каскады без выигрыша.
 
 ### 2. Actions, not a type enum
-**Решение**: независимые действия; письмо + следующий звонок допустимы; отказ A + письмо B допустимы; отказ и письмо одной кампании — замена адресата (действие «рассылка» побеждает: upsert `CampaignRecipient`, отказ той же кампании отдельно не удаляет строку).
-**Почему**: менеджер меняет тип письма во время звонка и всё равно планирует перезвон; отказ+письмо той же кампании — тот же replace, что и повторный выбор рассылки.
+**Решение**: независимые действия; письмо + следующий звонок допустимы; сделка и «нет ответа» не блокируют рассылку. Отказ от рассылки в форме звонка отсутствует.
+**Почему**: менеджер меняет тип письма во время звонка и всё равно планирует перезвон; удаление адресата — отдельная операция на странице адресатов.
 **Альтернатива**: шесть взаимоисключающих типов — запрещает нужные сочетания.
 
 ### 3. Command fields vs sticky marks
-**Решение**: дата следующего звонка и выбор рассылки/отказа пустые при открытии формы, пока действие ещё не выполнено. «Сделка» и «нет ответа» — липкие чекбоксы. Если `next_call_id` уже задан, поле даты следующего звонка не показывается и не принимает новую дату; связанный звонок меняют или удаляют через его собственную форму в списке организации. Удаление связанного звонка (`ON DELETE SET NULL`) обнуляет `next_call_id`; поле даты снова появляется. Последняя кампания — контекст (ссылка), не командное поле.
+**Решение**: дата следующего звонка и выбор рассылки пустые при открытии формы, пока действие ещё не выполнено. «Сделка» и «нет ответа» — липкие чекбоксы. Если `next_call_id` уже задан, поле даты следующего звонка не показывается и не принимает новую дату; связанный звонок меняют или удаляют через его собственную форму в списке организации. Удаление связанного звонка (`ON DELETE SET NULL`) обнуляет `next_call_id`; поле даты снова появляется. Последняя кампания — контекст (ссылка), не командное поле.
 **Почему**: повторное сохранение заметок не создаёт звонки и не шлёт письма.
 
 ### 4. Recipient upsert from the call
-**Решение**: кампании только `ready`|`launched`. Нет строки → создать. Есть строка (любой контакт, в том числе тот же) → заменить. `launchedAt` задан → `replacementCount+1`, новый `pending`, flash. Иначе замена без счётчика и без flash о повторной отправке. Контакт адресата предвыбирается из контакта звонка.
-**Почему**: потерянное письмо шлётся тем же адресатом без новой кампании.
+**Решение**: в списке рассылки — все статусы **кроме** `archived` (`draft`, `ready`, `launched`, `failed`). Нет строки → создать. Есть строка (любой контакт, в том числе тот же) → заменить. `launchedAt` задан → `replacementCount+1`, новый `pending`, flash. Иначе замена без счётчика и без flash о повторной отправке. Контакт адресата предвыбирается из контакта звонка.
+**Почему**: менеджеру удобно ставить организацию в черновик или готовую кампанию прямо со звонка; архив недоступен.
+**Альтернатива (отклонена)**: только `ready`|`launched` — слишком узко для черновиков и failed.
 
-### 5. Refusal is a membership list
-**Решение**: список кампаний, где организация уже `CampaignRecipient`; удаление выбранной строки. Поля `last_refused_campaign_id` нет.
-**Почему**: отказ — операция над текущим участием, не отдельный факт в истории звонка.
+### 5. No refusal on the call form
+**Решение**: поля отказа нет. Убрать адресата можно только на странице `/campaigns/{id}/recipients`.
+**Почему**: отказ — операция над текущим участием кампании, не факт результата звонка.
 
 ### 6. Delete call does not undo mailing
 **Решение**: удаляется только `Call`. Адресат и порождённые звонки остаются. На «Удаление звонка» — текст и ссылка `target=_blank` на `/campaigns/{id}/recipients`, если `campaign_id` задан.
@@ -80,9 +82,6 @@ sequenceDiagram
   alt mailing campaign chosen
     CC->>DB: upsert CampaignRecipient
     CC->>DB: set Call.campaign_id
-  end
-  opt refuse other campaign
-    CC->>DB: delete that CampaignRecipient
   end
   opt next-call date filled
     CC->>DB: insert Call and set next_call_id

@@ -1,7 +1,7 @@
 ## MODIFIED Requirements
 
 ### Requirement: Результат звонка — комбинация полей
-The system SHALL let the manager record a call result as independent actions on the call form and dashboard modal: deal, no-answer, next-call date, mailing campaign (`ready` or `launched`) with recipient contact, and refusal of a campaign the organization already belongs to. Next-call date and mailing campaign fields SHALL be empty by default on each open (commands); the next-call date field SHALL be omitted when the call already has a linked next call. Deal and no-answer SHALL persist as checkboxes. After a validation error the system SHALL restore all submitted result values.
+The system SHALL let the manager record a call result as independent actions on the call form and dashboard modal: deal, no-answer, next-call date, and mailing campaign (any status except `archived`) with recipient contact. Next-call date and mailing campaign fields SHALL be empty by default on each open (commands); the next-call date field SHALL be omitted when the call already has a linked next call. Deal and no-answer SHALL persist as checkboxes. After a validation error the system SHALL restore all submitted result values. The form SHALL NOT offer refusal-remove of a campaign recipient.
 
 #### Scenario: Результат — сделка
 - **WHEN** менеджер завершает звонок по организации «ООО Ромашка»
@@ -30,7 +30,7 @@ The system SHALL let the manager record a call result as independent actions on 
 
 #### Scenario: Звонок без результата
 - **WHEN** менеджер завершает звонок по организации «ООО Ромашка»
-- **AND** не выбирает сделку, «нет ответа», рассылку, отказ и следующий звонок
+- **AND** не выбирает сделку, «нет ответа», рассылку и следующий звонок
 - **AND** нажимает кнопку «Сохранить»
 - **THEN** фиксируется только факт звонка (кто и когда)
 
@@ -77,6 +77,13 @@ The system SHALL provide a modal window for quick call editing from the dashboar
 - **AND** модальное окно закрывается
 - **AND** строка звонка на дашборде обновляется без перезагрузки страницы
 
+#### Scenario: Новый следующий звонок появляется в списке после сохранения в модалке
+- **WHEN** пользователь в модальном окне указывает дату следующего звонка
+- **AND** нажимает кнопку «Сохранить»
+- **THEN** создаётся новый звонок
+- **AND** новая строка появляется в списке «Все звонки» организации без перезагрузки страницы
+- **AND** счётчик «Все звонки» увеличивается на 1
+
 #### Scenario: Закрытие модального окна
 - **WHEN** пользователь нажимает кнопку «Отмена» или крестик в модальном окне
 - **THEN** модальное окно закрывается
@@ -84,7 +91,7 @@ The system SHALL provide a modal window for quick call editing from the dashboar
 
 #### Scenario: Действия результата в модальном окне
 - **WHEN** пользователь открывает модальное окно проведённого звонка без связанного следующего звонка
-- **THEN** в форме доступны отметки сделки и «нет ответа», поле даты следующего звонка, выбор рассылки и отказ от кампаний организации
+- **THEN** в форме доступны отметки сделки и «нет ответа», поле даты следующего звонка и выбор рассылки (кроме архивных)
 
 #### Scenario: Поле следующего звонка скрыто если он уже создан
 - **WHEN** у звонка уже есть связанный следующий звонок
