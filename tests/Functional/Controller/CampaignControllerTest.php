@@ -15,6 +15,7 @@ use App\Entity\User;
 use App\Service\CampaignAttachmentStorage;
 use App\Tests\DatabaseWebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 /**
  * Функциональные тесты CampaignController (change campaign-entity):
@@ -282,17 +283,12 @@ final class CampaignControllerTest extends DatabaseWebTestCase
         $token = $this->attachmentCsrfToken($campaign->id);
         $tmp = tempnam(sys_get_temp_dir(), 'upload');
         file_put_contents($tmp, '%PDF-1.4 attachment body');
+        $upload = new UploadedFile($tmp, 'брошюра.pdf', 'application/pdf', UPLOAD_ERR_OK, true);
         $this->client->request(
             'POST',
             '/campaigns/' . $campaign->id . '/attachments',
             ['_csrf_token' => $token],
-            ['attachment' => [
-                'name' => 'брошюра.pdf',
-                'type' => 'application/pdf',
-                'tmp_name' => $tmp,
-                'error' => UPLOAD_ERR_OK,
-                'size' => filesize($tmp),
-            ]],
+            ['attachment' => $upload],
         );
 
         $this->assertResponseRedirects();
@@ -471,6 +467,7 @@ final class CampaignControllerTest extends DatabaseWebTestCase
     public function testCloneCampaignCopiesFieldsAndRecipients(): void
     {
         $campaign = $this->persistCampaign('Оригинал');
+        $campaign->setStatus(CampaignStatus::Ready);
         $romashka = $this->persistOrganization('ООО Ромашка');
         $recipient = new CampaignRecipient($campaign, $romashka);
         $this->em()->persist($recipient);
@@ -480,7 +477,7 @@ final class CampaignControllerTest extends DatabaseWebTestCase
         $token = $this->campaignToken($campaign->id);
         $this->client->request('POST', '/campaigns/' . $campaign->id . '/clone', [
             '_csrf_token' => $token,
-            'with_recipients' => '1',
+            'clone_mode' => 'recipients',
         ]);
         $this->assertResponseRedirects();
 
@@ -667,7 +664,7 @@ final class CampaignControllerTest extends DatabaseWebTestCase
 
     private function persistCampaign(string $name): Campaign
     {
-        $campaign = (new Campaign())
+        $campaign = new Campaign()
             ->setName($name)
             ->setSubject('Приглашаем на курсы')
             ->setBody('{{greeting}}!');
@@ -679,7 +676,7 @@ final class CampaignControllerTest extends DatabaseWebTestCase
 
     private function persistOrganization(string $name): Organization
     {
-        $organization = (new Organization())->setName($name)->setIndustry('IT');
+        $organization = new Organization()->setName($name)->setIndustry('IT');
         $this->em()->persist($organization);
         $this->em()->flush();
 
@@ -688,7 +685,7 @@ final class CampaignControllerTest extends DatabaseWebTestCase
 
     private function makeUser(string $email, UserRole $role): User
     {
-        $user = (new User())
+        $user = new User()
             ->setEmail($email)
             ->setRole($role);
         $user->setPassword('test-password-hash');
@@ -715,12 +712,12 @@ final class CampaignControllerTest extends DatabaseWebTestCase
         $manager2 = $this->makeUser('manager2@b2b-crm.loc', UserRole::Manager);
         $em->flush();
 
-        $personal1 = (new OrganizationGroup())
+        $personal1 = new OrganizationGroup()
             ->setName('Личная группа ' . $manager1->email)
             ->setSlug('user-' . $manager1->id . '-group')
             ->setType(GroupType::User)
             ->setOwnerUser($manager1);
-        $personal2 = (new OrganizationGroup())
+        $personal2 = new OrganizationGroup()
             ->setName('Личная группа ' . $manager2->email)
             ->setSlug('user-' . $manager2->id . '-group')
             ->setType(GroupType::User)

@@ -34,9 +34,10 @@ final class CallControllerTest extends DatabaseWebTestCase
         self::assertCount(1, $selected);
         self::assertSame((string) $organization->id, $selected->attr('value'));
 
+        $scheduledAt = new \DateTimeImmutable('+5 days')->setTime(10, 30);
         $this->submitFormByButton('Создать', [
             'organization' => (string) $organization->id,
-            'scheduled_at' => '2026-09-01T10:30',
+            'scheduled_at' => $scheduledAt->format('Y-m-d\TH:i'),
             'contact' => (string) $contact->id,
             'notes' => 'Обсудить курсы',
         ]);
@@ -52,7 +53,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         // Звонок привязан к организации при создании (задача 7.4).
         self::assertSame('ООО Ромашка', $call->organization->name);
         self::assertSame('Иван Петров', $call->contact->name);
-        self::assertSame('2026-09-01 10:30', $call->scheduledAt->format('Y-m-d H:i'));
+        self::assertSame($scheduledAt->format('Y-m-d H:i'), $call->scheduledAt->format('Y-m-d H:i'));
         self::assertNull($call->madeAt);
         self::assertFalse($call->isDeal);
     }
@@ -132,7 +133,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         $organization = $this->makeOrganization('ООО Ромашка');
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
 
-        $scheduledAt = (new \DateTimeImmutable('+5 days'))->format('d.m.Y');
+        $scheduledAt = new \DateTimeImmutable('+5 days')->format('d.m.Y');
         $this->open('/organizations/' . $organization->id . '/calls/new');
         $this->submitFormByButton('Создать', [
             'organization' => (string) $organization->id,
@@ -161,7 +162,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         $this->open('/calls/new');
         $this->submitFormByButton('Создать', [
             'organization' => '',
-            'scheduled_at' => '2026-09-01T10:30',
+            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
         ]);
 
         $this->assertResponseStatusCodeSame(422);
@@ -176,7 +177,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         $this->open('/calls/new');
         $this->submitFormByButton('Создать', [
             'organization' => (string) $romashka->id,
-            'scheduled_at' => '2026-09-02T09:00',
+            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
         ]);
 
         $this->assertResponseRedirects();
@@ -193,7 +194,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         // Токен берём со своей формы создания — он не даёт доступа к чужой организации.
         $this->submitCallAjax('/calls/new', '/calls/new', [
             'organization' => (string) $zavod->id,
-            'scheduled_at' => '2026-09-02T09:00',
+            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
         ], ajax: false);
 
         // Организация отсутствует в области доступа менеджера (ADR-0007).
@@ -211,7 +212,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         self::assertSelectorTextContains('h1', 'Редактирование звонка');
 
         $this->submitFormByButton('Сохранить', [
-            'scheduled_at' => '2026-09-01T10:30',
+            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
             'notes' => 'Новая заметка',
         ]);
 
@@ -260,8 +261,9 @@ final class CallControllerTest extends DatabaseWebTestCase
         $this->em()->flush();
         $this->login($manager1);
 
+        $attemptedAt = new \DateTimeImmutable('+5 days')->setTime(9, 0);
         $this->submitCallAjax('/calls/' . $foreignCall->id . '/edit', '/calls/new', [
-            'scheduled_at' => '2026-09-03T09:00',
+            'scheduled_at' => $attemptedAt->format('Y-m-d\TH:i'),
         ], ajax: false);
 
         $this->assertResponseStatusCodeSame(403);
@@ -270,7 +272,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         $calls = $this->em()->getRepository(Call::class)->findBy(['organization' => $zavod]);
         self::assertCount(1, $calls);
         self::assertSame($foreignCall->id, $calls[0]->id);
-        self::assertNotSame('2026-09-03 09:00', $calls[0]->scheduledAt->format('Y-m-d H:i'));
+        self::assertNotSame($attemptedAt->format('Y-m-d H:i'), $calls[0]->scheduledAt->format('Y-m-d H:i'));
     }
 
     public function testRecordedFactSetsDateAndCurrentUserAsAuthor(): void
@@ -286,7 +288,7 @@ final class CallControllerTest extends DatabaseWebTestCase
 
         $this->open('/calls/' . $call->id . '/edit');
         $this->submitFormByButton('Сохранить', [
-            'scheduled_at' => (new \DateTimeImmutable('+5 days'))->format('Y-m-d\TH:i'),
+            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
             'made_at' => '2026-08-24T12:30',
             'notes' => 'Договорились о встрече',
         ]);
@@ -312,7 +314,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         $token = $this->client->getCrawler()->filter('input[name="_csrf_token"]')->attr('value');
         $this->client->request('POST', '/calls/' . $call->id . '/edit', [
             '_csrf_token' => $token,
-            'scheduled_at' => (new \DateTimeImmutable('+5 days'))->format('Y-m-d\TH:i'),
+            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
         ]);
 
         $this->assertResponseRedirects();
@@ -328,7 +330,7 @@ final class CallControllerTest extends DatabaseWebTestCase
 
         $this->open('/calls/' . $call->id . '/edit');
         $this->submitFormByButton('Сохранить', [
-            'scheduled_at' => (new \DateTimeImmutable('+5 days'))->format('Y-m-d\TH:i'),
+            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
             'is_deal' => '1',
         ]);
 
@@ -347,7 +349,7 @@ final class CallControllerTest extends DatabaseWebTestCase
 
         $this->open('/calls/' . $call->id . '/edit');
         $this->submitFormByButton('Сохранить', [
-            'scheduled_at' => (new \DateTimeImmutable('+5 days'))->format('Y-m-d\TH:i'),
+            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
             'next_call_date' => '2026-10-01',
         ]);
 
@@ -375,7 +377,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
 
         $this->submitCallAjax('/calls/' . $call->id . '/edit', '/calls/' . $call->id . '/edit', [
-            'scheduled_at' => '2026-09-05T14:00',
+            'scheduled_at' => new \DateTimeImmutable('+5 days')->setTime(14, 0)->format('Y-m-d\TH:i'),
             'contact' => (string) $contact->id,
             'notes' => 'После изменения',
         ]);
@@ -451,7 +453,7 @@ final class CallControllerTest extends DatabaseWebTestCase
     public function testOrganizationContactsEndpointReturnsAccessibleContacts(): void
     {
         [$organization, $contact] = $this->makeOrganizationWithContact('ООО Ромашка');
-        $second = (new Contact())
+        $second = new Contact()
             ->setOrganization($organization)
             ->setName('Анна Смирнова')
             ->setContactType(\App\Entity\Enum\ContactType::Person);
@@ -487,7 +489,7 @@ final class CallControllerTest extends DatabaseWebTestCase
 
     private function makeUser(string $email, UserRole $role): User
     {
-        $user = (new User())
+        $user = new User()
             ->setEmail($email)
             ->setRole($role);
         $user->setPassword('test-password-hash');
@@ -500,7 +502,7 @@ final class CallControllerTest extends DatabaseWebTestCase
 
     private function makeOrganization(string $name): Organization
     {
-        $organization = (new Organization())->setName($name)->setIndustry('IT');
+        $organization = new Organization()->setName($name)->setIndustry('IT');
         $this->em()->persist($organization);
         $this->em()->flush();
 
@@ -513,7 +515,7 @@ final class CallControllerTest extends DatabaseWebTestCase
     private function makeOrganizationWithContact(string $name): array
     {
         $organization = $this->makeOrganization($name);
-        $contact = (new Contact())
+        $contact = new Contact()
             ->setOrganization($organization)
             ->setName('Иван Петров')
             ->setContactType(\App\Entity\Enum\ContactType::Person);
@@ -525,7 +527,7 @@ final class CallControllerTest extends DatabaseWebTestCase
 
     private function makeCallFor(Organization $organization, ?Contact $contact = null, string $notes = 'Тестовый звонок'): Call
     {
-        $call = (new Call())
+        $call = new Call()
             ->setOrganization($organization)
             ->setScheduledAt(new \DateTimeImmutable('2026-08-20 10:00'))
             ->setNotes($notes);
@@ -557,8 +559,8 @@ final class CallControllerTest extends DatabaseWebTestCase
         $em->persist($personal1);
         $em->persist($personal2);
 
-        $romashka = (new Organization())->setName('ООО Ромашка')->setIndustry('IT');
-        $zavod = (new Organization())->setName('ООО Завод')->setIndustry('Производство');
+        $romashka = new Organization()->setName('ООО Ромашка')->setIndustry('IT');
+        $zavod = new Organization()->setName('ООО Завод')->setIndustry('Производство');
         $em->persist($romashka);
         $em->persist($zavod);
 
@@ -571,7 +573,7 @@ final class CallControllerTest extends DatabaseWebTestCase
 
     private function personalGroup(User $owner): OrganizationGroup
     {
-        return (new OrganizationGroup())
+        return new OrganizationGroup()
             ->setName('Личная группа ' . $owner->email)
             ->setSlug('user-' . $owner->id . '-group')
             ->setType(GroupType::User)

@@ -294,12 +294,16 @@ class CampaignController extends AbstractController
             return $this->renderEditWithAttachmentError($campaign, 'Выберите файл для загрузки');
         }
 
+        // MIME и размер снимаются до move(): после store() временный файл уже нет.
+        $originalName = (string) $file->getClientOriginalName();
+        $mimeType = $file->getMimeType();
+        $size = (int) $file->getSize();
         $storageKey = $this->storage->store($file);
         // Метаданные пишутся после сохранения файла; при сбое flush ключ
         // остаётся без записи — файл удаляется вручную.
-        $attachment = new CampaignAttachment($campaign, (string) $file->getClientOriginalName(), $storageKey)
-            ->setMimeType($file->getMimeType())
-            ->setSize((int) $file->getSize());
+        $attachment = new CampaignAttachment($campaign, $originalName, $storageKey)
+            ->setMimeType($mimeType)
+            ->setSize($size);
         $this->em->persist($attachment);
         $this->em->flush();
 
@@ -703,10 +707,13 @@ class CampaignController extends AbstractController
             }
 
             try {
+                $originalName = (string) $file->getClientOriginalName();
+                $mimeType = $file->getMimeType();
+                $size = (int) $file->getSize();
                 $storageKey = $this->storage->store($file);
-                $attachment = (new CampaignAttachment($campaign, (string) $file->getClientOriginalName(), $storageKey))
-                    ->setMimeType($file->getMimeType())
-                    ->setSize((int) $file->getSize());
+                $attachment = new CampaignAttachment($campaign, $originalName, $storageKey)
+                    ->setMimeType($mimeType)
+                    ->setSize($size);
                 $this->em->persist($attachment);
             } catch (\Throwable) {
             }

@@ -22,7 +22,7 @@ final class TrackingPixelControllerTest extends TestCase
         $em = $this->entityManager($recipient);
         $em->expects($this->once())->method('flush');
 
-        $response = (new TrackingPixelController())('token-1', $em);
+        $response = new TrackingPixelController()('token-1', $em);
 
         self::assertSame(RecipientStatus::Opened, $recipient->status);
         self::assertSame(200, $response->getStatusCode());
@@ -36,7 +36,7 @@ final class TrackingPixelControllerTest extends TestCase
         $em = $this->entityManager($recipient);
         $em->expects($this->never())->method('flush');
 
-        (new TrackingPixelController())('token-1', $em);
+        new TrackingPixelController()('token-1', $em);
 
         self::assertSame(RecipientStatus::Pending, $recipient->status);
     }
@@ -46,7 +46,7 @@ final class TrackingPixelControllerTest extends TestCase
         $em = $this->entityManager(null);
         $em->expects($this->never())->method('flush');
 
-        $response = (new TrackingPixelController())('missing', $em);
+        $response = new TrackingPixelController()('missing', $em);
 
         self::assertSame(200, $response->getStatusCode());
         self::assertSame('image/png', $response->headers->get('Content-Type'));
@@ -55,8 +55,8 @@ final class TrackingPixelControllerTest extends TestCase
     private function recipient(): CampaignRecipient
     {
         return new CampaignRecipient(
-            (new Campaign())->setName('Акция'),
-            (new Organization())->setName('ООО Ромашка'),
+            new Campaign()->setName('Акция'),
+            new Organization()->setName('ООО Ромашка'),
         );
     }
 

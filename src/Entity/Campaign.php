@@ -234,7 +234,7 @@ class Campaign
 
         foreach ($source->attachments as $attachment) {
             // CampaignAttachment constructor auto-adds to $clone->attachments
-            (new CampaignAttachment($clone, $attachment->filename, $attachment->storageKey))
+            new CampaignAttachment($clone, $attachment->filename, $attachment->storageKey)
                 ->setMimeType($attachment->mimeType)
                 ->setSize($attachment->size);
         }

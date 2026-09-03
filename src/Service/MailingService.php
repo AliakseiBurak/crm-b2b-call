@@ -165,7 +165,7 @@ readonly class MailingService
             . $campaign->renderBody($contact, $organization)
             . $this->trackingPixelMarkup($recipient);
 
-        $email = (new Email())
+        $email = new Email()
             ->from(new Address($this->fromEmail, $this->fromName))
             ->to($toEmail)
             ->subject($campaign->renderSubject($contact, $organization))
@@ -323,7 +323,7 @@ readonly class MailingService
         );
 
         foreach ($admins as $admin) {
-            $email = (new Email())
+            $email = new Email()
                 ->from(new Address($this->fromEmail, $this->fromName))
                 ->to($admin->email)
                 ->subject($subject)

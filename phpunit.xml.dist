@@ -21,10 +21,10 @@
 
     <testsuites>
         <testsuite name="Functional">
-            <directory>tests/functional</directory>
+            <directory>tests/Functional</directory>
         </testsuite>
         <testsuite name="Unit">
-            <directory>tests/unit</directory>
+            <directory>tests/Unit</directory>
         </testsuite>
     </testsuites>
 

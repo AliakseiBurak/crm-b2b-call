@@ -17,11 +17,11 @@ final class CampaignTest extends TestCase
 {
     public function testRenderBodyWithContact(): void
     {
-        $campaign = (new Campaign())
+        $campaign = new Campaign()
             ->setBody('{{greeting}}! {{contact_name}}, добро пожаловать.');
 
-        $org = (new Organization())->setName('ООО Ромашка');
-        $contact = (new Contact())->setOrganization($org)->setName('Иван Петров');
+        $org = new Organization()->setName('ООО Ромашка');
+        $contact = new Contact()->setOrganization($org)->setName('Иван Петров');
 
         $rendered = $campaign->renderBody($contact, $org);
 
@@ -30,10 +30,10 @@ final class CampaignTest extends TestCase
 
     public function testRenderBodyWithoutContact(): void
     {
-        $campaign = (new Campaign())
+        $campaign = new Campaign()
             ->setBody('{{greeting}}! Ждём вас.');
 
-        $org = (new Organization())->setName('ООО Ромашка');
+        $org = new Organization()->setName('ООО Ромашка');
 
         $rendered = $campaign->renderBody(null, $org);
 
@@ -42,10 +42,10 @@ final class CampaignTest extends TestCase
 
     public function testRenderBodyOrganizationNameToken(): void
     {
-        $campaign = (new Campaign())
+        $campaign = new Campaign()
             ->setBody('Компания {{organization_name}} приглашает.');
 
-        $org = (new Organization())->setName('АО Вектор');
+        $org = new Organization()->setName('АО Вектор');
 
         $rendered = $campaign->renderBody(null, $org);
 
@@ -54,11 +54,11 @@ final class CampaignTest extends TestCase
 
     public function testRenderBodyContactNameToken(): void
     {
-        $campaign = (new Campaign())
+        $campaign = new Campaign()
             ->setBody('{{contact_name}}, здравствуйте.');
 
-        $org = (new Organization())->setName('ООО Ромашка');
-        $contact = (new Contact())->setOrganization($org)->setName('Мария Ивановна');
+        $org = new Organization()->setName('ООО Ромашка');
+        $contact = new Contact()->setOrganization($org)->setName('Мария Ивановна');
 
         $rendered = $campaign->renderBody($contact, $org);
 
@@ -67,11 +67,11 @@ final class CampaignTest extends TestCase
 
     public function testRenderBodyAllTokensCombined(): void
     {
-        $campaign = (new Campaign())
+        $campaign = new Campaign()
             ->setBody('{{greeting}}! {{organization_name}} предлагает {{contact_name}} скидку.');
 
-        $org = (new Organization())->setName('ООО Закат');
-        $contact = (new Contact())->setOrganization($org)->setName('Ольга');
+        $org = new Organization()->setName('ООО Закат');
+        $contact = new Contact()->setOrganization($org)->setName('Ольга');
 
         $rendered = $campaign->renderBody($contact, $org);
 
@@ -80,7 +80,7 @@ final class CampaignTest extends TestCase
 
     public function testLaunchSetsStatusAndLaunchedAt(): void
     {
-        $campaign = (new Campaign())->setName('Тест');
+        $campaign = new Campaign()->setName('Тест');
 
         self::assertSame(CampaignStatus::Draft, $campaign->status);
         self::assertNull($campaign->launchedAt);
@@ -94,7 +94,7 @@ final class CampaignTest extends TestCase
 
     public function testLaunchDoesNotOverwriteLaunchedAt(): void
     {
-        $campaign = (new Campaign())->setName('Тест');
+        $campaign = new Campaign()->setName('Тест');
         $campaign->launch();
         $first = $campaign->launchedAt;
 
@@ -105,7 +105,7 @@ final class CampaignTest extends TestCase
 
     public function testFailSetsStatusAndFailedAt(): void
     {
-        $campaign = (new Campaign())->setName('Тест');
+        $campaign = new Campaign()->setName('Тест');
 
         self::assertNull($campaign->failedAt);
 
@@ -118,7 +118,7 @@ final class CampaignTest extends TestCase
 
     public function testLaunchClearsFailureReason(): void
     {
-        $campaign = (new Campaign())->setName('Тест');
+        $campaign = new Campaign()->setName('Тест');
         $campaign->fail('Сбой SMTP');
 
         $campaign->launch();
@@ -129,21 +129,21 @@ final class CampaignTest extends TestCase
 
     public function testRenderSubjectAndPreviewFillTokens(): void
     {
-        $campaign = (new Campaign())
+        $campaign = new Campaign()
             ->setSubject('Для {{organization_name}}')
             ->setPreviewText('{{greeting}}');
 
-        $org = (new Organization())->setName('ООО Ромашка');
-        $contact = (new Contact())->setOrganization($org)->setName('Иван Петров');
+        $org = new Organization()->setName('ООО Ромашка');
+        $contact = new Contact()->setOrganization($org)->setName('Иван Петров');
 
         self::assertSame('Для ООО Ромашка', $campaign->renderSubject($contact, $org));
         self::assertSame('Уважаемый(ая) Иван Петров', $campaign->renderPreviewText($contact, $org));
-        self::assertNull((new Campaign())->renderPreviewText($contact, $org));
+        self::assertNull(new Campaign()->renderPreviewText($contact, $org));
     }
 
     public function testCloneFromCopiesFieldsAndSuffix(): void
     {
-        $source = (new Campaign())
+        $source = new Campaign()
             ->setName('Оригинал')
             ->setSubject('Тема')
             ->setPreviewText('Превью')
@@ -161,9 +161,9 @@ final class CampaignTest extends TestCase
 
     public function testCloneFromCopiesAttachmentsMetadata(): void
     {
-        $source = (new Campaign())->setName('Источник');
+        $source = new Campaign()->setName('Источник');
         $source->addAttachment(
-            (new CampaignAttachment($source, 'file.pdf', 'key-123'))
+            new CampaignAttachment($source, 'file.pdf', 'key-123')
                 ->setMimeType('application/pdf')
                 ->setSize(1024)
         );
@@ -182,8 +182,8 @@ final class CampaignTest extends TestCase
 
     public function testCloneFromWithRecipients(): void
     {
-        $source = (new Campaign())->setName('Источник');
-        $org = (new Organization())->setName('ООО Ромашка');
+        $source = new Campaign()->setName('Источник');
+        $org = new Organization()->setName('ООО Ромашка');
         $source->addRecipient(new CampaignRecipient($source, $org));
 
         $clone = Campaign::cloneFrom($source, true);
@@ -194,8 +194,8 @@ final class CampaignTest extends TestCase
 
     public function testCloneFromWithoutRecipients(): void
     {
-        $source = (new Campaign())->setName('Источник');
-        $org = (new Organization())->setName('ООО Ромашка');
+        $source = new Campaign()->setName('Источник');
+        $org = new Organization()->setName('ООО Ромашка');
         $source->addRecipient(new CampaignRecipient($source, $org));
 
         $clone = Campaign::cloneFrom($source, false);

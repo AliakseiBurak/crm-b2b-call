@@ -341,7 +341,7 @@ final class ContactControllerTest extends DatabaseWebTestCase
 
     private function makeUser(string $email, UserRole $role): User
     {
-        $user = (new User())
+        $user = new User()
             ->setEmail($email)
             ->setRole($role);
         $user->setPassword('test-password-hash');
@@ -354,7 +354,7 @@ final class ContactControllerTest extends DatabaseWebTestCase
 
     private function makeOrganization(string $name): Organization
     {
-        $organization = (new Organization())->setName($name)->setIndustry('IT');
+        $organization = new Organization()->setName($name)->setIndustry('IT');
         $this->em()->persist($organization);
         $this->em()->flush();
 
@@ -363,7 +363,7 @@ final class ContactControllerTest extends DatabaseWebTestCase
 
     private function makeContact(Organization $organization, string $name = 'Иван Петров', ?string $phone = null): Contact
     {
-        $contact = (new Contact())
+        $contact = new Contact()
             ->setOrganization($organization)
             ->setName($name)
             ->setContactType(ContactType::Person)
@@ -400,8 +400,8 @@ final class ContactControllerTest extends DatabaseWebTestCase
         $em->persist($personal1);
         $em->persist($personal2);
 
-        $romashka = (new Organization())->setName('ООО Ромашка')->setIndustry('IT');
-        $zavod = (new Organization())->setName('ООО Завод')->setIndustry('Производство');
+        $romashka = new Organization()->setName('ООО Ромашка')->setIndustry('IT');
+        $zavod = new Organization()->setName('ООО Завод')->setIndustry('Производство');
         $em->persist($romashka);
         $em->persist($zavod);
 
@@ -414,7 +414,7 @@ final class ContactControllerTest extends DatabaseWebTestCase
 
     private function personalGroup(User $owner): OrganizationGroup
     {
-        return (new OrganizationGroup())
+        return new OrganizationGroup()
             ->setName('Личная группа ' . $owner->email)
             ->setSlug('user-' . $owner->id . '-group')
             ->setType(GroupType::User)

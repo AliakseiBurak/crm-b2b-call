@@ -156,7 +156,7 @@ class CallController extends AbstractController
         // организации попадает в планирование (spec calls/crud).
         $nextCallDate = $this->parseDate((string) $request->request->get('next_call_date', ''));
         if (null !== $nextCallDate) {
-            $this->em->persist((new Call())
+            $this->em->persist(new Call()
                 ->setOrganization($call->organization)
                 ->setScheduledAt($nextCallDate));
         }

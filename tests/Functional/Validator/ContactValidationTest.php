@@ -27,8 +27,8 @@ final class ContactValidationTest extends KernelTestCase
 
     public function testValidContactHasNoViolations(): void
     {
-        $contact = (new Contact())
-            ->setOrganization((new Organization())->setName('ООО Ромашка')->setIndustry('IT'))
+        $contact = new Contact()
+            ->setOrganization(new Organization()->setName('ООО Ромашка')->setIndustry('IT'))
             ->setName('Иван Петров')
             ->setPhone('+7-900-111-11-11')
             ->setEmail('ivan@romashka.ru')
@@ -39,8 +39,8 @@ final class ContactValidationTest extends KernelTestCase
 
     public function testBlankNameShowsRussianMessage(): void
     {
-        $contact = (new Contact())
-            ->setOrganization((new Organization())->setName('ООО Ромашка')->setIndustry('IT'))
+        $contact = new Contact()
+            ->setOrganization(new Organization()->setName('ООО Ромашка')->setIndustry('IT'))
             ->setName('');
 
         $violations = $this->validator->validate($contact);
@@ -52,7 +52,7 @@ final class ContactValidationTest extends KernelTestCase
 
     public function testMissingOrganizationShowsRussianMessage(): void
     {
-        $contact = (new Contact())
+        $contact = new Contact()
             ->setName('Иван Петров')
             ->setContactType(ContactType::Person);
 
@@ -70,8 +70,8 @@ final class ContactValidationTest extends KernelTestCase
 
     public function testNameLongerThan255CharactersRejected(): void
     {
-        $contact = (new Contact())
-            ->setOrganization((new Organization())->setName('ООО Ромашка')->setIndustry('IT'))
+        $contact = new Contact()
+            ->setOrganization(new Organization()->setName('ООО Ромашка')->setIndustry('IT'))
             ->setName(str_repeat('А', 256));
 
         $violations = $this->validator->validate($contact);
@@ -86,8 +86,8 @@ final class ContactValidationTest extends KernelTestCase
 
     public function testPhoneLongerThan32CharactersRejected(): void
     {
-        $contact = (new Contact())
-            ->setOrganization((new Organization())->setName('ООО Ромашка')->setIndustry('IT'))
+        $contact = new Contact()
+            ->setOrganization(new Organization()->setName('ООО Ромашка')->setIndustry('IT'))
             ->setName('Иван Петров')
             ->setPhone(str_repeat('1', 33));
 

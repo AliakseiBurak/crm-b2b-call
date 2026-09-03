@@ -152,7 +152,7 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
 
     public function testEditWithClearedNameShowsRussianErrorAndKeepsValues(): void
     {
-        $organization = (new Organization())->setName('ООО Ромашка')->setIndustry('IT');
+        $organization = new Organization()->setName('ООО Ромашка')->setIndustry('IT');
         $this->em()->persist($organization);
         $this->em()->flush();
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
@@ -175,7 +175,7 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
 
     public function testAjaxUpdateReturnsJsonAndPersistsChanges(): void
     {
-        $organization = (new Organization())->setName('ООО Ромашка')->setIndustry('IT');
+        $organization = new Organization()->setName('ООО Ромашка')->setIndustry('IT');
         $this->em()->persist($organization);
         $this->em()->flush();
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
@@ -200,7 +200,7 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
 
     public function testAjaxUpdateReturnsJsonErrorsForInvalidData(): void
     {
-        $organization = (new Organization())->setName('ООО Ромашка')->setIndustry('IT');
+        $organization = new Organization()->setName('ООО Ромашка')->setIndustry('IT');
         $this->em()->persist($organization);
         $this->em()->flush();
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
@@ -222,7 +222,7 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
 
     public function testDeleteConfirmationPageWarnsAboutCascade(): void
     {
-        $organization = (new Organization())->setName('ООО Ромашка')->setIndustry('IT');
+        $organization = new Organization()->setName('ООО Ромашка')->setIndustry('IT');
         $this->em()->persist($organization);
         $this->em()->flush();
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
@@ -236,12 +236,12 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
 
     public function testDeleteCascadesContactsAndCalls(): void
     {
-        $organization = (new Organization())->setName('ООО Ромашка')->setIndustry('IT');
-        $contact = (new Contact())
+        $organization = new Organization()->setName('ООО Ромашка')->setIndustry('IT');
+        $contact = new Contact()
             ->setOrganization($organization)
             ->setName('Иван Петрович Иванов')
             ->setContactType(ContactType::Person);
-        $call = (new Call())
+        $call = new Call()
             ->setOrganization($organization)
             ->setMadeAt(new \DateTimeImmutable('yesterday'))
             ->setNotes('Нет ответа');
@@ -265,7 +265,7 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
 
     public function testCancelDeletionKeepsOrganization(): void
     {
-        $organization = (new Organization())->setName('ООО Ромашка')->setIndustry('IT');
+        $organization = new Organization()->setName('ООО Ромашка')->setIndustry('IT');
         $this->em()->persist($organization);
         $this->em()->flush();
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
@@ -302,8 +302,8 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
         $em->persist($personal1);
         $em->persist($personal2);
 
-        $romashka = (new Organization())->setName('ООО Ромашка')->setIndustry('IT');
-        $zavod = (new Organization())->setName('ООО Завод')->setIndustry('Производство');
+        $romashka = new Organization()->setName('ООО Ромашка')->setIndustry('IT');
+        $zavod = new Organization()->setName('ООО Завод')->setIndustry('Производство');
         $em->persist($romashka);
         $em->persist($zavod);
 
@@ -316,7 +316,7 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
 
     private function makeUser(string $email, UserRole $role): User
     {
-        $user = (new User())
+        $user = new User()
             ->setEmail($email)
             ->setRole($role);
         $user->setPassword('test-password-hash');
@@ -329,7 +329,7 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
 
     private function personalGroup(User $owner): OrganizationGroup
     {
-        return (new OrganizationGroup())
+        return new OrganizationGroup()
             ->setName('Личная группа ' . $owner->email)
             ->setSlug('user-' . $owner->id . '-group')
             ->setType(GroupType::User)

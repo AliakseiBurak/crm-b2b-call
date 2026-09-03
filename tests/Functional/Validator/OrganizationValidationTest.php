@@ -24,7 +24,7 @@ final class OrganizationValidationTest extends KernelTestCase
 
     public function testValidOrganizationHasNoViolations(): void
     {
-        $organization = (new Organization())
+        $organization = new Organization()
             ->setName('ООО Ромашка')
             ->setIndustry('IT');
 
@@ -33,7 +33,7 @@ final class OrganizationValidationTest extends KernelTestCase
 
     public function testBlankNameShowsRussianMessage(): void
     {
-        $organization = (new Organization())
+        $organization = new Organization()
             ->setName('')
             ->setIndustry('IT');
 
@@ -46,7 +46,7 @@ final class OrganizationValidationTest extends KernelTestCase
 
     public function testBlankIndustryShowsRussianMessage(): void
     {
-        $organization = (new Organization())
+        $organization = new Organization()
             ->setName('ООО Ромашка')
             ->setIndustry('');
 
@@ -62,7 +62,7 @@ final class OrganizationValidationTest extends KernelTestCase
 
     public function testBothRequiredFieldsReportedWhenEmpty(): void
     {
-        $organization = (new Organization())
+        $organization = new Organization()
             ->setName('')
             ->setIndustry('');
 
@@ -76,7 +76,7 @@ final class OrganizationValidationTest extends KernelTestCase
 
     public function testNameLongerThan255CharactersRejected(): void
     {
-        $organization = (new Organization())
+        $organization = new Organization()
             ->setName(str_repeat('А', 256))
             ->setIndustry('IT');
 

@@ -102,7 +102,7 @@ class AppFixtures extends Fixture
 
         $organizations = [];
         foreach (self::ORGANIZATIONS as [$name, $industry]) {
-            $organization = (new Organization())
+            $organization = new Organization()
                 ->setName($name)
                 ->setIndustry($industry);
             $manager->persist($organization);
@@ -126,7 +126,7 @@ class AppFixtures extends Fixture
             $count = self::CONTACTS_PER_ORGANIZATION[$orgIndex];
             for ($i = 0; $i < $count; ++$i) {
                 $isReception = $orgIndex === 1 && $index === 4; // «Приёмная» — Мария (3-й контакт Вектора)
-                $contact = (new Contact())
+                $contact = new Contact()
                     ->setOrganization($organization)
                     ->setName(self::CONTACT_NAMES[$index])
                     ->setPhone('+7 900 000-00-' . str_pad((string) $index, 2, '0', STR_PAD_LEFT))
@@ -148,7 +148,7 @@ class AppFixtures extends Fixture
         $today = new \DateTimeImmutable('today');
         $yesterday = $today->modify('-1 day');
         $make = function (Organization $org, ?Contact $contact, \DateTimeImmutable $madeAt, ?string $notes) use ($manager, $manager1): void {
-            $call = (new Call())
+            $call = new Call()
                 ->setOrganization($org)
                 ->setMadeAt($madeAt)
                 ->setMadeBy($manager1)
@@ -163,13 +163,13 @@ class AppFixtures extends Fixture
         $make($organizations[1], $contacts[2], $today->modify('-3 days')->setTime(12, 0), 'Уточнить состав группы');
 
         // Вне области менеджера (ООО "Конкурент" — только в группе manager2)
-        $manager->persist((new Call())
+        $manager->persist(new Call()
             ->setOrganization($organizations[3])
             ->setContact($contacts[7])
             ->setMadeAt($today->setTime(10, 0))
             ->setMadeBy($manager2)
             ->setNotes('Нет ответа'));
-        $manager->persist((new Call())
+        $manager->persist(new Call()
             ->setOrganization($organizations[3])
             ->setContact($contacts[8])
             // Планы «на сегодня» стоят на 00:05: окно waitingWeek/Month
@@ -183,7 +183,7 @@ class AppFixtures extends Fixture
         // неделя (+1д) / месяц (+20д у Конкурента) / более месяца (+45д);
         // -2д — просроченный план (без заметки).
         $plan = function (Organization $org, ?Contact $contact, \DateTimeImmutable $at, ?string $notes) use ($manager, $manager1): void {
-            $call = (new Call())
+            $call = new Call()
                 ->setOrganization($org)
                 ->setScheduledAt($at)
                 ->setMadeBy($manager1)
@@ -202,7 +202,7 @@ class AppFixtures extends Fixture
         // Даты видны в таблице; в списке «Все звонки» строки без текста
         // (контакта тоже нет).
         $bare = function (Organization $org, \DateTimeImmutable $at, bool $made) use ($manager, $manager1): void {
-            $call = (new Call())
+            $call = new Call()
                 ->setOrganization($org)
                 ->setMadeBy($manager1);
             if ($made) {
@@ -229,7 +229,7 @@ class AppFixtures extends Fixture
         $bare($organizations[3], $today->modify('-5 days')->setTime(12, 0), false); // Конкурент: просрочка вне области менеджера
         for ($i = 0; $i < 5; ++$i) {
             // Парус: 5 планов на вчера — 3 совершены (план + факт), 2 нет
-            $call = (new Call())
+            $call = new Call()
                 ->setOrganization($organizations[6])
                 ->setScheduledAt($yesterday->setTime(18, $i))
                 ->setMadeBy($manager1);
@@ -243,7 +243,7 @@ class AppFixtures extends Fixture
         // ── Рассылки (campaigns) — все статусы ────────────────────────
 
         // Черновик.
-        $campaignDraft = (new Campaign())
+        $campaignDraft = new Campaign()
             ->setName('Новые курсы')
             ->setSubject('Приглашаем на курсы 2026')
             ->setPreviewText('Обзор новых курсов для ваших сотрудников')
@@ -251,7 +251,7 @@ class AppFixtures extends Fixture
         $manager->persist($campaignDraft);
 
         // Готова.
-        $campaignReady = (new Campaign())
+        $campaignReady = new Campaign()
             ->setName('Осенняя рассылка')
             ->setSubject('Осень на носу — готовьте сотрудников')
             ->setBody("{{greeting}}!\n\nОсень — время обновлений. Предлагаем вам наши программы.");
@@ -259,7 +259,7 @@ class AppFixtures extends Fixture
         $manager->persist($campaignReady);
 
         // Запущена.
-        $campaignLaunched = (new Campaign())
+        $campaignLaunched = new Campaign()
             ->setName('Акция')
             ->setSubject('Скидки недели')
             ->setPreviewText('Специальные предложения только для вас')
@@ -269,7 +269,7 @@ class AppFixtures extends Fixture
         $manager->persist($campaignLaunched);
 
         // Ошибка.
-        $campaignFailed = (new Campaign())
+        $campaignFailed = new Campaign()
             ->setName('Рассылка с ошибкой')
             ->setSubject('Тестовая ошибка отправки')
             ->setBody("{{greeting}}!\n\nЭто тестовая рассылка для проверки обработки ошибок.");
@@ -277,7 +277,7 @@ class AppFixtures extends Fixture
         $manager->persist($campaignFailed);
 
         // Архив.
-        $campaignArchived = (new Campaign())
+        $campaignArchived = new Campaign()
             ->setName('Прошлая акция')
             ->setSubject('Акция прошла')
             ->setBody("{{greeting}}!\n\nЭто архивная рассылка.")
@@ -285,7 +285,7 @@ class AppFixtures extends Fixture
         $manager->persist($campaignArchived);
 
         // Ещё один черновик.
-        $campaignStandalone = (new Campaign())
+        $campaignStandalone = new Campaign()
             ->setName('Приглашение на вебинар')
             ->setSubject('Вебинар по логистике')
             ->setPreviewText('Приглашение на вебинар')
@@ -340,7 +340,7 @@ class AppFixtures extends Fixture
 
     private function makeUser(ObjectManager $manager, string $email, string $password, UserRole $role): User
     {
-        $user = (new User())
+        $user = new User()
             ->setEmail($email)
             ->setRole($role);
         $user->setPassword($this->passwordHasher->hashPassword($user, $password));
@@ -351,7 +351,7 @@ class AppFixtures extends Fixture
 
     private function makeGroup(ObjectManager $manager, string $slug, ?User $owner, GroupType $type): OrganizationGroup
     {
-        $group = (new OrganizationGroup())
+        $group = new OrganizationGroup()
             ->setName($owner ? 'Личная группа ' . $owner->email : 'Клиенты-партнёры')
             ->setSlug($slug)
             ->setType($type)

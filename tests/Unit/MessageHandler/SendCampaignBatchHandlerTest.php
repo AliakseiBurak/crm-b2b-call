@@ -14,6 +14,6 @@ final class SendCampaignBatchHandlerTest extends TestCase
         $processor = $this->createMock(CampaignSendProcessor::class);
         $processor->expects($this->once())->method('process')->with(null);
 
-        (new SendCampaignBatchHandler($processor))(new SendCampaignBatch());
+        new SendCampaignBatchHandler($processor)(new SendCampaignBatch());
     }
 }

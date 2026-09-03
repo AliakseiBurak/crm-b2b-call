@@ -28,13 +28,13 @@ final class CallValidationTest extends KernelTestCase
 
     public function testValidCallHasNoViolations(): void
     {
-        $organization = (new Organization())->setName('ООО Ромашка')->setIndustry('IT');
-        $contact = (new Contact())
+        $organization = new Organization()->setName('ООО Ромашка')->setIndustry('IT');
+        $contact = new Contact()
             ->setOrganization($organization)
             ->setName('Иван Петров')
             ->setContactType(ContactType::Person);
 
-        $call = (new Call())
+        $call = new Call()
             ->setOrganization($organization)
             ->setContact($contact)
             ->setScheduledAt(new \DateTimeImmutable('2026-09-01 10:30'));
@@ -44,8 +44,8 @@ final class CallValidationTest extends KernelTestCase
 
     public function testScheduledAtIsOptional(): void
     {
-        $call = (new Call())
-            ->setOrganization((new Organization())->setName('ООО Ромашка')->setIndustry('IT'));
+        $call = new Call()
+            ->setOrganization(new Organization()->setName('ООО Ромашка')->setIndustry('IT'));
 
         $violations = $this->validator->validate($call);
 
@@ -59,7 +59,7 @@ final class CallValidationTest extends KernelTestCase
 
     public function testMissingOrganizationShowsRussianMessage(): void
     {
-        $call = (new Call())
+        $call = new Call()
             ->setScheduledAt(new \DateTimeImmutable('2026-09-01 10:30'));
 
         $violations = $this->validator->validate($call);

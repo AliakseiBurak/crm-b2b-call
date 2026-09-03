@@ -193,7 +193,7 @@ class OrganizationController extends AbstractController
             return $group;
         }
 
-        $group = (new OrganizationGroup())
+        $group = new OrganizationGroup()
             ->setName('Личная группа ' . $user->email)
             ->setSlug($slug)
             ->setType(GroupType::User);

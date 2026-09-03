@@ -117,20 +117,22 @@ final class MailingServiceTest extends TestCase
         $org = $this->organization();
         $this->contact($org, 'Алиса', 'alice@example.ru');
         $recipient = new CampaignRecipient($campaign, $org);
-        $storage = new CampaignAttachmentStorage(sys_get_temp_dir());
+        $tmpDir = sys_get_temp_dir().'/mailing-service-test-'.bin2hex(random_bytes(8));
+        self::assertTrue(mkdir($tmpDir, 0777, true));
+        $storage = new CampaignAttachmentStorage($tmpDir);
         $storageKey = 'mailing-service-test-'.bin2hex(random_bytes(8));
         $path = $storage->path($storageKey);
 
         if (!is_dir(dirname($path))) {
             mkdir(dirname($path), 0777, true);
         }
-        file_put_contents($path, 'attachment body');
-        (new CampaignAttachment($campaign, 'предложение.txt', $storageKey))
+        self::assertNotFalse(file_put_contents($path, 'attachment body'));
+        new CampaignAttachment($campaign, 'предложение.txt', $storageKey)
             ->setMimeType('text/plain')
             ->setSize(15);
 
         try {
-            $this->service->processRecipient($recipient);
+            $this->createService($this->em, $storage)->processRecipient($recipient);
 
             self::assertCount(1, $this->sent);
             self::assertCount(1, $this->sent[0]->getAttachments());
@@ -141,6 +143,7 @@ final class MailingServiceTest extends TestCase
             self::assertSame(RecipientStatus::Delivered, $recipient->status);
         } finally {
             $storage->delete($storageKey);
+            $this->removeDirectory($tmpDir);
         }
     }
 
@@ -275,7 +278,7 @@ final class MailingServiceTest extends TestCase
     public function testAllUndeliverableEscalatesCampaignAndNotifiesAdmin(): void
     {
         $this->captureSentMail();
-        $admin = (new User())->setEmail('admin@b2b-crm.loc');
+        $admin = new User()->setEmail('admin@b2b-crm.loc');
         $this->users->method('findAdmins')->willReturn([$admin]);
 
         $org = $this->organization();
@@ -314,9 +317,11 @@ final class MailingServiceTest extends TestCase
         self::assertSame([], $this->sent);
     }
 
-    private function createService(EntityManagerInterface $em): MailingService
-    {
-        $storage = new CampaignAttachmentStorage(sys_get_temp_dir());
+    private function createService(
+        EntityManagerInterface $em,
+        ?CampaignAttachmentStorage $storage = null,
+    ): MailingService {
+        $storage ??= new CampaignAttachmentStorage(sys_get_temp_dir());
 
         $urls = $this->createMock(UrlGeneratorInterface::class);
         $urls->method('generate')->willReturnCallback(
@@ -346,7 +351,7 @@ final class MailingServiceTest extends TestCase
 
     private function campaign(): Campaign
     {
-        return (new Campaign())
+        return new Campaign()
             ->setName('Акция')
             ->setSubject('Для {{organization_name}}')
             ->setPreviewText('{{greeting}}')
@@ -356,12 +361,12 @@ final class MailingServiceTest extends TestCase
 
     private function organization(): Organization
     {
-        return (new Organization())->setName('ООО Ромашка')->setIndustry('IT');
+        return new Organization()->setName('ООО Ромашка')->setIndustry('IT');
     }
 
     private function contact(Organization $org, string $name, ?string $email): Contact
     {
-        $contact = (new Contact())->setOrganization($org)->setName($name)->setEmail($email);
+        $contact = new Contact()->setOrganization($org)->setName($name)->setEmail($email);
         $org->contacts->add($contact);
 
         return $contact;
@@ -385,5 +390,21 @@ final class MailingServiceTest extends TestCase
     private function addresses(array $addresses): array
     {
         return array_values(array_map(static fn (Address $a): string => $a->getAddress(), $addresses));
+    }
+
+    private function removeDirectory(string $directory): void
+    {
+        if (!is_dir($directory)) {
+            return;
+        }
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST,
+        );
+        foreach ($iterator as $item) {
+            $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+        }
+        @rmdir($directory);
     }
 }

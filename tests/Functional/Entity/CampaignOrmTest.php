@@ -12,7 +12,7 @@ final class CampaignOrmTest extends DatabaseWebTestCase
 {
     public function testLazyCampaignWithFailureReasonCanBeInitialized(): void
     {
-        $campaign = (new Campaign())
+        $campaign = new Campaign()
             ->setName('Акция')
             ->setSubject('Тема')
             ->setBody('Текст');

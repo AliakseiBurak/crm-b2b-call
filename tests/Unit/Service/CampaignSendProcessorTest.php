@@ -128,8 +128,8 @@ final class CampaignSendProcessorTest extends TestCase
     private function recipient(): CampaignRecipient
     {
         return new CampaignRecipient(
-            (new Campaign())->setName('Акция'),
-            (new Organization())->setName('ООО Ромашка'),
+            new Campaign()->setName('Акция'),
+            new Organization()->setName('ООО Ромашка'),
         );
     }
 }

@@ -97,8 +97,8 @@ final class CampaignRecipientTest extends TestCase
 
     private function recipient(): CampaignRecipient
     {
-        $campaign = (new Campaign())->setName('Акция');
-        $org = (new Organization())->setName('ООО Ромашка');
+        $campaign = new Campaign()->setName('Акция');
+        $org = new Organization()->setName('ООО Ромашка');
 
         return new CampaignRecipient($campaign, $org);
     }

@@ -40,15 +40,15 @@ final class CampaignSendCommandTest extends DatabaseWebTestCase
         );
         static::getContainer()->set(MailerInterface::class, $mailer);
 
-        $campaign = (new Campaign())
+        $campaign = new Campaign()
             ->setName('Запущенная рассылка')
             ->setSubject('Предложение для {{organization_name}}')
             ->setBody('{{greeting}}!')
             ->launch();
-        $organization = (new Organization())
+        $organization = new Organization()
             ->setName('ООО Ромашка')
             ->setIndustry('IT');
-        $contact = (new Contact())
+        $contact = new Contact()
             ->setOrganization($organization)
             ->setName('Алиса')
             ->setEmail('alice@example.ru');
@@ -87,15 +87,15 @@ final class CampaignSendCommandTest extends DatabaseWebTestCase
         );
         static::getContainer()->set(MailerInterface::class, $mailer);
 
-        $campaign = (new Campaign())
+        $campaign = new Campaign()
             ->setName('Повторная попытка')
             ->setSubject('Повтор')
             ->setBody('{{greeting}}!')
             ->launch();
-        $organization = (new Organization())
+        $organization = new Organization()
             ->setName('ООО Повтор')
             ->setIndustry('IT');
-        $contact = (new Contact())
+        $contact = new Contact()
             ->setOrganization($organization)
             ->setName('Борис')
             ->setEmail('boris@example.ru');
