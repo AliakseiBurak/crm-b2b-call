@@ -13,19 +13,17 @@
 ## Requirements
 
 ### Requirement: Сущность звонка
-The system SHALL store a call with an organization, an optional contact, a
-scheduled date, and SHALL record the fact of the call (who made it and when)
-after the call takes place.
+The system SHALL store a call with an organization, an optional contact, a scheduled date, the fact of the call (who made it and when), optional notes, optional deal and no-answer marks, an optional reference to the last mailing campaign chosen from this call, and an optional reference to the last next call created from this call.
 
 #### Scenario: Запланированный звонок
-- **WHEN** в системе существует организация "ООО Ромашка" и контакт "Иван Петров"
-- **AND** менеджер планирует звонок контакту "Иван Петров" на завтра
-- **THEN** звонок сохраняется с датой "завтра"
+- **WHEN** в системе существует организация «ООО Ромашка» и контакт «Иван Петров»
+- **AND** менеджер планирует звонок контакту «Иван Петров» на завтра
+- **THEN** звонок сохраняется с датой «завтра»
 
 #### Scenario: Фиксация факта звонка
-- **WHEN** менеджер "Иван Петров" провёл звонок контакту организации "ООО Ромашка"
+- **WHEN** менеджер «Иван Петров» провёл звонок контакту организации «ООО Ромашка»
 - **AND** отмечает дату и время звонка
-- **THEN** в истории звонков организации отображается, что звонок осуществил менеджер "Иван Петров" в указанные дату и время
+- **THEN** в истории звонков организации отображается, что звонок осуществил менеджер «Иван Петров» в указанные дату и время
 
 ### Requirement: Будущие звонки и напоминание
 A call SHALL be considered a future call when its scheduled date is in the
@@ -67,34 +65,37 @@ then move to the next organization.
 - **THEN** система переходит к следующей организации в списке обзвона
 
 ### Requirement: Результат звонка
-The call result SHALL be a combination of independent marks: at most one
-campaign (see `campaigns`), a deal, and a next call; a call MAY have none of
-them, recording only the fact of the call.
+The call result SHALL be a combination of independent actions: at most one mailing campaign per save (see `campaigns`) which creates or replaces a recipient for any non-archived campaign, a deal mark, a no-answer mark, and a next call created from a submitted date; a call MAY have none of them, recording only the fact of the call. Mailing and next call MAY be combined. Deal and no-answer SHALL NOT prevent mailing. The call result SHALL NOT remove an organization from a campaign (refusal); recipients are managed on the campaign recipients page.
 
 #### Scenario: Результат — рассылка
-- **WHEN** менеджер завершает звонок по организации "ООО Ромашка"
-- **AND** выбирает из списка рассылку "Новые курсы"
-- **THEN** организация "ООО Ромашка" помечается получателем рассылки "Новые курсы" по итогам звонка
+- **WHEN** менеджер завершает звонок по организации «ООО Ромашка»
+- **AND** выбирает из списка рассылку «Осенняя рассылка»
+- **THEN** организация «ООО Ромашка» становится адресатом рассылки «Осенняя рассылка» по итогам звонка
 
 #### Scenario: Результат — сделка
-- **WHEN** менеджер завершает звонок по организации "ООО Ромашка"
-- **AND** отмечает "сделка совершена"
+- **WHEN** менеджер завершает звонок по организации «ООО Ромашка»
+- **AND** отмечает «сделка совершена»
 - **THEN** в карточке звонка отображается отметка о совершённой сделке
 
+#### Scenario: Результат — нет ответа
+- **WHEN** менеджер завершает звонок по организации «ООО Ромашка»
+- **AND** отмечает «нет ответа»
+- **THEN** в карточке звонка отображается отметка об отсутствии ответа
+
 #### Scenario: Результат — будущий звонок
-- **WHEN** менеджер завершает звонок по организации "ООО Ромашка"
+- **WHEN** менеджер завершает звонок по организации «ООО Ромашка»
 - **AND** указывает дату следующего звонка
 - **THEN** создаётся новый звонок с этой датой, связанный со звонком
-- **AND** организация "ООО Ромашка" попадает в планирование/напоминание
+- **AND** организация «ООО Ромашка» попадает в планирование/напоминание
 
 #### Scenario: Комбинация результатов
-- **WHEN** менеджер завершает звонок по организации "ООО Ромашка"
-- **AND** одновременно выбирает рассылку "Новые курсы", отмечает сделку и назначает следующий звонок
-- **THEN** все три отметки сохраняются вместе со звонком
+- **WHEN** менеджер завершает звонок по организации «ООО Ромашка»
+- **AND** одновременно выбирает рассылку «Осенняя рассылка», отмечает сделку, «нет ответа» и назначает следующий звонок
+- **THEN** все выбранные действия выполняются вместе со звонком
 
 #### Scenario: Звонок без результата
-- **WHEN** менеджер завершает звонок по организации "ООО Ромашка"
-- **AND** не выбирает рассылку, сделку и следующий звонок
+- **WHEN** менеджер завершает звонок по организации «ООО Ромашка»
+- **AND** не выбирает рассылку, сделку, «нет ответа» и следующий звонок
 - **THEN** фиксируется только факт звонка (кто и когда)
 
 ### Requirement: Доступ к звонкам ограничен областью доступа
