@@ -8,6 +8,16 @@
     flex-direction: column;
     gap: 0.3em;
     margin-bottom: 1.2em;
+
+    // display: flex перекрывает UA-стиль [hidden] { display: none } —
+    // без !important поле «Запланированная дата» остаётся видимым.
+    &[hidden] {
+        display: none !important;
+    }
+}
+
+[data-call-normal-fields][hidden] {
+    display: none !important;
 }
 
 .field__label {

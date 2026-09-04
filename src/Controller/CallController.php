@@ -153,6 +153,7 @@ class CallController extends AbstractController
         }
 
         $hadNextCall = null !== $call->nextCall;
+        // applyResultActions сам no-op без madeAt/madeBy (в т.ч. после режима «Будущий звонок»).
         $resendFlash = $this->applyResultActions($call, $resultInput);
         $this->em->flush();
 
@@ -231,6 +232,9 @@ class CallController extends AbstractController
     private function applyRequest(Request $request, ValidatorInterface $validator, Call $call, array $resultInput): array
     {
         $errors = [];
+        // Уже проведённый звонок нельзя перевести в режим «Будущий звонок».
+        $alreadyMade = null !== $call->madeAt;
+        $isFutureCall = !$alreadyMade && null !== $request->request->get('is_future_call');
 
         $contactId = (int) $request->request->get('contact', 0);
         if ($contactId > 0) {
@@ -247,47 +251,60 @@ class CallController extends AbstractController
             $call->setContact(null);
         }
 
-        $scheduledAt = $this->parseDateTime((string) $request->request->get('scheduled_at', ''));
-        if (false === $scheduledAt) {
-            $errors['scheduledAt'] = 'Некорректный формат даты звонка';
-        } else {
-            $call->setScheduledAt($scheduledAt);
-            if (null !== $scheduledAt && $scheduledAt < new \DateTimeImmutable('today')) {
-                $errors['scheduledAt'] = 'Запланированная дата звонка не может быть в прошлом';
-            }
-        }
-
-        $madeAtRaw = (string) $request->request->get('made_at', '');
-        if ('' !== trim($madeAtRaw)) {
-            $madeAt = $this->parseDateTime($madeAtRaw);
-            if (false === $madeAt) {
-                $errors['madeAt'] = 'Некорректный формат даты звонка';
-            } else {
-                $call->setMadeAt($madeAt);
-                if ($madeAt > new \DateTimeImmutable()) {
-                    $errors['madeAt'] = 'Фактическая дата звонка не может быть в будущем';
-                } else {
-                    $call->setMadeBy($this->resolveMadeBy($request));
-                }
-            }
-        } else {
-            $call->setMadeAt(null);
-            $call->setMadeBy(null);
-        }
-
         $call->setNotes($this->optionalField($request, 'notes'));
 
-        $call->setIsDeal(null !== $request->request->get('is_deal'));
-        $call->setIsNoAnswer(null !== $request->request->get('is_no_answer'));
-
-        if ($this->hasResultActions($request, $resultInput)) {
-            if (null === $call->madeAt || null === $call->madeBy) {
-                $errors['madeAt'] ??= 'Для действий результата звонка нужны фактическая дата и автор';
+        if ($isFutureCall) {
+            // Режим планирования: org/contact/notes + optional scheduled_at.
+            // made_at, сделка, рассылка, следующий звонок — игнорируются.
+            $scheduledAt = $this->parseDateTime((string) $request->request->get('scheduled_at', ''));
+            if (false === $scheduledAt) {
+                $errors['scheduledAt'] = 'Некорректный формат даты звонка';
+            } else {
+                $call->setScheduledAt($scheduledAt);
+                if (null !== $scheduledAt && $scheduledAt < new \DateTimeImmutable('today')) {
+                    $errors['scheduledAt'] = 'Запланированная дата звонка не может быть в прошлом';
+                }
             }
-        }
+            $call->setMadeAt(null);
+            $call->setMadeBy(null);
+            $call->setIsDeal(false);
+            $call->setIsNoAnswer(false);
+        } else {
+            // Обычный режим: scheduled_at на сущности не трогаем (поле скрыто).
+            $madeAtRaw = (string) $request->request->get('made_at', '');
+            if ('' !== trim($madeAtRaw)) {
+                $madeAt = $this->parseDateTime($madeAtRaw);
+                if (false === $madeAt) {
+                    $errors['madeAt'] = 'Некорректный формат даты звонка';
+                } else {
+                    $call->setMadeAt($madeAt);
+                    if ($madeAt > new \DateTimeImmutable()) {
+                        $errors['madeAt'] = 'Фактическая дата звонка не может быть в будущем';
+                    } else {
+                        $call->setMadeBy($this->resolveMadeBy($request));
+                    }
+                }
+            } else {
+                if ($alreadyMade) {
+                    $errors['madeAt'] = 'Фактическую дату звонка нельзя удалить, только изменить';
+                } else {
+                    $call->setMadeAt(null);
+                    $call->setMadeBy(null);
+                }
+            }
 
-        if (!isset($errors['madeAt']) && null !== $call->madeAt && null !== $call->madeBy) {
-            $errors = array_merge($errors, $this->validateResultCommands($call, $resultInput));
+            $call->setIsDeal(null !== $request->request->get('is_deal'));
+            $call->setIsNoAnswer(null !== $request->request->get('is_no_answer'));
+
+            if ($this->hasResultActions($request, $resultInput)) {
+                if (null === $call->madeAt || null === $call->madeBy) {
+                    $errors['madeAt'] ??= 'Для действий результата звонка нужна фактическая дата';
+                }
+            }
+
+            if (!isset($errors['madeAt']) && null !== $call->madeAt && null !== $call->madeBy) {
+                $errors = array_merge($errors, $this->validateResultCommands($call, $resultInput));
+            }
         }
 
         $violations = $validator->validate($call);
@@ -455,6 +472,7 @@ class CallController extends AbstractController
         return [
             'call' => $call,
             'defaultScheduledAt' => $defaultScheduledAt,
+            'defaultMadeAt' => new \DateTimeImmutable(),
             'organizations' => $organizations,
             'selectedOrganizationId' => $selectedOrganizationId,
             'contacts' => $contacts,

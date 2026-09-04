@@ -84,8 +84,8 @@ test('ошибка валидации в модальном окне показ�
 
   await openFirstCallEditModal(page);
 
-  // Запланированная дата опциональна; ошибка — только для даты в прошлом
-  // (change call-scheduled-date-optional).
+  // Режим «Будущий звонок» открывает поле запланированной даты.
+  await page.locator('[data-call-field="is_future_call"]').check();
   await page.locator('[data-call-field="scheduled_at"]').fill('20.08.2020 10:00');
   await page.locator(editModal).locator('button[type="submit"]').first().click();
 
@@ -102,7 +102,9 @@ test('создание проведённого звонка с только ф�
   const addLink = page.locator('a.org-calls__add').first();
   const href = (await addLink.getAttribute('href')) ?? '/calls/new';
   await page.goto(href);
-  await expect(page.locator('#scheduled_at')).not.toHaveAttribute('required');
+  await expect(page.locator('#is-future-call')).not.toBeChecked();
+  await expect(page.locator('[data-call-scheduled-field]')).toBeHidden();
+  await expect(page.locator('#made_at')).toBeVisible();
 
   const yesterday = new Date(Date.now() - 86_400_000);
   const pad = (n: number) => String(n).padStart(2, '0');

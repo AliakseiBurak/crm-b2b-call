@@ -1,5 +1,6 @@
 {#
     Модальное окно быстрого редактирования звонка (change calls-crud, call-result).
+    Макет: контакт → заметка → будущий звонок → …
 #}
 <div data-call-edit-modal>
     {% embed 'components/modal.html.twig' %}
@@ -12,13 +13,6 @@
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token('call') }}">
 
                 <div class="field">
-                    <label class="field__label" for="modal-call-scheduled-at">Запланированная дата звонка</label>
-                    <input class="field__input" type="text" id="modal-call-scheduled-at" name="scheduled_at"
-                           data-date-picker="date" data-call-field="scheduled_at">
-                    <span class="field__error" role="alert" data-call-error="scheduledAt" hidden></span>
-                </div>
-
-                <div class="field">
                     <label class="field__label" for="modal-call-contact">Контакт</label>
                     <select class="field__input" id="modal-call-contact" name="contact" data-call-field="contact">
                         <option value="">— контакт не выбран —</option>
@@ -27,38 +21,60 @@
                 </div>
 
                 <div class="field">
-                    <label class="field__label" for="modal-call-made-at">Фактическая дата звонка</label>
-                    <input class="field__input" type="text" id="modal-call-made-at" name="made_at"
-                           data-date-picker="datetime" data-call-field="made_at">
-                    <span class="field__error" role="alert" data-call-error="madeAt" hidden></span>
-                </div>
-
-                {% if isAdmin %}
-                    <div class="field">
-                        <label class="field__label" for="modal-call-made-by">Кто совершил звонок</label>
-                        <select class="field__input" id="modal-call-made-by" name="made_by" data-call-field="made_by">
-                            <option value="">— я (текущий пользователь) —</option>
-                            {% for u in users %}
-                                <option value="{{ u.id }}">{{ u.email }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                {% endif %}
-
-                <div data-call-result-fields>
-                    {{ include('call/_result_fields.html.twig', {
-                        call: null,
-                        mailingCampaigns: mailingCampaigns,
-                        contacts: [],
-                        isModal: true,
-                        errors: {},
-                    }) }}
-                </div>
-
-                <div class="field">
                     <label class="field__label" for="modal-call-notes">Заметка</label>
                     <textarea class="field__input" id="modal-call-notes" name="notes" rows="3"
                               data-call-field="notes"></textarea>
+                </div>
+
+                <div class="field">
+                    <label class="field__consent" for="modal-call-is-future">
+                        <input type="checkbox" id="modal-call-is-future" name="is_future_call" value="1"
+                               data-call-future-toggle data-call-field="is_future_call">
+                        Будущий звонок
+                    </label>
+                    <span class="field__hint" data-call-future-locked-hint hidden>Недоступно: у звонка уже есть фактическая дата</span>
+                </div>
+
+                <div class="field" data-call-scheduled-field hidden>
+                    <label class="field__label" for="modal-call-scheduled-at">Запланированная дата звонка</label>
+                    <input class="field__input" type="text" id="modal-call-scheduled-at" name="scheduled_at"
+                           data-date-picker="date" data-call-field="scheduled_at" disabled>
+                    <span class="field__error" role="alert" data-call-error="scheduledAt" hidden></span>
+                </div>
+
+                <div data-call-normal-fields>
+                    <div class="field">
+                        <label class="field__label" for="modal-call-made-at">Фактическая дата звонка</label>
+                        <input class="field__input" type="text" id="modal-call-made-at" name="made_at"
+                               data-date-picker="datetime" data-call-field="made_at">
+                        <span class="field__error" role="alert" data-call-error="madeAt" hidden></span>
+                    </div>
+
+                    {% if isAdmin %}
+                        <div class="field">
+                            <label class="field__label" for="modal-call-made-by">Кто совершил звонок</label>
+                            <select class="field__input" id="modal-call-made-by" name="made_by" data-call-field="made_by">
+                                <option value="">— я (текущий пользователь) —</option>
+                                {% for u in users %}
+                                    <option value="{{ u.id }}">{{ u.email }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    {% endif %}
+
+                    <div data-call-result-fields>
+                        {{ include('call/_result_fields.html.twig', {
+                            call: null,
+                            mailingCampaigns: mailingCampaigns,
+                            contacts: [],
+                            isModal: true,
+                            errors: {},
+                        }) }}
+                    </div>
+                </div>
+
+                <div data-call-normal-fields>
+                    {{ include('call/_deal_flags.html.twig', { call: null, isModal: true }) }}
                 </div>
 
                 <div class="organization-form__actions">

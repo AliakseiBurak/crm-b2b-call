@@ -68,24 +68,26 @@ async function deleteCallById(page: Page, callId: string) {
   await expect(page).toHaveURL(/\/dashboard\?highlight=\d+$/);
 }
 
-/** Раскрывает аккордеон звонков и открывает модалку для строки без следующего звонка. */
+/** Раскрывает аккордеон звонков и открывает модалку для проведённого звонка без следующего. */
 async function openEditableCallModal(page: Page): Promise<Locator> {
   await page.goto('/dashboard');
 
-  const row = page.locator('[data-call-row][data-call-next-call-id=""]').first();
-  await expect(row).toBeAttached({ timeout: 10_000 });
+  const completed = page
+    .locator('[data-call-row][data-call-next-call-id=""]:not([data-call-made-at=""])')
+    .first();
+  await expect(completed).toBeAttached({ timeout: 10_000 });
 
-  const orgDetails = row.locator('xpath=ancestor::details[contains(@class,"org-details__box")]').first();
+  const orgDetails = completed.locator('xpath=ancestor::details[contains(@class,"org-details__box")]').first();
   await orgDetails.locator('summary.org-details__summary').click();
   const allCalls = orgDetails.locator('details.org-calls__all').first();
   if (!(await allCalls.evaluate((el) => (el as HTMLDetailsElement).open))) {
     await allCalls.locator('summary').click();
   }
 
-  await row.locator('[data-call-edit]').click();
+  await completed.locator('[data-call-edit]').click();
   await expect(page.locator(editModal)).toBeVisible();
 
-  return row;
+  return completed;
 }
 
 async function selectCampaignByName(page: Page, campaignName: string) {
@@ -247,9 +249,36 @@ test('сделка и нет ответа сохраняются и видны �
 
 // ─── Валидация ───────────────────────────────────────────────────────
 
-test('рассылка без фактической даты отклоняется с ошибкой', async ({ page }) => {
+test('очистка фактической даты у проведённого звонка отклоняется', async ({ page }) => {
   await login(page, 'admin@b2b-crm.loc', 'admin123');
   await openEditableCallModal(page);
+
+  await page.locator('[data-call-field="made_at"]').fill('');
+  await page.locator(editModal).locator('button[type="submit"]').first().click();
+
+  await expect(page.locator('[data-call-error="madeAt"]')).toBeVisible();
+  await expect(page.locator('[data-call-error="madeAt"]')).toContainText(
+    'Фактическую дату звонка нельзя удалить, только изменить',
+  );
+  await expect(page.locator(editModal)).toBeVisible();
+});
+
+test('рассылка без фактической даты отклоняется с ошибкой', async ({ page }) => {
+  await login(page, 'admin@b2b-crm.loc', 'admin123');
+
+  await page.goto('/dashboard');
+  const planned = page
+    .locator('[data-call-row][data-call-next-call-id=""][data-call-made-at=""]')
+    .first();
+  await expect(planned).toBeAttached({ timeout: 10_000 });
+  const orgDetails = planned.locator('xpath=ancestor::details[contains(@class,"org-details__box")]').first();
+  await orgDetails.locator('summary.org-details__summary').click();
+  const allCalls = orgDetails.locator('details.org-calls__all').first();
+  if (!(await allCalls.evaluate((el) => (el as HTMLDetailsElement).open))) {
+    await allCalls.locator('summary').click();
+  }
+  await planned.locator('[data-call-edit]').click();
+  await expect(page.locator(editModal)).toBeVisible();
 
   await page.locator('[data-call-field="made_at"]').fill('');
   const campaignOption = page.locator('[data-call-field="mailing_campaign"] option').nth(1);
@@ -259,7 +288,7 @@ test('рассылка без фактической даты отклоняет
 
   await expect(page.locator('[data-call-error="madeAt"]')).toBeVisible();
   await expect(page.locator('[data-call-error="madeAt"]')).toContainText(
-    'Для действий результата звонка нужны фактическая дата и автор',
+    'Для действий результата звонка нужна фактическая дата',
   );
   await expect(page.locator(editModal)).toBeVisible();
 });
@@ -319,4 +348,23 @@ test('страница удаления предупреждает об адре
   await page.click('button:has-text("Удалить")');
   await expect(page).toHaveURL(/\/dashboard\?highlight=\d+$/);
   await deleteCampaign(page, campaignId);
+});
+
+// ─── Макет формы: будущий звонок ─────────────────────────────────────
+
+test('режим будущего звонка показывает дату плана и скрывает результат', async ({ page }) => {
+  await login(page, 'admin@b2b-crm.loc', 'admin123');
+  await page.goto('/calls/new');
+
+  await expect(page.locator('#contact')).toBeVisible();
+  await expect(page.locator('#is-future-call')).not.toBeChecked();
+  await expect(page.locator('[data-call-scheduled-field]')).toBeHidden();
+  await expect(page.locator('#made_at')).toBeVisible();
+  await expect(page.locator('#is-deal')).toBeVisible();
+
+  await page.locator('#is-future-call').check();
+  await expect(page.locator('[data-call-scheduled-field]')).toBeVisible();
+  await expect(page.locator('#made_at')).toBeHidden();
+  await expect(page.locator('#is-deal')).toBeHidden();
+  await expect(page.locator('#notes')).toBeVisible();
 });

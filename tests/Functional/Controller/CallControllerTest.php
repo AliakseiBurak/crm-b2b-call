@@ -40,6 +40,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         $scheduledAt = new \DateTimeImmutable('+5 days')->setTime(10, 30);
         $this->submitFormByButton('Создать', [
             'organization' => (string) $organization->id,
+            'is_future_call' => '1',
             'scheduled_at' => $scheduledAt->format('Y-m-d\TH:i'),
             'contact' => (string) $contact->id,
             'notes' => 'Обсудить курсы',
@@ -71,7 +72,6 @@ final class CallControllerTest extends DatabaseWebTestCase
         // только фактической датой (change call-scheduled-date-optional).
         $this->submitFormByButton('Создать', [
             'organization' => (string) $organization->id,
-            'scheduled_at' => '',
             'contact' => (string) $contact->id,
             'made_at' => '24.08.2026 15:30',
         ]);
@@ -93,7 +93,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         $this->open('/organizations/' . $organization->id . '/calls/new');
         $this->submitFormByButton('Создать', [
             'organization' => (string) $organization->id,
-            'scheduled_at' => '',
+            'made_at' => '',
         ]);
 
         $this->assertResponseRedirects();
@@ -105,6 +105,140 @@ final class CallControllerTest extends DatabaseWebTestCase
         self::assertNull($call->madeAt);
     }
 
+    public function testCallFormLayoutContactUnderOrganizationAndDealUnderNotes(): void
+    {
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+        $crawler = $this->open('/calls/new');
+
+        $formHtml = $crawler->filter('[data-call-form]')->html();
+        $orgPos = strpos($formHtml, 'id="organization"');
+        $contactPos = strpos($formHtml, 'id="contact"');
+        $notesPos = strpos($formHtml, 'id="notes"');
+        $futurePos = strpos($formHtml, 'id="is-future-call"');
+        $dealPos = strpos($formHtml, 'id="is-deal"');
+        $noAnswerPos = strpos($formHtml, 'id="is-no-answer"');
+
+        self::assertNotFalse($orgPos);
+        self::assertNotFalse($contactPos);
+        self::assertNotFalse($notesPos);
+        self::assertNotFalse($futurePos);
+        self::assertTrue($orgPos < $contactPos, 'Контакт должен быть под организацией');
+        self::assertTrue($contactPos < $notesPos, 'Заметка должна быть под контактом');
+        self::assertTrue($notesPos < $futurePos, 'Чекбокс «Будущий звонок» должен быть под заметкой');
+        self::assertTrue($futurePos < $dealPos, 'Сделка должна быть внизу формы');
+        self::assertTrue($dealPos < $noAnswerPos, 'Нет ответа должно быть под сделкой');
+
+        self::assertNotNull($crawler->filter('[data-call-scheduled-field]')->attr('hidden'));
+        self::assertNull($crawler->filter('[data-call-normal-fields]')->first()->attr('hidden'));
+    }
+
+    public function testFutureCallModeSavesScheduledWithoutFact(): void
+    {
+        [$organization, $contact] = $this->makeOrganizationWithContact('ООО Ромашка');
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $scheduledAt = new \DateTimeImmutable('+3 days');
+        $this->open('/organizations/' . $organization->id . '/calls/new');
+        $this->submitFormByButton('Создать', [
+            'organization' => (string) $organization->id,
+            'contact' => (string) $contact->id,
+            'is_future_call' => '1',
+            'scheduled_at' => $scheduledAt->format('d.m.Y'),
+            'notes' => 'План на будущее',
+            'made_at' => '24.08.2026 15:30',
+            'is_deal' => '1',
+        ]);
+
+        $this->assertResponseRedirects();
+        $this->em()->clear();
+        $call = $this->findCall('План на будущее');
+        self::assertNotNull($call);
+        self::assertSame($scheduledAt->format('Y-m-d'), $call->scheduledAt->format('Y-m-d'));
+        self::assertNull($call->madeAt);
+        self::assertFalse($call->isDeal);
+    }
+
+    public function testFutureCallWithEmptyScheduleIgnoresFactAndResultActions(): void
+    {
+        [$organization, $contact] = $this->makeOrganizationWithContact('ООО Ромашка');
+        $campaign = $this->persistReadyCampaign('Осенняя рассылка');
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $this->open('/organizations/' . $organization->id . '/calls/new');
+        $this->submitFormByButton('Создать', [
+            'organization' => (string) $organization->id,
+            'contact' => (string) $contact->id,
+            'is_future_call' => '1',
+            'scheduled_at' => '',
+            'notes' => 'Только план без даты',
+            'made_at' => '24.08.2026 15:30',
+            'is_deal' => '1',
+            'is_no_answer' => '1',
+            'mailing_campaign' => (string) $campaign->id,
+        ]);
+
+        $this->assertResponseRedirects();
+        $this->em()->clear();
+
+        $call = $this->findCall('Только план без даты');
+        self::assertNotNull($call);
+        self::assertSame($organization->id, $call->organization->id);
+        self::assertSame($contact->id, $call->contact->id);
+        self::assertSame('Только план без даты', $call->notes);
+        self::assertNull($call->scheduledAt);
+        self::assertNull($call->madeAt);
+        self::assertNull($call->madeBy);
+        self::assertFalse($call->isDeal);
+        self::assertFalse($call->isNoAnswer);
+        self::assertNull($call->campaign);
+        self::assertNull($call->nextCall);
+        self::assertSame(0, $this->em()->getRepository(CampaignRecipient::class)->count([
+            'campaign' => $campaign->id,
+        ]));
+    }
+
+    public function testNewFormPrefillsMadeAtWithCurrentDateTime(): void
+    {
+        $before = new \DateTimeImmutable('-1 minute');
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+        $crawler = $this->open('/calls/new');
+        $after = new \DateTimeImmutable('+1 minute');
+
+        $value = $crawler->filter('#made_at')->attr('value');
+        self::assertNotEmpty($value);
+        $parsed = \DateTimeImmutable::createFromFormat('d.m.Y H:i', $value);
+        self::assertInstanceOf(\DateTimeImmutable::class, $parsed);
+        self::assertGreaterThanOrEqual($before->getTimestamp(), $parsed->getTimestamp());
+        self::assertLessThanOrEqual($after->getTimestamp(), $parsed->getTimestamp());
+    }
+
+    public function testCompletedCallLocksFutureCallControls(): void
+    {
+        $call = $this->makeCallWithOrganization(notes: 'Уже проведён');
+        $call->setMadeAt(new \DateTimeImmutable('2026-08-20 10:00'));
+        $this->em()->flush();
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $crawler = $this->open('/calls/' . $call->id . '/edit');
+        self::assertNotNull($crawler->filter('#is-future-call')->attr('disabled'));
+        self::assertNotNull($crawler->filter('[data-call-scheduled-field]')->attr('hidden'));
+
+        // Попытка форсировать режим будущего не сбрасывает факт.
+        $this->submitFormByButton('Сохранить', [
+            'is_future_call' => '1',
+            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('d.m.Y'),
+            'made_at' => '20.08.2026 10:00',
+            'notes' => 'Уже проведён',
+        ]);
+
+        $this->assertResponseRedirects();
+        $this->em()->clear();
+        $updated = $this->findCallById($call->id);
+        self::assertNotNull($updated->madeAt);
+        self::assertSame('2026-08-20 10:00', $updated->madeAt->format('Y-m-d H:i'));
+        self::assertFalse($updated->isDeal);
+    }
+
     public function testCreateValidationErrorRestoresEnteredValues(): void
     {
         $organization = $this->makeOrganization('ООО Ромашка');
@@ -113,8 +247,8 @@ final class CallControllerTest extends DatabaseWebTestCase
         $this->open('/organizations/' . $organization->id . '/calls/new');
         $this->submitFormByButton('Создать', [
             'organization' => (string) $organization->id,
+            'is_future_call' => '1',
             'scheduled_at' => '20.08.2020 10:00',
-            'made_at' => '24.08.2026 15:30',
             'notes' => 'Черновик звонка',
         ]);
 
@@ -124,8 +258,8 @@ final class CallControllerTest extends DatabaseWebTestCase
         $crawler = $this->client->getCrawler();
         // Запланированная дата восстанавливается в формате поля (без времени)
         self::assertSame('20.08.2020', $crawler->filter('#scheduled_at')->attr('value'));
-        self::assertSame('24.08.2026 15:30', $crawler->filter('#made_at')->attr('value'));
         self::assertSame('Черновик звонка', trim((string) $crawler->filter('#notes')->text()));
+        self::assertGreaterThan(0, $crawler->filter('#is-future-call:checked')->count());
 
         $this->em()->clear();
         self::assertNull($this->findOrganizationCall($organization));
@@ -136,11 +270,9 @@ final class CallControllerTest extends DatabaseWebTestCase
         $organization = $this->makeOrganization('ООО Ромашка');
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
 
-        $scheduledAt = new \DateTimeImmutable('+5 days')->format('d.m.Y');
         $this->open('/organizations/' . $organization->id . '/calls/new');
         $this->submitFormByButton('Создать', [
             'organization' => (string) $organization->id,
-            'scheduled_at' => $scheduledAt,
             'made_at' => '01.01.2027 10:00',
             'notes' => 'Черновик встречи',
         ]);
@@ -148,9 +280,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         $this->assertResponseStatusCodeSame(422);
         $this->assertSelectorTextContains('.field__error', 'Фактическая дата звонка не может быть в будущем');
 
-        // Ошибка фактической даты не теряет значения остальных полей
         $crawler = $this->client->getCrawler();
-        self::assertSame($scheduledAt, $crawler->filter('#scheduled_at')->attr('value'));
         self::assertSame('01.01.2027 10:00', $crawler->filter('#made_at')->attr('value'));
         self::assertSame('Черновик встречи', trim((string) $crawler->filter('#notes')->text()));
 
@@ -165,6 +295,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         $this->open('/calls/new');
         $this->submitFormByButton('Создать', [
             'organization' => '',
+            'is_future_call' => '1',
             'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
         ]);
 
@@ -180,6 +311,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         $this->open('/calls/new');
         $this->submitFormByButton('Создать', [
             'organization' => (string) $romashka->id,
+            'is_future_call' => '1',
             'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
         ]);
 
@@ -197,6 +329,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         // Токен берём со своей формы создания — он не даёт доступа к чужой организации.
         $this->submitCallAjax('/calls/new', '/calls/new', [
             'organization' => (string) $zavod->id,
+            'is_future_call' => '1',
             'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
         ], ajax: false);
 
@@ -215,6 +348,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         self::assertSelectorTextContains('h1', 'Редактирование звонка');
 
         $this->submitFormByButton('Сохранить', [
+            'is_future_call' => '1',
             'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
             'notes' => 'Новая заметка',
         ]);
@@ -233,6 +367,7 @@ final class CallControllerTest extends DatabaseWebTestCase
 
         $this->open('/calls/' . $call->id . '/edit');
         $this->submitFormByButton('Сохранить', [
+            'is_future_call' => '1',
             'scheduled_at' => '',
             'notes' => 'Заметка',
         ]);
@@ -266,6 +401,7 @@ final class CallControllerTest extends DatabaseWebTestCase
 
         $attemptedAt = new \DateTimeImmutable('+5 days')->setTime(9, 0);
         $this->submitCallAjax('/calls/' . $foreignCall->id . '/edit', '/calls/new', [
+            'is_future_call' => '1',
             'scheduled_at' => $attemptedAt->format('Y-m-d\TH:i'),
         ], ajax: false);
 
@@ -291,7 +427,6 @@ final class CallControllerTest extends DatabaseWebTestCase
 
         $this->open('/calls/' . $call->id . '/edit');
         $this->submitFormByButton('Сохранить', [
-            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
             'made_at' => '2026-08-24T12:30',
             'notes' => 'Договорились о встрече',
         ]);
@@ -305,25 +440,25 @@ final class CallControllerTest extends DatabaseWebTestCase
         self::assertSame('manager@b2b-crm.loc', $recorded->madeBy->email);
     }
 
-    public function testUncheckingMadeClearsFact(): void
+    public function testClearingExistingMadeAtIsRejected(): void
     {
         $call = $this->makeCallWithOrganization(notes: 'Факт был');
         $call->setMadeAt(new \DateTimeImmutable('2026-08-20 10:00'));
         $this->em()->flush();
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
 
-        // Снятие галочки «звонок проведён»: браузер не отправляет поле made.
         $this->open('/calls/' . $call->id . '/edit');
-        $token = $this->client->getCrawler()->filter('input[name="_csrf_token"]')->attr('value');
-        $this->client->request('POST', '/calls/' . $call->id . '/edit', [
-            '_csrf_token' => $token,
-            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
+        $this->submitFormByButton('Сохранить', [
+            'made_at' => '',
+            'notes' => 'Факт был',
         ]);
 
-        $this->assertResponseRedirects();
+        $this->assertResponseStatusCodeSame(422);
+        $this->assertSelectorTextContains('.field__error', 'Фактическую дату звонка нельзя удалить, только изменить');
 
         $this->em()->clear();
-        self::assertNull($this->findCallById($call->id)->madeAt);
+        $kept = $this->findCallById($call->id);
+        self::assertSame('2026-08-20 10:00', $kept->madeAt->format('Y-m-d H:i'));
     }
 
     public function testDealFlagPersists(): void
@@ -333,7 +468,6 @@ final class CallControllerTest extends DatabaseWebTestCase
 
         $this->open('/calls/' . $call->id . '/edit');
         $this->submitFormByButton('Сохранить', [
-            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
             'made_at' => '24.08.2026 15:30',
             'is_deal' => '1',
         ]);
@@ -353,7 +487,6 @@ final class CallControllerTest extends DatabaseWebTestCase
 
         $this->open('/calls/' . $call->id . '/edit');
         $this->submitFormByButton('Сохранить', [
-            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
             'made_at' => '24.08.2026 15:30',
             'next_call_date' => '2026-10-01',
         ]);
@@ -379,7 +512,6 @@ final class CallControllerTest extends DatabaseWebTestCase
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
 
         $this->submitCallAjax('/calls/' . $call->id . '/edit', '/calls/' . $call->id . '/edit', [
-            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
             'made_at' => '24.08.2026 15:30',
             'next_call_date' => '2026-10-01',
             'notes' => 'Исходный',
@@ -409,6 +541,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
 
         $this->submitCallAjax('/calls/' . $call->id . '/edit', '/calls/' . $call->id . '/edit', [
+            'is_future_call' => '1',
             'scheduled_at' => new \DateTimeImmutable('+5 days')->setTime(14, 0)->format('Y-m-d\TH:i'),
             'contact' => (string) $contact->id,
             'notes' => 'После изменения',
@@ -432,6 +565,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
 
         $this->submitCallAjax('/calls/' . $call->id . '/edit', '/calls/' . $call->id . '/edit', [
+            'is_future_call' => '1',
             'scheduled_at' => '20.08.2020 10:00',
         ]);
 
@@ -526,7 +660,6 @@ final class CallControllerTest extends DatabaseWebTestCase
 
         $this->open('/calls/' . $call->id . '/edit');
         $this->submitFormByButton('Сохранить', [
-            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
             'made_at' => '24.08.2026 15:30',
             'mailing_campaign' => (string) $campaign->id,
             'mailing_contact' => (string) $contact->id,
@@ -558,7 +691,6 @@ final class CallControllerTest extends DatabaseWebTestCase
 
         $this->open('/calls/' . $call->id . '/edit');
         $this->submitFormByButton('Сохранить', [
-            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
             'made_at' => '24.08.2026 15:30',
             'notes' => 'Обновили заметку',
         ]);
@@ -585,7 +717,6 @@ final class CallControllerTest extends DatabaseWebTestCase
 
         $this->open('/calls/' . $call->id . '/edit');
         $this->submitFormByButton('Сохранить', [
-            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
             'made_at' => '24.08.2026 15:30',
             'mailing_campaign' => (string) $campaign->id,
             'mailing_contact' => (string) $contact->id,
@@ -612,7 +743,6 @@ final class CallControllerTest extends DatabaseWebTestCase
 
         $this->open('/calls/' . $call->id . '/edit');
         $this->submitFormByButton('Сохранить', [
-            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
             'made_at' => '24.08.2026 15:30',
             'mailing_campaign' => (string) $campaign->id,
             'mailing_contact' => (string) $contact->id,
@@ -649,12 +779,12 @@ final class CallControllerTest extends DatabaseWebTestCase
 
         $this->open('/calls/' . $call->id . '/edit');
         $this->submitFormByButton('Сохранить', [
-            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
+            'made_at' => '',
             'mailing_campaign' => (string) $campaign->id,
         ]);
 
         $this->assertResponseStatusCodeSame(422);
-        $this->assertSelectorTextContains('.field__error', 'Для действий результата звонка нужны фактическая дата и автор');
+        $this->assertSelectorTextContains('.field__error', 'Для действий результата звонка нужна фактическая дата');
 
         $this->em()->clear();
         self::assertSame(0, $this->em()->getRepository(CampaignRecipient::class)->count([
@@ -671,7 +801,7 @@ final class CallControllerTest extends DatabaseWebTestCase
 
         $this->open('/calls/' . $call->id . '/edit');
         $this->submitFormByButton('Сохранить', [
-            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
+            'made_at' => '',
             'is_deal' => '1',
             'is_no_answer' => '1',
         ]);
@@ -693,7 +823,6 @@ final class CallControllerTest extends DatabaseWebTestCase
 
         $this->open('/calls/' . $call->id . '/edit');
         $this->submitFormByButton('Сохранить', [
-            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
             'made_at' => '24.08.2026 15:30',
             'mailing_campaign' => (string) $campaign->id,
             'next_call_date' => '01.01.2020',
@@ -722,7 +851,6 @@ final class CallControllerTest extends DatabaseWebTestCase
         self::assertCount(0, $crawler->filter('input[name="next_call_date"]'), 'Поле даты следующего звонка скрыто, если nextCall уже задан');
 
         $this->submitFormByButton('Сохранить', [
-            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
             'made_at' => '24.08.2026 15:30',
         ]);
 

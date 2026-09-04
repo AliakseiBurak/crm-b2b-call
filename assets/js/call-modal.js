@@ -1,10 +1,48 @@
 // Модальное окно быстрого редактирования звонка (change calls-crud, call-result).
+// Режим «Будущий звонок»: scheduled_at виден, остальные поля (кроме заметки) скрыты.
+
+const bindFutureCallToggle = (root) => {
+    const toggle = root.querySelector('[data-call-future-toggle]');
+    if (!toggle) {
+        return null;
+    }
+
+    const sync = () => {
+        const locked = toggle.disabled;
+        const isFuture = !locked && toggle.checked;
+        root.querySelectorAll('[data-call-scheduled-field]').forEach((el) => {
+            el.hidden = !isFuture;
+            el.querySelectorAll('input, select, textarea').forEach((input) => {
+                input.disabled = !isFuture;
+            });
+        });
+        root.querySelectorAll('[data-call-normal-fields]').forEach((el) => {
+            el.hidden = isFuture;
+        });
+        const lockedHint = root.querySelector('[data-call-future-locked-hint]');
+        if (lockedHint) {
+            lockedHint.hidden = !locked;
+        }
+    };
+
+    toggle.addEventListener('change', sync);
+    sync();
+    return { toggle, sync };
+};
+
+const pad = (n) => String(n).padStart(2, '0');
+
+const formatNow = () => {
+    const now = new Date();
+    return `${pad(now.getDate())}.${pad(now.getMonth() + 1)}.${now.getFullYear()} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+};
 
 const modalRoot = document.querySelector('[data-call-edit-modal]');
 const modal = modalRoot?.querySelector('.modal');
 
 if (modal && modalRoot) {
     const form = modal.querySelector('[data-call-edit-form]');
+    const futureMode = bindFutureCallToggle(form);
     const fields = {
         scheduled_at: modal.querySelector('[data-call-field="scheduled_at"]'),
         contact: modal.querySelector('[data-call-field="contact"]'),
@@ -16,6 +54,7 @@ if (modal && modalRoot) {
         mailing_contact: modal.querySelector('[data-call-field="mailing_contact"]'),
         next_call_date: modal.querySelector('[data-call-field="next_call_date"]'),
         notes: modal.querySelector('[data-call-field="notes"]'),
+        is_future_call: modal.querySelector('[data-call-field="is_future_call"]'),
     };
     const deleteLink = modal.querySelector('[data-call-delete-link]');
     let activeRow = null;
@@ -105,8 +144,24 @@ if (modal && modalRoot) {
         }
         clearErrors();
 
-        fields.scheduled_at.value = row.dataset.callScheduledAt ?? '';
-        fields.made_at.value = row.dataset.callMadeAt ?? '';
+        const scheduledAt = row.dataset.callScheduledAt ?? '';
+        const madeAt = row.dataset.callMadeAt ?? '';
+        // Режим плана: есть дата плана, нет факта, дата не в прошлом (как на полной форме).
+        const scheduledParts = scheduledAt.match(/^(\d{2})\.(\d{2})\.(\d{4})/);
+        let isFuture = false;
+        if (scheduledAt && !madeAt && scheduledParts) {
+            const scheduledDay = new Date(
+                Number(scheduledParts[3]),
+                Number(scheduledParts[2]) - 1,
+                Number(scheduledParts[1]),
+            );
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            isFuture = scheduledDay >= today;
+        }
+
+        fields.scheduled_at.value = scheduledAt;
+        fields.made_at.value = madeAt || formatNow();
         if (fields.made_by) {
             fields.made_by.value = row.dataset.callMadeBy ?? '';
         }
@@ -119,12 +174,18 @@ if (modal && modalRoot) {
         }
         fields.notes.value = row.dataset.callNotes ?? '';
 
+        if (fields.is_future_call) {
+            const locked = Boolean(madeAt);
+            fields.is_future_call.disabled = locked;
+            fields.is_future_call.checked = locked ? false : isFuture;
+        }
+        futureMode?.sync();
         toggleNextCallField(row);
 
         await loadContacts(row.dataset.callOrgId, row.dataset.callContactId, row.dataset.callContactId);
 
         modal.hidden = false;
-        (fields.scheduled_at ?? form).focus();
+        (isFuture ? fields.scheduled_at : fields.made_at ?? form).focus();
     };
 
     const close = () => {
@@ -202,6 +263,8 @@ if (modal && modalRoot) {
 const callForm = document.querySelector('[data-call-form]');
 
 if (callForm) {
+    bindFutureCallToggle(callForm);
+
     const organizationSelect = callForm.querySelector('[data-call-organization]');
     const contactSelect = callForm.querySelector('[data-call-contact-select]');
 

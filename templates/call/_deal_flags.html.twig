@@ -1,0 +1,23 @@
+{#
+    Липкие отметки результата — внизу формы (change call-result, макет формы).
+    Ожидает: call (?Call), isModal (bool, default false).
+#}
+{% set prefix = isModal|default(false) ? 'modal-call-' : '' %}
+
+<div class="field" data-call-deal-flags>
+    <label class="field__consent" for="{{ prefix }}is-deal">
+        <input type="checkbox" id="{{ prefix }}is-deal" name="is_deal" value="1"
+               {% if call and call.isDeal %}checked{% endif %}
+               {% if isModal|default(false) %}data-call-field="is_deal"{% endif %}>
+        Сделка совершена
+    </label>
+</div>
+
+<div class="field" data-call-deal-flags>
+    <label class="field__consent" for="{{ prefix }}is-no-answer">
+        <input type="checkbox" id="{{ prefix }}is-no-answer" name="is_no_answer" value="1"
+               {% if call and call.isNoAnswer %}checked{% endif %}
+               {% if isModal|default(false) %}data-call-field="is_no_answer"{% endif %}>
+        Нет ответа
+    </label>
+</div>

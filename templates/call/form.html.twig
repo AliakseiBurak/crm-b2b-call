@@ -1,22 +1,21 @@
 {#
     Форма звонка: создание (call is null) и редактирование (change calls-crud).
-    Поля — разметка .field дизайн-системы (подчёркивание), ошибки валидации —
-    под полем на русском. Организация выбирается только при создании
-    (выпадающий список доступных организаций); в режиме редактирования она
-    не меняется. Контакты подгружаются динамически при выборе организации.
-    Результат звонка (spec calls/crud): факт (кто/когда), сделка,
-    следующий звонок — независимые поля.
+    Макет (change call-result): организация → контакт → заметка → «Будущий звонок» →
+    запланированная дата (режим плана) или факт/результат → сделка/нет ответа.
     Ожидает: call (?Call), organizations (Organization[]),
     selectedOrganizationId (?int), contacts (Contact[]), errors (array<string, string>).
 #}
 {% extends 'base.html.twig' %}
 
 {% set isEdit = call and call.id %}
-{# Значения восстанавливаются из $call и после ошибки валидации создания
-   (change call-scheduled-date-optional): контроллер передаёт entity,
-   наполненную из запроса. #}
 {% set currentContactId = call and call.contact ? call.contact.id : null %}
 {% set scheduledAtValue = call and call.scheduledAt ? call.scheduledAt|date('d.m.Y') : '' %}
+{% set hasMadeAt = call and call.madeAt %}
+{% set isFutureCall = not hasMadeAt and (
+    (app.request.request.get('is_future_call') is not null)
+    or (errors.scheduledAt|default(null) and scheduledAtValue != '')
+    or (call and call.scheduledAt and call.scheduledAt >= date('today'))
+) %}
 
 {% block title %}{{ isEdit ? 'Редактирование звонка' : 'Новый звонок' }}{% endblock %}
 
@@ -37,7 +36,6 @@
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token('call') }}">
 
                 {% if isEdit %}
-                    {# Организация фиксируется при создании и не меняется #}
                     <div class="field">
                         <label class="field__label" for="organization">Организация</label>
                         <select class="field__input" id="organization" name="organization" disabled>
@@ -59,15 +57,6 @@
                     </div>
                 {% endif %}
 
-                <div class="field{% if errors.scheduledAt|default(null) %} field--error{% endif %}">
-                    <label class="field__label" for="scheduled_at">Запланированная дата звонка</label>
-                    <input class="field__input" type="text" id="scheduled_at" name="scheduled_at"
-                           value="{{ scheduledAtValue }}"
-                           data-date-picker="date">
-                    <span class="field__hint">Формат: дд.мм.гггг. Можно оставить пустым</span>
-                    {% if errors.scheduledAt|default(null) %}<span class="field__error" role="alert">{{ errors.scheduledAt }}</span>{% endif %}
-                </div>
-
                 <div class="field{% if errors.contact|default(null) %} field--error{% endif %}">
                     <label class="field__label" for="contact">Контакт</label>
                     <select class="field__input" id="contact" name="contact" data-call-contact-select>
@@ -81,42 +70,71 @@
                     {% if errors.contact|default(null) %}<span class="field__error" role="alert">{{ errors.contact }}</span>{% endif %}
                 </div>
 
-                {# Факт звонка: кто и когда (spec «Менеджер фиксирует факт звонка») #}
-                {# Признак «проведён» выводится из наличия фактической даты (madeAt). #}
-                <div class="field{% if errors.madeAt|default(null) %} field--error{% endif %}">
-                    <label class="field__label" for="made_at">Фактическая дата звонка</label>
-                    <input class="field__input" type="text" id="made_at" name="made_at"
-                           value="{{ call and call.madeAt ? call.madeAt|date('d.m.Y H:i') : '' }}"
-                           data-date-picker="datetime">
-                    <span class="field__hint">Формат: дд.мм.гггг чч:мм</span>
-                    {% if errors.madeAt|default(null) %}<span class="field__error" role="alert">{{ errors.madeAt }}</span>{% endif %}
-                </div>
-
-                {# Выбор автора звонка — только для администратора (calls-crud) #}
-                {% if isAdmin %}
-                    <div class="field">
-                        <label class="field__label" for="made_by">Кто совершил звонок</label>
-                        <select class="field__input" id="made_by" name="made_by">
-                            <option value="">— я (текущий пользователь) —</option>
-                            {% for u in users %}
-                                <option value="{{ u.id }}"{% if call is not null and call.madeBy and call.madeBy.id == u.id %} selected{% endif %}>{{ u.email }}</option>                            {% endfor %}
-                        </select>
-                    </div>
-                {% endif %}
-
-                {# Результат — комбинация независимых действий (change call-result) #}
-                {{ include('call/_result_fields.html.twig', {
-                    call: call,
-                    mailingCampaigns: mailingCampaigns,
-                    contacts: contacts,
-                    resultInput: resultInput,
-                    defaultMailingContactId: defaultMailingContactId,
-                    errors: errors,
-                }) }}
-
                 <div class="field">
                     <label class="field__label" for="notes">Заметка</label>
                     <textarea class="field__input" id="notes" name="notes" rows="3">{{ call and call.notes ? call.notes : '' }}</textarea>
+                </div>
+
+                <div class="field">
+                    <label class="field__consent" for="is-future-call">
+                        <input type="checkbox" id="is-future-call" name="is_future_call" value="1"
+                               data-call-future-toggle
+                               {% if isFutureCall %}checked{% endif %}
+                               {% if hasMadeAt %}disabled{% endif %}>
+                        Будущий звонок
+                    </label>
+                    {% if hasMadeAt %}
+                        <span class="field__hint">Недоступно: у звонка уже есть фактическая дата</span>
+                    {% endif %}
+                </div>
+
+                <div class="field{% if errors.scheduledAt|default(null) %} field--error{% endif %}"
+                     data-call-scheduled-field{% if not isFutureCall %} hidden{% endif %}>
+                    <label class="field__label" for="scheduled_at">Запланированная дата звонка</label>
+                    <input class="field__input" type="text" id="scheduled_at" name="scheduled_at"
+                           value="{{ scheduledAtValue }}"
+                           data-date-picker="date"
+                           {% if hasMadeAt %}disabled{% endif %}>
+                    <span class="field__hint">Формат: дд.мм.гггг. Можно оставить пустым</span>
+                    {% if errors.scheduledAt|default(null) %}<span class="field__error" role="alert">{{ errors.scheduledAt }}</span>{% endif %}
+                </div>
+
+                <div data-call-normal-fields{% if isFutureCall %} hidden{% endif %}>
+                    <div class="field{% if errors.madeAt|default(null) %} field--error{% endif %}">
+                        <label class="field__label" for="made_at">Фактическая дата звонка</label>
+                        <input class="field__input" type="text" id="made_at" name="made_at"
+                               value="{{ call and call.madeAt
+                                   ? call.madeAt|date('d.m.Y H:i')
+                                   : (defaultMadeAt|default(null) ? defaultMadeAt|date('d.m.Y H:i') : '') }}"
+                               data-date-picker="datetime">
+                        <span class="field__hint">Формат: дд.мм.гггг чч:мм</span>
+                        {% if errors.madeAt|default(null) %}<span class="field__error" role="alert">{{ errors.madeAt }}</span>{% endif %}
+                    </div>
+
+                    {% if isAdmin %}
+                        <div class="field">
+                            <label class="field__label" for="made_by">Кто совершил звонок</label>
+                            <select class="field__input" id="made_by" name="made_by">
+                                <option value="">— я (текущий пользователь) —</option>
+                                {% for u in users %}
+                                    <option value="{{ u.id }}"{% if call is not null and call.madeBy and call.madeBy.id == u.id %} selected{% endif %}>{{ u.email }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    {% endif %}
+
+                    {{ include('call/_result_fields.html.twig', {
+                        call: call,
+                        mailingCampaigns: mailingCampaigns,
+                        contacts: contacts,
+                        resultInput: resultInput,
+                        defaultMailingContactId: defaultMailingContactId,
+                        errors: errors,
+                    }) }}
+                </div>
+
+                <div data-call-normal-fields{% if isFutureCall %} hidden{% endif %}>
+                    {{ include('call/_deal_flags.html.twig', { call: call }) }}
                 </div>
 
                 <div class="organization-form__actions">

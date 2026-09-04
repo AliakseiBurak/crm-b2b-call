@@ -1,5 +1,6 @@
 {#
-    Командные и липкие поля результата звонка (change call-result).
+    Командные поля результата звонка (change call-result).
+    «Сделка» / «Нет ответа» вынесены в _deal_flags.html.twig (внизу формы).
     Ожидает: call (?Call), mailingCampaigns (Campaign[]), contacts (Contact[]),
     resultInput, defaultMailingContactId (?int), errors, isModal (bool, default false).
 #}
@@ -9,24 +10,6 @@
     mailingContactId: defaultMailingContactId|default(null),
     nextCallDate: '',
 }) %}
-
-<div class="field">
-    <label class="field__consent" for="{{ prefix }}is-deal">
-        <input type="checkbox" id="{{ prefix }}is-deal" name="is_deal" value="1"
-               {% if call and call.isDeal %}checked{% endif %}
-               {% if isModal|default(false) %}data-call-field="is_deal"{% endif %}>
-        Сделка совершена
-    </label>
-</div>
-
-<div class="field">
-    <label class="field__consent" for="{{ prefix }}is-no-answer">
-        <input type="checkbox" id="{{ prefix }}is-no-answer" name="is_no_answer" value="1"
-               {% if call and call.isNoAnswer %}checked{% endif %}
-               {% if isModal|default(false) %}data-call-field="is_no_answer"{% endif %}>
-        Нет ответа
-    </label>
-</div>
 
 {% if call and call.campaign %}
     <div class="field">
@@ -43,7 +26,7 @@
     <label class="field__label" for="{{ prefix }}mailing-campaign">Рассылка</label>
     <select class="field__input" id="{{ prefix }}mailing-campaign" name="mailing_campaign"
             {% if isModal|default(false) %}data-call-field="mailing_campaign"{% endif %}>
-        <option value="">— не выбирать —</option>
+        <option value="">— рассылка не выбрана —</option>
         {% for campaign in mailingCampaigns %}
             <option value="{{ campaign.id }}"{% if resultInput.mailingCampaignId == campaign.id %} selected{% endif %}>
                 {{ campaign.name }} ({{ campaign.status.label }})
