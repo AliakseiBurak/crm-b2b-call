@@ -621,8 +621,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         [$organization, $contact] = $this->makeOrganizationWithContact('ООО Ромашка');
         $second = new Contact()
             ->setOrganization($organization)
-            ->setName('Анна Смирнова')
-            ->setContactType(\App\Entity\Enum\ContactType::Person);
+            ->setName('Анна Смирнова');
         $this->em()->persist($second);
         $this->em()->flush();
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
@@ -914,8 +913,7 @@ final class CallControllerTest extends DatabaseWebTestCase
         $organization = $this->makeOrganization($name);
         $contact = new Contact()
             ->setOrganization($organization)
-            ->setName('Иван Петров')
-            ->setContactType(\App\Entity\Enum\ContactType::Person);
+            ->setName('Иван Петров');
         $this->em()->persist($contact);
         $this->em()->flush();
 

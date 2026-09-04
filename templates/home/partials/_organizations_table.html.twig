@@ -116,7 +116,7 @@
                                             <div class="org-contacts">
                                                 <div class="org-contacts__grid">
                                                     {% for contact in contacts %}
-                                                        {% include 'contact/_card.html.twig' %}
+                                                        {% include 'contact/_card.html.twig' with { hasBounced: bouncedContactIds[contact.id]|default(false) } %}
                                                     {% endfor %}
                                                 </div>
                                             </div>

@@ -1,0 +1,70 @@
+{#
+    Подтверждение сброса bounced получателя: предупреждает об отклонении
+    почтовым сервером, рекомендует сменить e-mail перед сбросом.
+    Ожидает: campaign (Campaign), recipient (CampaignRecipient),
+    fromContactForm (bool — вызов с формы контакта),
+    fromOrganizationForm (bool — вызов с формы организации).
+#}
+{% extends 'base.html.twig' %}
+
+{% block title %}Сброс отказа — {{ campaign.name }}{% endblock %}
+
+{% block body %}
+    <section class="section section--white">
+        <div class="container">
+            <h1>Письмо отклонено почтовым сервером</h1>
+
+            <div class="alert alert--warning">
+                <p>Адрес электронной почты этого контакта недействителен или почтовый сервер получателя отклонил письмо. Чтобы исправить ситуацию:</p>
+                <ol>
+                    <li>Остановите рассылку.</li>
+                    <li>Измените e-mail контакта на действительный.</li>
+                    <li>Сбросьте статус отказа.</li>
+                </ol>
+                <p><strong>Без изменения адреса повторная отправка приведёт к тому же результату.</strong></p>
+            </div>
+
+            <div class="campaign-card">
+                <div class="campaign-card__row">
+                    <dt>Рассылка</dt>
+                    <dd>{{ campaign.name }}</dd>
+                </div>
+
+                <div class="campaign-card__row">
+                    <dt>Адресат</dt>
+                    <dd>
+                        {{ recipient.organization.name }}
+                        {% if recipient.contact %}
+                            → {{ recipient.contact.name }}{% if recipient.contact.email %} ({{ recipient.contact.email }}){% endif %}
+                        {% endif %}
+                    </dd>
+                </div>
+
+                <div class="campaign-card__row">
+                    <dt>Ошибка</dt>
+                    <dd>{{ recipient.errorMessage|default('—') }}</dd>
+                </div>
+
+                <div class="campaign-card__actions">
+                    <form method="post" action="{{ path('app_campaign_recipient_reset', { id: campaign.id, recipientId: recipient.id }) }}">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('campaign_recipient') }}">
+                        {{ include('components/button.html.twig', {
+                            variant: 'primary',
+                            text: 'Сбросить',
+                        }) }}
+                    </form>
+                    {{ include('components/button.html.twig', {
+                        variant: 'secondary',
+                        text: 'Отмена',
+                        href: fromContactForm
+                            ? path('app_contact_edit', { id: recipient.contact.id })
+                            : (fromOrganizationForm
+                                ? path('app_organization_edit', { id: recipient.organization.id })
+                                : path('app_campaign_recipients', { id: campaign.id })),
+                        type: 'button',
+                    }) }}
+                </div>
+            </div>
+        </div>
+    </section>
+{% endblock %}

@@ -79,3 +79,31 @@ The system SHALL NOT create a `CampaignRecipient` when the organization has no d
 - **AND** сохраняет звонок
 - **THEN** адресат в рассылке не создаётся
 - **AND** система сообщает об отсутствии e-mail у организации
+
+## MODIFIED Requirements
+
+### Requirement: Формирование адресатов (колонка «Повторно» и кнопка сброса ✕)
+The column header for `replacementCount` SHALL be labeled «Повторно*» with a footnote below the table: «* В случае повторного добавления организации/контакта в запущенную рассылку велика вероятность, что эл. письмо будет отправлено повторно.» The reset action for `failed` and `bounced` recipients SHALL be rendered as an ✕ emoji button inside the status cell, to the right of the status label, not in a separate actions column.
+
+#### Scenario: Страница адресатов — колонка Повторно и кнопка ✕
+- **WHEN** менеджер открывает страницу адресатов рассылки
+- **THEN** он видит таблицу с колонками: Организация, Контакт, Статус, Повторно*, Действия
+- **AND** в ячейке «Статус» отображается бейдж статуса и кнопка ✕ справа для `failed` и `bounced`
+- **AND** кнопка ✕ для `failed` выполняет `POST …/reset` с confirm-диалогом
+- **AND** кнопка ✕ для `bounced` ведёт на страницу подтверждения `GET …/reset`
+- **AND** под таблицей отображается сноска: «* В случае повторного добавления организации/контакта в запущенную рассылку велика вероятность, что эл. письмо будет отправлено повторно.»
+
+### Requirement: Таблица ошибок на форме контакта и организации (кнопка ✕)
+The error tables on the contact edit form and organization edit form SHALL use the same ✕ emoji button pattern for reset actions as the recipients page: ✕ inside the status cell, to the right of the status label, without a separate actions column.
+
+#### Scenario: Кнопка ✕ в таблице ошибок контакта
+- **WHEN** менеджер открывает форму редактирования контакта с ошибками доставки
+- **THEN** в ячейке «Статус» отображается бейдж и кнопка ✕ справа
+- **AND** кнопка ✕ для `failed` выполняет `POST …/reset` с confirm-диалогом
+- **AND** кнопка ✕ для `bounced` ведёт на страницу подтверждения `GET …/reset`
+
+#### Scenario: Кнопка ✕ в таблице ошибок организации
+- **WHEN** менеджер открывает форму редактирования организации с ошибками доставки
+- **THEN** в ячейке «Статус» отображается бейдж и кнопка ✕ справа
+- **AND** кнопка ✕ для `failed` выполняет `POST …/reset` с confirm-диалогом
+- **AND** кнопка ✕ для `bounced` ведёт на страницу подтверждения `GET …/reset`

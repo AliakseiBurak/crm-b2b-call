@@ -3,8 +3,10 @@
 namespace App\Repository;
 
 use App\Entity\CampaignRecipient;
+use App\Entity\Contact;
 use App\Entity\Enum\CampaignStatus;
 use App\Entity\Enum\RecipientStatus;
+use App\Entity\Organization;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -104,6 +106,72 @@ class CampaignRecipientRepository extends ServiceEntityRepository
             ->setParameter('campaignId', $campaignId)
             ->setParameter('failed', RecipientStatus::Failed->value)
             ->setParameter('prefix', 'Отсутствует email%')
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    /**
+     * Ошибки доставки для контакта: recipients с данным contact, статус failed/bounced,
+     * рассылка не archived. Только по контакту (org-wide не включаются).
+     *
+     * @return CampaignRecipient[]
+     */
+    public function findErrorRecipientsForContact(Contact $contact): array
+    {
+        return $this->createQueryBuilder('cr')
+            ->innerJoin('cr.campaign', 'c')
+            ->where('cr.contact = :contact')
+            ->andWhere('cr.status IN (:statuses)')
+            ->andWhere('c.status != :archived')
+            ->setParameter('contact', $contact)
+            ->setParameter('statuses', [
+                RecipientStatus::Failed->value,
+                RecipientStatus::Bounced->value,
+            ])
+            ->setParameter('archived', CampaignStatus::Archived->value)
+            ->orderBy('cr.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Ошибки доставки для организации: все recipients организации (org-wide и с контактом),
+     * статус failed/bounced, рассылка не archived.
+     *
+     * @return CampaignRecipient[]
+     */
+    public function findErrorRecipientsForOrganization(Organization $organization): array
+    {
+        return $this->createQueryBuilder('cr')
+            ->innerJoin('cr.campaign', 'c')
+            ->where('cr.organization = :organization')
+            ->andWhere('cr.status IN (:statuses)')
+            ->andWhere('c.status != :archived')
+            ->setParameter('organization', $organization)
+            ->setParameter('statuses', [
+                RecipientStatus::Failed->value,
+                RecipientStatus::Bounced->value,
+            ])
+            ->setParameter('archived', CampaignStatus::Archived->value)
+            ->orderBy('cr.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
+     * Есть ли у контакта bounced в неархивной рассылке (для отметки на дашборде).
+     */
+    public function hasBouncedForContact(Contact $contact): bool
+    {
+        return (bool) $this->createQueryBuilder('cr')
+            ->select('COUNT(cr.id)')
+            ->innerJoin('cr.campaign', 'c')
+            ->where('cr.contact = :contact')
+            ->andWhere('cr.status = :bounced')
+            ->andWhere('c.status != :archived')
+            ->setParameter('contact', $contact)
+            ->setParameter('bounced', RecipientStatus::Bounced->value)
+            ->setParameter('archived', CampaignStatus::Archived->value)
             ->getQuery()
             ->getSingleScalarResult();
     }

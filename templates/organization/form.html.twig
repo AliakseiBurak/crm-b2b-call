@@ -2,7 +2,8 @@
     Форма организации: создание (organization is null) и редактирование
     (change organizations-crud). Поля — компонент form_field (подчёркивание
     дизайн-системы), ошибки валидации — под полем на русском.
-    Ожидает: organization (?Organization), errors (array<string, string>).
+    Ожидает: organization (?Organization), errors (array<string, string>),
+    errorRecipients (CampaignRecipient[]|null).
 #}
 {% extends 'base.html.twig' %}
 
@@ -37,6 +38,70 @@
                     value: organization.industry|default(''),
                     error: errors.industry|default(null),
                 }) }}
+
+                {% if isEdit %}
+                    <div class="organization-form__contacts">
+                        <h2>Контакты</h2>
+                        {% if organization.contacts is not empty %}
+                            <ul class="organization-contacts__list">
+                                {% for contact in organization.contacts %}
+                                    <li>
+                                        <a href="{{ path('app_contact_edit', { id: contact.id }) }}">{{ contact.name }}</a>
+                                        {% if contact.email %} — {{ contact.email }}{% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% else %}
+                            <p class="organization-contacts__empty">Контактов нет.</p>
+                        {% endif %}
+                    </div>
+
+                    {% if errorRecipients is defined and errorRecipients|length > 0 %}
+                        <div class="organization-form__errors">
+                            <h2>Ошибки доставки рассылок</h2>
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Рассылка</th>
+                                        <th>Контакт</th>
+                                        <th>Статус</th>
+                                        <th>Ошибка</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for recipient in errorRecipients %}
+                                        <tr>
+                                            <td>{{ recipient.campaign.name }}</td>
+                                            <td>
+                                                {% if recipient.contact %}
+                                                    <a href="{{ path('app_contact_edit', { id: recipient.contact.id }) }}">{{ recipient.contact.name }}</a>
+                                                {% else %}
+                                                    —
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {% if recipient.status.value == 'failed' %}
+                                                    <span class="campaign-recipients__status campaign-recipients__status--failed">Ошибка</span>
+                                                {% elseif recipient.status.value == 'bounced' %}
+                                                    <span class="campaign-recipients__status campaign-recipients__status--bounced">Отказ</span>
+                                                {% endif %}
+                                                {% if recipient.status.value == 'failed' %}
+                                                    <form method="post" action="{{ path('app_campaign_recipient_reset', { id: recipient.campaign.id, recipientId: recipient.id }) }}" style="display:inline" onsubmit="return confirm('Сбросить статус получателя?')">
+                                                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('campaign_recipient') }}">
+                                                        <button type="submit" class="campaign-recipients__reset-btn" title="Сбросить">✕</button>
+                                                    </form>
+                                                {% elseif recipient.status.value == 'bounced' %}
+                                                    <a href="{{ path('app_campaign_recipient_reset_confirm', { id: recipient.campaign.id, recipientId: recipient.id }) }}" class="campaign-recipients__reset-btn" title="Сбросить">✕</a>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ recipient.errorMessage|default('') }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% endif %}
+                {% endif %}
 
                 <div class="organization-form__actions">
                     {{ include('components/button.html.twig', {

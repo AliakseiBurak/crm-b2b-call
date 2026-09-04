@@ -3,7 +3,6 @@
 namespace App\Tests\Functional\Validator;
 
 use App\Entity\Contact;
-use App\Entity\Enum\ContactType;
 use App\Entity\Organization;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
@@ -31,8 +30,7 @@ final class ContactValidationTest extends KernelTestCase
             ->setOrganization(new Organization()->setName('ООО Ромашка')->setIndustry('IT'))
             ->setName('Иван Петров')
             ->setPhone('+7-900-111-11-11')
-            ->setEmail('ivan@romashka.ru')
-            ->setContactType(ContactType::Person);
+            ->setEmail('ivan@romashka.ru');
 
         self::assertSame(0, $this->validator->validate($contact)->count());
     }
@@ -53,8 +51,7 @@ final class ContactValidationTest extends KernelTestCase
     public function testMissingOrganizationShowsRussianMessage(): void
     {
         $contact = new Contact()
-            ->setName('Иван Петров')
-            ->setContactType(ContactType::Person);
+            ->setName('Иван Петров');
 
         $violations = $this->validator->validate($contact);
 

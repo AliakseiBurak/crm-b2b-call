@@ -3,8 +3,8 @@
 namespace App\Controller;
 
 use App\Entity\Contact;
-use App\Entity\Enum\ContactType;
 use App\Entity\Organization;
+use App\Repository\CampaignRecipientRepository;
 use App\Repository\ContactRepository;
 use App\Repository\OrganizationRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -20,6 +20,7 @@ class ContactController extends AbstractController
 {
     public function __construct(
         private readonly ContactRepository $contacts,
+        private readonly CampaignRecipientRepository $campaignRecipients,
         private readonly OrganizationRepository $organizations,
         private readonly EntityManagerInterface $em,
     ) {
@@ -92,6 +93,7 @@ class ContactController extends AbstractController
             'organizations' => [$contact->organization],
             'selectedOrganizationId' => $contact->organization->id,
             'errors' => [],
+            'errorRecipients' => $this->campaignRecipients->findErrorRecipientsForContact($contact),
         ]);
     }
 
@@ -163,14 +165,9 @@ class ContactController extends AbstractController
     private function applyRequest(Request $request, ValidatorInterface $validator, Contact $contact): array
     {
         $contact->setName(trim((string) $request->request->get('name', '')));
-        $contactType = ContactType::tryFrom((string) $request->request->get('contact_type', ''));
-        if (null !== $contactType) {
-            $contact->setContactType($contactType);
-        }
         $contact->setPhone($this->optionalField($request, 'phone'));
         $contact->setEmail($this->optionalField($request, 'email'));
         $contact->setPosition($this->optionalField($request, 'position'));
-        $contact->setContactPerson($this->optionalField($request, 'contact_person'));
         $contact->setNotes($this->optionalField($request, 'notes'));
 
         $violations = $validator->validate($contact);

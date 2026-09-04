@@ -4,7 +4,6 @@ namespace App\Tests\Functional\Validator;
 
 use App\Entity\Call;
 use App\Entity\Contact;
-use App\Entity\Enum\ContactType;
 use App\Entity\Organization;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
@@ -31,8 +30,7 @@ final class CallValidationTest extends KernelTestCase
         $organization = new Organization()->setName('ООО Ромашка')->setIndustry('IT');
         $contact = new Contact()
             ->setOrganization($organization)
-            ->setName('Иван Петров')
-            ->setContactType(ContactType::Person);
+            ->setName('Иван Петров');
 
         $call = new Call()
             ->setOrganization($organization)

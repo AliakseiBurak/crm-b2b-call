@@ -8,6 +8,7 @@ use App\Entity\OrgGroupMembership;
 use App\Entity\Organization;
 use App\Entity\OrganizationGroup;
 use App\Entity\User;
+use App\Repository\CampaignRecipientRepository;
 use App\Repository\OrganizationGroupRepository;
 use App\Repository\OrganizationRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -25,6 +26,7 @@ class OrganizationController extends AbstractController
     public function __construct(
         private readonly OrganizationRepository $organizations,
         private readonly OrganizationGroupRepository $groups,
+        private readonly CampaignRecipientRepository $campaignRecipients,
         private readonly EntityManagerInterface $em,
     ) {
     }
@@ -74,6 +76,7 @@ class OrganizationController extends AbstractController
         return $this->render('organization/form.html.twig', [
             'organization' => $organization,
             'errors' => [],
+            'errorRecipients' => $this->campaignRecipients->findErrorRecipientsForOrganization($organization),
         ]);
     }
 

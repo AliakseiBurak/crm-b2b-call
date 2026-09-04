@@ -4,7 +4,6 @@ namespace App\Tests\Functional\Controller;
 
 use App\Entity\Call;
 use App\Entity\Contact;
-use App\Entity\Enum\ContactType;
 use App\Entity\Enum\GroupType;
 use App\Entity\Enum\UserRole;
 use App\Entity\OrgGroupMembership;
@@ -239,8 +238,7 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
         $organization = new Organization()->setName('ООО Ромашка')->setIndustry('IT');
         $contact = new Contact()
             ->setOrganization($organization)
-            ->setName('Иван Петрович Иванов')
-            ->setContactType(ContactType::Person);
+            ->setName('Иван Петрович Иванов');
         $call = new Call()
             ->setOrganization($organization)
             ->setMadeAt(new \DateTimeImmutable('yesterday'))

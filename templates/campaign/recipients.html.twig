@@ -77,7 +77,7 @@
                                 <th scope="col">Организация</th>
                                 <th scope="col">Контакт</th>
                                 <th scope="col">Статус</th>
-                                <th scope="col">П/отправка</th>
+                                <th scope="col">Повторно*</th>
                                 <th scope="col"></th>
                             </tr>
                         </thead>
@@ -85,14 +85,14 @@
                             {% for recipient in campaign.recipients %}
                                 <tr>
                                     <td>
-                                        {{ recipient.organization.name }}
+                                        <a href="{{ path('app_organization_edit', { id: recipient.organization.id }) }}">{{ recipient.organization.name }}</a>
                                         {% if recipient.errorMessage %}
                                             <br><span class="campaign-recipients__error-message">{{ recipient.errorMessage }}</span>
                                         {% endif %}
                                     </td>
                                     <td>
                                         {% if recipient.contact %}
-                                            {{ recipient.contact.name }}{% if recipient.contact.email %} ({{ recipient.contact.email }}){% endif %}
+                                            <a href="{{ path('app_contact_edit', { id: recipient.contact.id }) }}">{{ recipient.contact.name }}</a>{% if recipient.contact.email %} ({{ recipient.contact.email }}){% endif %}
                                         {% else %}
                                             —
                                         {% endif %}
@@ -101,11 +101,19 @@
                                         {% set statusValue = recipient.status.value %}
                                         {% set statusClass = 'campaign-recipients__status--' ~ statusValue %}
                                         <span class="campaign-recipients__status {{ statusClass }}">{{ recipient.status.label() }}</span>
+                                        {% if canEdit and statusValue == 'failed' %}
+                                            <form method="post" action="{{ path('app_campaign_recipient_reset', { id: campaign.id, recipientId: recipient.id }) }}" style="display:inline" onsubmit="return confirm('Сбросить статус получателя?')">
+                                                <input type="hidden" name="_csrf_token" value="{{ csrf_token('campaign_recipient') }}">
+                                                <button type="submit" class="campaign-recipients__reset-btn" title="Сбросить">✕</button>
+                                            </form>
+                                        {% elseif canEdit and statusValue == 'bounced' %}
+                                            <a href="{{ path('app_campaign_recipient_reset_confirm', { id: campaign.id, recipientId: recipient.id }) }}" class="campaign-recipients__reset-btn" title="Сбросить">✕</a>
+                                        {% endif %}
                                     </td>
                                     <td>{{ recipient.replacementCount }}</td>
             {% if canEdit %}
                                         <td class="campaign-recipients__actions">
-                                            <form method="post" action="{{ path('app_campaign_recipient_remove', { id: campaign.id, recipientId: recipient.id }) }}"
+                                            <form method="post" action="{{ path('app_campaign_recipient_remove', { id: campaign.id, recipientId: recipient.id }) }}" style="display:inline"
                                                   onsubmit="return confirm('Убрать адресата?')">
                                                 <input type="hidden" name="_csrf_token" value="{{ csrf_token('campaign_recipient') }}">
                                                 <button type="submit" class="btn btn--secondary btn--sm">Убрать</button>
@@ -116,6 +124,7 @@
                             {% endfor %}
                         </tbody>
                     </table>
+                    <p class="campaign-recipients__footnote">* В случае повторного добавления организации/контакта в запущенную рассылку велика вероятность, что эл. письмо будет отправлено повторно.</p>
                 </div>
             {% else %}
                 <p class="campaign-recipients__empty">Адресатов пока нет.</p>

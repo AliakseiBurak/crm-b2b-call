@@ -3,7 +3,6 @@
 namespace App\Tests\Functional\Controller;
 
 use App\Entity\Contact;
-use App\Entity\Enum\ContactType;
 use App\Entity\Enum\GroupType;
 use App\Entity\Enum\UserRole;
 use App\Entity\OrgGroupMembership;
@@ -32,7 +31,6 @@ final class ContactControllerTest extends DatabaseWebTestCase
             'phone' => '+7-900-111-11-11',
             'email' => 'ivan@romashka.ru',
             'position' => 'Директор',
-            'contact_type' => 'person',
         ]);
 
         $this->assertResponseRedirects();
@@ -46,7 +44,6 @@ final class ContactControllerTest extends DatabaseWebTestCase
         self::assertSame('+7-900-111-11-11', $contact->phone);
         self::assertSame('ivan@romashka.ru', $contact->email);
         self::assertSame('Директор', $contact->position);
-        self::assertSame(ContactType::Person, $contact->contactType);
     }
 
     public function testManagerCreatesContactInVisibleOrganization(): void
@@ -58,7 +55,6 @@ final class ContactControllerTest extends DatabaseWebTestCase
         $this->submitFormByButton('Создать', [
             'organization' => (string) $romashka->id,
             'name' => 'Иван Петров',
-            'contact_type' => 'person',
         ]);
 
         $this->assertResponseRedirects();
@@ -81,7 +77,6 @@ final class ContactControllerTest extends DatabaseWebTestCase
             [
                 'organization' => (string) $zavod->id,
                 'name' => 'Иван Петров',
-                'contact_type' => 'person',
             ],
             ajax: false,
         );
@@ -113,7 +108,6 @@ final class ContactControllerTest extends DatabaseWebTestCase
         $this->submitFormByButton('Создать', [
             'organization' => (string) $organization->id,
             'name' => '',
-            'contact_type' => 'person',
         ]);
 
         $this->assertResponseStatusCodeSame(422);
@@ -130,7 +124,7 @@ final class ContactControllerTest extends DatabaseWebTestCase
         $this->submitContactAjax(
             '/contacts/new',
             '/contacts/new',
-            ['organization' => '', 'name' => 'Иван Петров', 'contact_type' => 'person'],
+            ['organization' => '', 'name' => 'Иван Петров'],
             ajax: false,
         );
 
@@ -152,7 +146,6 @@ final class ContactControllerTest extends DatabaseWebTestCase
             'phone' => '+7-900-111-11-11',
             'email' => 'ivan@romashka.ru',
             'position' => 'Директор',
-            'contact_type' => 'person',
             'notes' => 'Перезвонить вечером',
         ]);
 
@@ -173,7 +166,6 @@ final class ContactControllerTest extends DatabaseWebTestCase
         $this->submitFormByButton('Сохранить', [
             'name' => '',
             'phone' => '+7-900-111-11-11',
-            'contact_type' => 'person',
         ]);
 
         $this->assertResponseStatusCodeSame(422);
@@ -197,7 +189,6 @@ final class ContactControllerTest extends DatabaseWebTestCase
         $this->submitFormByButton('Сохранить', [
             'name' => 'Иван Петров',
             'phone' => '+7-900-111-11-11',
-            'contact_type' => 'person',
         ]);
 
         $this->assertResponseRedirects();
@@ -230,7 +221,7 @@ final class ContactControllerTest extends DatabaseWebTestCase
         $this->submitContactAjax(
             '/contacts/' . $zavodContact->id . '/edit',
             '/contacts/new',
-            ['name' => 'Взломано', 'contact_type' => 'person'],
+            ['name' => 'Взломано'],
             ajax: false,
         );
 
@@ -253,8 +244,6 @@ final class ContactControllerTest extends DatabaseWebTestCase
             'phone' => '+7-900-111-11-11',
             'email' => 'ivan@romashka.ru',
             'position' => 'Директор',
-            'contact_type' => 'legal_entity',
-            'contact_person' => 'Секретарь',
             'notes' => 'Важный клиент',
         ]);
 
@@ -271,8 +260,6 @@ final class ContactControllerTest extends DatabaseWebTestCase
         $this->em()->clear();
         $reloaded = $this->em()->find(Contact::class, $contact->id);
         self::assertSame('+7-900-111-11-11', $reloaded->phone);
-        self::assertSame(ContactType::LegalEntity, $reloaded->contactType);
-        self::assertSame('Секретарь', $reloaded->contactPerson);
     }
 
     public function testAjaxUpdateInvalidDataReturnsJsonErrors(): void
@@ -281,7 +268,7 @@ final class ContactControllerTest extends DatabaseWebTestCase
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
 
         $url = '/contacts/' . $contact->id . '/edit';
-        $this->submitContactAjax($url, $url, ['name' => '', 'contact_type' => 'person']);
+        $this->submitContactAjax($url, $url, ['name' => '']);
 
         $this->assertResponseStatusCodeSame(422);
         $this->assertResponseFormatSame('json');
@@ -366,7 +353,6 @@ final class ContactControllerTest extends DatabaseWebTestCase
         $contact = new Contact()
             ->setOrganization($organization)
             ->setName($name)
-            ->setContactType(ContactType::Person)
             ->setPhone($phone)
             ->setEmail('Иван Петров' === $name ? 'ivan@romashka.ru' : null);
         $this->em()->persist($contact);

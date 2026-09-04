@@ -7,7 +7,9 @@ use App\Entity\CampaignAttachment;
 use App\Entity\CampaignRecipient;
 use App\Entity\Contact;
 use App\Entity\Enum\CampaignStatus;
+use App\Entity\Enum\RecipientStatus;
 use App\Entity\Organization;
+use App\Repository\CampaignRecipientRepository;
 use App\Repository\CampaignRepository;
 use App\Repository\OrganizationRepository;
 use App\Service\CampaignAttachmentStorage;
@@ -33,6 +35,7 @@ class CampaignController extends AbstractController
 {
     public function __construct(
         private readonly CampaignRepository $campaigns,
+        private readonly CampaignRecipientRepository $campaignRecipients,
         private readonly OrganizationRepository $organizations,
         private readonly CampaignAttachmentStorage $storage,
         private readonly EntityManagerInterface $em,
@@ -383,6 +386,10 @@ class CampaignController extends AbstractController
             if (null !== $exists) {
                 continue;
             }
+            // Доменная проверка: организации без e-mail пропускаются.
+            if (!$this->organizationHasEmail($organization)) {
+                continue;
+            }
             $this->em->persist(new CampaignRecipient($campaign, $organization));
             ++$added;
         }
@@ -420,6 +427,25 @@ class CampaignController extends AbstractController
             $contact = $this->em->find(Contact::class, (int) $contactId);
             if (null === $contact || $contact->organization->id !== $organization->id) {
                 throw $this->createNotFoundException('Контакт не найден в данной организации');
+            }
+        }
+
+        // Доменная проверка: организация без e-mail у контактов не становится адресатом.
+        if (!$this->organizationHasEmail($organization)) {
+            $this->addFlash('error', 'У организации отсутствует e-mail. Добавьте e-mail контакту перед добавлением в рассылку.');
+
+            return $this->redirectToRoute('app_campaign_recipients', ['id' => $campaign->id]);
+        }
+
+        // Если указан контакт без e-mail, но у организации есть e-mail — flash.
+        if (null !== $contact && (null === $contact->email || '' === $contact->email)) {
+            $orgEmail = $this->firstOrganizationEmail($organization);
+            if (null !== $orgEmail) {
+                $this->addFlash('notice', sprintf(
+                    'У контакта «%s» отсутствует e-mail. Письмо будет отправлено организации: %s',
+                    $contact->name,
+                    $orgEmail,
+                ));
             }
         }
 
@@ -570,6 +596,60 @@ class CampaignController extends AbstractController
     }
 
     /**
+     * Сброс получателя failed/bounced в pending (change contact-delivery-feedback).
+     * POST: выполняет сброс. GET (для bounced): страница подтверждения.
+     */
+    #[Route('/campaigns/{id}/recipients/{recipientId}/reset', name: 'app_campaign_recipient_reset', methods: ['POST'])]
+    public function resetRecipient(int $id, int $recipientId, Request $request): Response
+    {
+        $campaign = $this->campaign($id);
+        $this->assertRecipientCsrfToken($request);
+        $this->assertRecipientsEditable($campaign);
+
+        $recipient = $this->accessibleRecipient($campaign, $recipientId);
+
+        if (!\in_array($recipient->status, [RecipientStatus::Failed, RecipientStatus::Bounced], true)) {
+            throw new NotFoundHttpException('Адресат не может быть сброшен');
+        }
+
+        $recipient->resetForRetry();
+        $this->em->flush();
+
+        $referer = $request->headers->get('referer');
+        if ($referer && (str_contains($referer, '/contacts/') || str_contains($referer, '/organizations/'))) {
+            return $this->redirect($referer);
+        }
+
+        return $this->redirectToRoute('app_campaign_recipients', ['id' => $campaign->id]);
+    }
+
+    /**
+     * Страница подтверждения сброса bounced получателя: предупреждает об
+     * отклонении почтовым сервером, рекомендует сменить e-mail перед сбросом.
+     */
+    #[Route('/campaigns/{id}/recipients/{recipientId}/reset', name: 'app_campaign_recipient_reset_confirm', methods: ['GET'])]
+    public function resetRecipientConfirm(int $id, int $recipientId, Request $request): Response
+    {
+        $campaign = $this->campaign($id);
+        $recipient = $this->accessibleRecipient($campaign, $recipientId);
+
+        if (RecipientStatus::Bounced !== $recipient->status) {
+            throw new NotFoundHttpException('Подтверждение доступно только для отказов');
+        }
+
+        $referer = (string) $request->headers->get('referer');
+        $fromContactForm = str_contains($referer, '/contacts/');
+        $fromOrganizationForm = str_contains($referer, '/organizations/');
+
+        return $this->render('campaign/reset_confirm.html.twig', [
+            'campaign' => $campaign,
+            'recipient' => $recipient,
+            'fromContactForm' => $fromContactForm,
+            'fromOrganizationForm' => $fromOrganizationForm,
+        ]);
+    }
+
+    /**
      * Заполняет кампанию данными формы и возвращает ошибки валидации,
      * сгруппированные по полям (name, subject, preview_text, body, status).
      *
@@ -681,6 +761,25 @@ class CampaignController extends AbstractController
         }
     }
 
+    /**
+     * Получатель в области доступа: admin — любой; менеджер — только
+     * организации в области доступа (ADR-0007/0008).
+     */
+    private function accessibleRecipient(Campaign $campaign, int $recipientId): CampaignRecipient
+    {
+        $recipient = $this->em->find(CampaignRecipient::class, $recipientId);
+        if (null === $recipient || $recipient->campaign->id !== $campaign->id) {
+            throw new NotFoundHttpException('Адресат не найден');
+        }
+
+        $accessibleIds = $this->organizations->findAccessibleIds($this->getUser());
+        if (null !== $accessibleIds && !\in_array($recipient->organization->id, $accessibleIds, true)) {
+            throw new AccessDeniedHttpException('Организация адресата вне области доступа');
+        }
+
+        return $recipient;
+    }
+
     private function assertAttachmentCsrfToken(Request $request): void
     {
         $token = $request->headers->get('X-CSRF-Token') ?? (string) $request->request->get('_csrf_token', '');
@@ -695,6 +794,28 @@ class CampaignController extends AbstractController
         if (!$this->isCsrfTokenValid('campaign_recipient', $token)) {
             throw new AccessDeniedHttpException('Недействительный CSRF-токен');
         }
+    }
+
+    /**
+     * Есть ли хотя бы один e-mail у контактов организации.
+     */
+    private function organizationHasEmail(Organization $organization): bool
+    {
+        return null !== $this->firstOrganizationEmail($organization);
+    }
+
+    /**
+     * Первый e-mail из контактов организации (для flash-сообщения).
+     */
+    private function firstOrganizationEmail(Organization $organization): ?string
+    {
+        foreach ($organization->contacts as $contact) {
+            if (null !== $contact->email && '' !== $contact->email) {
+                return $contact->email;
+            }
+        }
+
+        return null;
     }
 
     /**

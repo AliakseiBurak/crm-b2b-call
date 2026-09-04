@@ -5,6 +5,7 @@ namespace App\Controller;
 use App\Entity\User;
 use App\Entity\Enum\UserRole;
 use App\Repository\CallRepository;
+use App\Repository\CampaignRecipientRepository;
 use App\Repository\ContactRepository;
 use App\Repository\OrganizationRepository;
 use App\Repository\UserRepository;
@@ -47,6 +48,7 @@ class HomeController extends AbstractController
         CallRepository $callRepository,
         OrganizationRepository $organizationRepository,
         ContactRepository $contactRepository,
+        CampaignRecipientRepository $campaignRecipients,
         UserRepository $userRepository,
         CallResultService $callResults,
     ): Response {
@@ -73,11 +75,20 @@ class HomeController extends AbstractController
             $contactById[$contact->id] = $contact;
         }
 
+        // Отметка bounced для карточек контактов на дашборде.
+        $bouncedContactIds = [];
+        foreach ($contacts as $contact) {
+            if ($campaignRecipients->hasBouncedForContact($contact)) {
+                $bouncedContactIds[$contact->id] = true;
+            }
+        }
+
         return $this->render('home/dashboard.html.twig', [
             'organizationRows' => $organizationRows,
             'organizations' => $organizationRepository->findAccessibleOrganizations($user),
             'contactsByOrganization' => $contactsByOrganization,
             'contactById' => $contactById,
+            'bouncedContactIds' => $bouncedContactIds,
             'callsByOrganization' => $callRepository->findAllCallsByOrganizations($ids),
             'mailingCampaigns' => $callResults->findMailableCampaigns(),
             'isAdmin' => $isAdmin,

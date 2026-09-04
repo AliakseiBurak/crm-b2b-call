@@ -71,8 +71,6 @@ erDiagram
         string phone
         string email
         string position
-        enum contact_type "person|legal_entity"
-        string contact_person
         text notes
         datetime created_at
         datetime updated_at

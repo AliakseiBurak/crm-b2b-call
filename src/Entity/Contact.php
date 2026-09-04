@@ -2,7 +2,6 @@
 
 namespace App\Entity;
 
-use App\Entity\Enum\ContactType;
 use App\Repository\ContactRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -38,13 +37,6 @@ class Contact
     #[Assert\Length(max: 255, maxMessage: 'Должность не должна превышать {{ limit }} символов')]
     public private(set) ?string $position = null;
 
-    #[ORM\Column(name: 'contact_type', type: 'string', enumType: ContactType::class)]
-    public private(set) ContactType $contactType;
-
-    #[ORM\Column(name: 'contact_person', length: 255, nullable: true)]
-    #[Assert\Length(max: 255, maxMessage: 'Контактное лицо не должно превышать {{ limit }} символов')]
-    public private(set) ?string $contactPerson = null;
-
     #[ORM\Column(type: 'text', nullable: true)]
     public private(set) ?string $notes = null;
 
@@ -59,7 +51,6 @@ class Contact
         $now = new \DateTimeImmutable();
         $this->createdAt = $now;
         $this->updatedAt = $now;
-        $this->contactType = ContactType::Person;
     }
 
     public function setOrganization(Organization $organization): self
@@ -93,20 +84,6 @@ class Contact
     public function setPosition(?string $position): self
     {
         $this->position = $position;
-
-        return $this;
-    }
-
-    public function setContactType(ContactType $contactType): self
-    {
-        $this->contactType = $contactType;
-
-        return $this;
-    }
-
-    public function setContactPerson(?string $contactPerson): self
-    {
-        $this->contactPerson = $contactPerson;
 
         return $this;
     }

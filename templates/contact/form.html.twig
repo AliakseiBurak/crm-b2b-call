@@ -5,16 +5,12 @@
     Организация выбирается только при создании (выпадающий список доступных
     организаций); в режиме редактирования она не меняется.
     Ожидает: contact (?Contact), organizations (Organization[]),
-    selectedOrganizationId (?int), errors (array<string, string>).
+    selectedOrganizationId (?int), errors (array<string, string>),
+    errorRecipients (CampaignRecipient[]|null).
 #}
 {% extends 'base.html.twig' %}
 
 {% set isEdit = contact and contact.id %}
-{% set typeChoices = {
-    'person': 'физическое лицо',
-    'legal_entity': 'юридическое лицо',
-} %}
-{% set currentType = isEdit ? contact.contactType.value : 'person' %}
 
 {% block title %}{{ isEdit ? 'Редактирование контакта' : 'Новый контакт' }}{% endblock %}
 
@@ -87,28 +83,58 @@
                 }) }}
 
                 <div class="field">
-                    <label class="field__label" for="contact_type">Тип</label>
-                    <select class="field__input" id="contact_type" name="contact_type">
-                        {% for value, label in typeChoices %}
-                            <option value="{{ value }}"{% if value == currentType %} selected{% endif %}>
-                                {{ label }}
-                            </option>
-                        {% endfor %}
-                    </select>
-                    {% if errors.contactType|default(null) %}<span class="field__error" role="alert">{{ errors.contactType }}</span>{% endif %}
-                </div>
-
-                {{ include('components/form_field.html.twig', {
-                    name: 'contact_person',
-                    label: 'Контактное лицо',
-                    value: contact.contactPerson|default(''),
-                    error: errors.contactPerson|default(null),
-                }) }}
-
-                <div class="field">
                     <label class="field__label" for="notes">Заметка</label>
                     <textarea class="field__input" id="notes" name="notes" rows="3">{{ contact.notes|default('') }}</textarea>
                 </div>
+
+                {% if isEdit and errorRecipients is defined and errorRecipients|length > 0 %}
+                    <div class="contact-form__errors">
+                        <h2>Ошибки доставки рассылок</h2>
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Рассылка</th>
+                                    <th>Статус</th>
+                                    <th>Ошибка</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for recipient in errorRecipients %}
+                                    <tr>
+                                        <td>{{ recipient.campaign.name }}</td>
+                                        <td>
+                                            {% if recipient.status.value == 'failed' %}
+                                                <span class="campaign-recipients__status campaign-recipients__status--failed">Ошибка</span>
+                                            {% elseif recipient.status.value == 'bounced' %}
+                                                <span class="campaign-recipients__status campaign-recipients__status--bounced">Отказ</span>
+                                            {% endif %}
+                                            {% if recipient.status.value == 'failed' %}
+                                                <form method="post" action="{{ path('app_campaign_recipient_reset', { id: recipient.campaign.id, recipientId: recipient.id }) }}" style="display:inline" onsubmit="return confirm('Сбросить статус получателя?')">
+                                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('campaign_recipient') }}">
+                                                    <button type="submit" class="campaign-recipients__reset-btn" title="Сбросить">✕</button>
+                                                </form>
+                                            {% elseif recipient.status.value == 'bounced' %}
+                                                <a href="{{ path('app_campaign_recipient_reset_confirm', { id: recipient.campaign.id, recipientId: recipient.id }) }}" class="campaign-recipients__reset-btn" title="Сбросить">✕</a>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ recipient.errorMessage|default('') }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% endif %}
+
+                {% if isEdit %}
+                    <div class="contact-form__org-link" style="margin-top: 24px;">
+                        {{ include('components/button.html.twig', {
+                            variant: 'secondary',
+                            text: 'Организация',
+                            href: path('app_organization_edit', { id: contact.organization.id }),
+                            type: 'button',
+                        }) }}
+                    </div>
+                {% endif %}
 
                 <div class="organization-form__actions">
                     {{ include('components/button.html.twig', {

@@ -59,6 +59,18 @@ final class CallResultService
      */
     public function upsertRecipient(Campaign $campaign, Organization $organization, ?Contact $contact): bool
     {
+        $hasEmail = false;
+        foreach ($organization->contacts as $c) {
+            if (null !== $c->email && '' !== $c->email) {
+                $hasEmail = true;
+                break;
+            }
+        }
+
+        if (!$hasEmail) {
+            return false;
+        }
+
         $existing = $this->recipients->findOneBy([
             'campaign' => $campaign,
             'organization' => $organization,

@@ -148,6 +148,7 @@ class CampaignRecipient
     {
         $this->status = RecipientStatus::Pending;
         $this->errorMessage = null;
+        $this->retryCount = 0;
         $this->retryAt = null;
 
         return $this;

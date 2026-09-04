@@ -14,8 +14,6 @@ if (modal) {
         phone: modal.querySelector('[data-contact-field="phone"]'),
         email: modal.querySelector('[data-contact-field="email"]'),
         position: modal.querySelector('[data-contact-field="position"]'),
-        contact_type: modal.querySelector('[data-contact-field="contact_type"]'),
-        contact_person: modal.querySelector('[data-contact-field="contact_person"]'),
         notes: modal.querySelector('[data-contact-field="notes"]'),
     };
     const deleteLink = modal.querySelector('[data-contact-delete-link]');
@@ -126,8 +124,6 @@ if (createModal) {
         phone: createModal.querySelector('[data-contact-field="phone"]'),
         email: createModal.querySelector('[data-contact-field="email"]'),
         position: createModal.querySelector('[data-contact-field="position"]'),
-        contact_type: createModal.querySelector('[data-contact-field="contact_type"]'),
-        contact_person: createModal.querySelector('[data-contact-field="contact_person"]'),
         notes: createModal.querySelector('[data-contact-field="notes"]'),
     };
 

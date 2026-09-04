@@ -8,7 +8,6 @@ use App\Entity\CampaignAttachment;
 use App\Entity\CampaignRecipient;
 use App\Entity\Contact;
 use App\Entity\Enum\CampaignStatus;
-use App\Entity\Enum\ContactType;
 use App\Entity\Enum\GroupType;
 use App\Entity\Enum\UserRole;
 use App\Entity\GroupAssignment;
@@ -132,7 +131,6 @@ class AppFixtures extends Fixture
                     ->setPhone('+7 900 000-00-' . str_pad((string) $index, 2, '0', STR_PAD_LEFT))
                     ->setEmail('contact' . $index . '@example.ru')
                     ->setPosition($isReception ? 'Приёмная' : self::POSITION_BY_INDEX[$index] ?? self::POSITIONS[0])
-                    ->setContactType(ContactType::Person)
                     ->setNotes(self::CONTACT_NOTES[$i] ?? null);
                 $manager->persist($contact);
                 $contacts[] = $contact;
