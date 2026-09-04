@@ -39,6 +39,15 @@ The system SHALL NOT store contact type or contact person fields.
 - **AND** пользователь добавляет заметку "Предпочитает email"
 - **THEN** заметка "Предпочитает email" отображается в карточке контакта
 
+#### Scenario: Указание типа и контактного лица
+- **WHEN** пользователь создаёт контакт "Иван Петров"
+- **THEN** в карточке контакта отображается только имя, телефон, email, должность и заметки
+- **AND** поля «Тип» и «Контактное лицо» отсутствуют
+
+#### Scenario: Контакт без контактного лица
+- **WHEN** в системе существует контакт "Иван Петров"
+- **THEN** у контакта нет поля «Контактное лицо»
+
 ### Requirement: Управление контактами
 The system SHALL allow the administrator and managers to update and delete
 contacts; a manager SHALL have access only to contacts of organizations in

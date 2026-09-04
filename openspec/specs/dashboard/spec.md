@@ -85,7 +85,9 @@ to reveal the contact cards of that organization. The system SHALL render
 contact cards with the contact name, the phone as a clickable `tel:` link
 and the email as a clickable `mailto:` link. A card SHALL also render the
 non-empty `Contact.notes` of the contact under a «Заметка» label. The
-cards SHALL NOT contain call or other action buttons.
+cards SHALL NOT contain call or other action buttons. When the contact has
+at least one `CampaignRecipient` with status `bounced` in a non-archived
+campaign, the card SHALL show a visible mark indicating a bounced email.
 
 #### Scenario: Раскрытие контактов организации
 - **WHEN** пользователь на панели кликает по строке организации, у которой есть контакты
@@ -99,6 +101,21 @@ cards SHALL NOT contain call or other action buttons.
 - **WHEN** пользователь раскрывает строку организации, у которой нет контактов
 - **THEN** под строкой отображается только кнопка «Добавить контакт»
 - **AND** никакие карточки контактов и сообщения не показываются
+
+#### Scenario: Отметка bounced e-mail на карточке контакта
+- **WHEN** пользователь раскрывает строку организации на дашборде
+- **AND** у контакта организации есть хотя бы один `CampaignRecipient` со статусом `bounced` в неархивной рассылке
+- **THEN** на карточке контакта отображается отметка о bounced e-mail
+
+#### Scenario: Нет отметки без bounced
+- **WHEN** пользователь раскрывает строку организации на дашборде
+- **AND** у контакта нет `CampaignRecipient` со статусом `bounced` в неархивной рассылке
+- **THEN** на карточке контакта нет отметки о bounced e-mail
+
+#### Scenario: Архивный bounced не даёт отметку
+- **WHEN** пользователь раскрывает строку организации на дашборде
+- **AND** у контакта есть `CampaignRecipient` со статусом `bounced`, но все такие рассылки в статусе `archived`
+- **THEN** на карточке контакта нет отметки о bounced e-mail
 
 ### Requirement: Все звонки организации
 The system SHALL render in the expanded section of an organization the note
