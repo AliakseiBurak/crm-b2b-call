@@ -60,38 +60,45 @@ The system SHALL display a button "Организация" on the contact edit f
 - **AND** при нажатии происходит переход на `GET /organizations/{id}/edit` организации "ООО Ромашка"
 
 ### Requirement: Таблица ошибок рассылок на форме контакта
-The system SHALL display a table of campaign delivery errors on the contact edit form for recipients where contact matches this contact and status is `failed` or `bounced`. The table SHALL show campaign name, status, error message, and a reset action.
+The system SHALL display a table of campaign delivery errors on the contact edit form for recipients where contact matches this contact, status is `failed` or `bounced`, and the campaign is not `archived`. The table SHALL show campaign name, status, error message, and a reset action. Org-wide recipients (no contact) SHALL NOT appear in this table.
 
 #### Scenario: Отображение ошибок failed получателей
 - **WHEN** пользователь открывает форму редактирования контакта "Иван Петров"
 - **AND** существует получатель рассылки с contact = "Иван Петров" и статусом `failed`
+- **AND** рассылка не в статусе `archived`
 - **THEN** на форме отображается таблица ошибок
 - **AND** в таблице строка с названием рассылки, статусом "Ошибка", сообщением об ошибке и кнопкой "Сбросить"
 
 #### Scenario: Отображение ошибок bounced получателей
 - **WHEN** пользователь открывает форму редактирования контакта "Иван Петров"
 - **AND** существует получатель рассылки с contact = "Иван Петров" и статусом `bounced`
+- **AND** рассылка не в статусе `archived`
 - **THEN** на форме отображается таблица ошибок
 - **AND** в таблице строка с названием рассылки, статусом "Отказ", сообщением об ошибке и кнопкой "Сбросить"
 
 #### Scenario: Таблица не отображается при отсутствии ошибок
 - **WHEN** пользователь открывает форму редактирования контакта "Иван Петров"
-- **AND** нет получателей рассылок с contact = "Иван Петров" и статусами `failed` или `bounced`
+- **AND** нет получателей рассылок с contact = "Иван Петров" и статусами `failed` или `bounced` в неархивных рассылках
 - **THEN** таблица ошибок не отображается
 
-#### Scenario: Таблица не отображается для архивированных рассылок
+#### Scenario: Архивные рассылки исключены
 - **WHEN** пользователь открывает форму редактирования контакта "Иван Петров"
-- **AND** существует получатель рассылки с contact = "Иван Петров" и статусом `failed`
+- **AND** существует получатель с contact = "Иван Петров" и статусом `failed`
 - **AND** рассылка имеет статус `archived`
 - **THEN** этот получатель не отображается в таблице ошибок
 
-### Requirement: Сброс failed получателя
-The system SHALL allow resetting a `failed` recipient back to `pending` status via a "Сбросить" button on the contact edit form.
+#### Scenario: Org-wide ошибки не на форме контакта
+- **WHEN** пользователь открывает форму редактирования контакта "Иван Петров"
+- **AND** существует получатель организации контакта без указанного контакта со статусом `failed`
+- **THEN** этот получатель не отображается в таблице ошибок контакта
+
+### Requirement: Сброс failed получателя с формы контакта
+The system SHALL allow resetting a `failed` recipient to `pending` via "Сбросить" on the contact edit form, using `POST /campaigns/{id}/recipients/{recipientId}/reset`, after a confirmation dialog.
 
 #### Scenario: Успешный сброс failed получателя
-- **WHEN** пользователь нажимает кнопку "Сбросить" для получателя со статусом `failed`
-- **THEN** статус получателя изменяется на `pending`
-- **AND** поле `errorMessage` очищается
+- **WHEN** пользователь подтверждает сброс получателя со статусом `failed`
+- **THEN** статус получателя становится `pending`
+- **AND** поля `errorMessage`, `retryCount` и `retryAt` очищаются
 - **AND** получатель будет обработан при следующем цикле фоновой команды
 
 #### Scenario: Подтверждение сброса failed получателя
@@ -99,7 +106,7 @@ The system SHALL allow resetting a `failed` recipient back to `pending` status v
 - **THEN** отображается диалог подтверждения "Сбросить статус получателя?"
 
 ### Requirement: Предупреждение при сбросе bounced получателя
-The system SHALL display a confirmation page when attempting to reset a `bounced` recipient, with a specific warning explaining that bounce means the recipient's mail server rejected the email, and that the user MUST stop the campaign, change the contact's email address, and only then reset the bounce status.
+The system SHALL show a confirmation page before resetting a `bounced` recipient. The page SHALL warn that the recipient mail server rejected the email and that the user SHOULD stop the campaign, change the contact email, then reset. Confirming SHALL call the same `POST …/reset` as for `failed`. Cancelling SHALL return to the contact edit form without changing status.
 
 #### Scenario: Страница подтверждения для bounced получателя
 - **WHEN** пользователь нажимает кнопку "Сбросить" для получателя со статусом `bounced`
@@ -112,8 +119,9 @@ The system SHALL display a confirmation page when attempting to reset a `bounced
 
 #### Scenario: Подтверждение сброса bounced получателя
 - **WHEN** пользователь подтверждает сброс bounced получателя на странице подтверждения
-- **THEN** статус получателя изменяется на `pending`
-- **AND** поле `errorMessage` очищается
+- **THEN** выполняется `POST /campaigns/{id}/recipients/{recipientId}/reset`
+- **AND** статус получателя становится `pending`
+- **AND** поля `errorMessage`, `retryCount` и `retryAt` очищаются
 
 #### Scenario: Отмена сброса bounced получателя
 - **WHEN** пользователь нажимает кнопку "Отмена" на странице подтверждения
