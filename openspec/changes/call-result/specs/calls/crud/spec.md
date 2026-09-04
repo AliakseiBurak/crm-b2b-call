@@ -1,7 +1,30 @@
 ## MODIFIED Requirements
 
+### Requirement: Менеджер фиксирует факт звонка
+The system SHALL let the manager record the fact of the call by filling in the actual call date; the author defaults to the current user. A call is considered made when its actual date is set. Once an actual date exists, the manager SHALL be able to change it but SHALL NOT clear it.
+
+#### Scenario: Фиксация факта через фактическую дату
+- **WHEN** менеджер открывает форму редактирования звонка
+- **AND** заполняет поле «Фактическая дата звонка» значением в прошлом
+- **AND** нажимает кнопку "Сохранить"
+- **THEN** звонок помечается проведённым с указанной датой и временем
+- **AND** автором звонка фиксируется текущий пользователь
+
+#### Scenario: Очистка фактической даты снимает факт
+- **WHEN** менеджер открывает форму редактирования проведённого звонка
+- **AND** очищает поле «Фактическая дата звонка»
+- **AND** нажимает кнопку "Сохранить"
+- **THEN** форма показывает ошибку «Фактическую дату звонка нельзя удалить, только изменить»
+- **AND** фактическая дата звонка сохраняется
+
+#### Scenario: Ошибка при фактической дате в будущем
+- **WHEN** менеджер указывает в поле «Фактическая дата звонка» будущие дату и время
+- **AND** нажимает кнопку "Сохранить"
+- **THEN** форма отображает ошибку «Фактическая дата звонка не может быть в будущем»
+- **AND** звонок не сохраняется
+
 ### Requirement: Результат звонка — комбинация полей
-The system SHALL let the manager record a call result as independent actions on the call form and dashboard modal: deal, no-answer, next-call date, and mailing campaign (any status except `archived`) with recipient contact. Next-call date and mailing campaign fields SHALL be empty by default on each open (commands); the next-call date field SHALL be omitted when the call already has a linked next call. Deal and no-answer SHALL persist as checkboxes. After a validation error the system SHALL restore all submitted result values. The form SHALL NOT offer refusal-remove of a campaign recipient.
+The system SHALL let the manager record a call result as independent actions on the call form and dashboard modal: deal, no-answer, next-call date, and mailing campaign (any status except `archived`) with recipient contact. Next-call date and mailing campaign fields SHALL be empty by default on each open (commands); the next-call date field SHALL be omitted when the call already has a linked next call. Deal and no-answer SHALL persist as checkboxes placed at the bottom of the form. After a validation error the system SHALL restore all submitted result values. The form SHALL NOT offer refusal-remove of a campaign recipient.
 
 #### Scenario: Результат — сделка
 - **WHEN** менеджер завершает звонок по организации «ООО Ромашка»
@@ -42,6 +65,58 @@ The system SHALL let the manager record a call result as independent actions on 
 - **AND** звонок не сохраняется
 - **AND** адресат рассылки не создаётся
 
+### Requirement: Макет формы звонка
+The call form and dashboard edit modal SHALL order fields as: organization, contact, notes, «Будущий звонок» checkbox, then either the scheduled date (future-call mode) or the fact/result command fields (normal mode), then deal and no-answer checkboxes. When «Будущий звонок» is checked, the system SHALL show the scheduled date field and SHALL hide all other fields except notes (organization and contact remain). When «Будущий звонок» is unchecked, the scheduled date field SHALL NOT be shown. The checkbox SHALL be checked by default when the call has a scheduled date on or after today and no actual date. When the call already has an actual date, the «Будущий звонок» checkbox and scheduled date field SHALL be unavailable.
+
+#### Scenario: Контакт под организацией
+- **WHEN** менеджер открывает форму создания или редактирования звонка
+- **THEN** поле «Контакт» отображается сразу под полем «Организация»
+
+#### Scenario: Заметка под контактом
+- **WHEN** менеджер открывает форму создания или редактирования звонка
+- **THEN** поле «Заметка» отображается сразу под полем «Контакт»
+
+#### Scenario: Режим будущего звонка показывает дату плана
+- **WHEN** менеджер отмечает «Будущий звонок»
+- **THEN** появляется поле «Запланированная дата звонка»
+- **AND** поля факта звонка, рассылки, следующего звонка, сделки и «нет ответа» скрыты
+- **AND** поле «Заметка» остаётся видимым
+
+#### Scenario: Без будущего звонка дата плана скрыта
+- **WHEN** менеджер открывает форму звонка
+- **AND** не отмечает «Будущий звонок»
+- **THEN** поле «Запланированная дата звонка» не отображается
+- **AND** доступны поля факта и результата звонка
+
+#### Scenario: Сделка и нет ответа внизу формы
+- **WHEN** менеджер открывает форму звонка без режима «Будущий звонок»
+- **THEN** чекбоксы «Сделка совершена» и «Нет ответа» отображаются в самом низу формы
+
+#### Scenario: Планирование через режим будущего звонка
+- **WHEN** менеджер отмечает «Будущий звонок»
+- **AND** указывает запланированную дату «завтра»
+- **AND** нажимает кнопку «Сохранить»
+- **THEN** звонок сохраняется с датой «завтра»
+- **AND** факт звонка и действия результата не фиксируются
+
+#### Scenario: Будущий звонок без даты плана игнорирует факт и результат
+- **WHEN** менеджер отмечает «Будущий звонок»
+- **AND** не заполняет запланированную дату
+- **AND** в запросе есть фактическая дата и прочие заполненные поля
+- **AND** нажимает кнопку «Сохранить»
+- **THEN** звонок сохраняется без фактической даты и прочих заполненных полей
+- **AND** сохраняются организация, контакт и заметка
+
+#### Scenario: Фактическая дата предустановлена сейчас
+- **WHEN** менеджер открывает форму создания звонка
+- **THEN** поле «Фактическая дата звонка» содержит текущие дату и время
+
+#### Scenario: Проведённый звонок нельзя перевести в будущий
+- **WHEN** у звонка уже есть фактическая дата
+- **AND** менеджер открывает форму или модальное окно этого звонка
+- **THEN** чекбокс «Будущий звонок» недоступен
+- **AND** поле «Запланированная дата звонка» недоступно
+
 ### Requirement: Удаление звонка
 The system SHALL let the manager delete calls they have access to. Deletion SHALL NOT remove campaign recipients. When the call references a mailing campaign, the confirmation page SHALL warn that the recipient remains and SHALL link to that campaign's recipients page in a new browsing context.
 
@@ -63,7 +138,7 @@ The system SHALL let the manager delete calls they have access to. Deletion SHAL
 - **AND** доступна ссылка на адресатов «Осенняя рассылка» в новом окне
 
 ### Requirement: Модальное окно быстрого редактирования
-The system SHALL provide a modal window for quick call editing from the dashboard without page reload. The modal SHALL include the same result actions as the full call form.
+The system SHALL provide a modal window for quick call editing from the dashboard without page reload. The modal SHALL include the same field order and future-call mode as the full call form, and the same result actions.
 
 #### Scenario: Открытие модального окна
 - **WHEN** пользователь нажимает кнопку «Изменить» в строке звонка на дашборде
