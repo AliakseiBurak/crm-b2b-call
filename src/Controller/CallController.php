@@ -277,16 +277,13 @@ class CallController extends AbstractController
 
         $call->setNotes($this->optionalField($request, 'notes'));
 
+        $call->setIsDeal(null !== $request->request->get('is_deal'));
+        $call->setIsNoAnswer(null !== $request->request->get('is_no_answer'));
+
         if ($this->hasResultActions($request, $resultInput)) {
             if (null === $call->madeAt || null === $call->madeBy) {
                 $errors['madeAt'] ??= 'Для действий результата звонка нужны фактическая дата и автор';
-            } else {
-                $call->setIsDeal(null !== $request->request->get('is_deal'));
-                $call->setIsNoAnswer(null !== $request->request->get('is_no_answer'));
             }
-        } elseif (null !== $call->madeAt && null !== $call->madeBy) {
-            $call->setIsDeal(null !== $request->request->get('is_deal'));
-            $call->setIsNoAnswer(null !== $request->request->get('is_no_answer'));
         }
 
         if (!isset($errors['madeAt']) && null !== $call->madeAt && null !== $call->madeBy) {

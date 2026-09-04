@@ -662,6 +662,27 @@ final class CallControllerTest extends DatabaseWebTestCase
         ]));
     }
 
+    public function testCheckboxRestoredOnMadeAt422(): void
+    {
+        [$organization] = $this->makeOrganizationWithContact('ООО Ромашка');
+        $call = $this->makeCallFor($organization);
+        $this->em()->flush();
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $this->open('/calls/' . $call->id . '/edit');
+        $this->submitFormByButton('Сохранить', [
+            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
+            'is_deal' => '1',
+            'is_no_answer' => '1',
+        ]);
+
+        $this->assertResponseStatusCodeSame(422);
+
+        $crawler = $this->client->getCrawler();
+        self::assertNotNull($crawler->filter('#is-deal:checked')->count(), 'Чекбокс «Сделка» должен быть восстановлён');
+        self::assertNotNull($crawler->filter('#is-no-answer:checked')->count(), 'Чекбокс «Нет ответа» должен быть восстановлён');
+    }
+
     public function testPastNextCallDateRestoresResultFields(): void
     {
         [$organization] = $this->makeOrganizationWithContact('ООО Ромашка');
@@ -684,6 +705,36 @@ final class CallControllerTest extends DatabaseWebTestCase
         $crawler = $this->client->getCrawler();
         self::assertSame((string) $campaign->id, $crawler->filter('#mailing-campaign option[selected]')->attr('value'));
         self::assertSame('01.01.2020', $crawler->filter('#next-call-date')->attr('value'));
+    }
+
+    public function testExistingNextCallPreventsSecondCreation(): void
+    {
+        [$organization] = $this->makeOrganizationWithContact('ООО Ромашка');
+        $call = $this->makeCallFor($organization);
+        $nextCall = $this->makeCallFor($organization, notes: 'Следующий звонок');
+        $call->setNextCall($nextCall);
+        $this->em()->flush();
+        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
+
+        $callsBefore = $this->em()->getRepository(Call::class)->count(['organization' => $organization]);
+
+        $crawler = $this->open('/calls/' . $call->id . '/edit');
+        self::assertCount(0, $crawler->filter('input[name="next_call_date"]'), 'Поле даты следующего звонка скрыто, если nextCall уже задан');
+
+        $this->submitFormByButton('Сохранить', [
+            'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
+            'made_at' => '24.08.2026 15:30',
+        ]);
+
+        $this->assertResponseRedirects();
+        $this->em()->clear();
+
+        $callsAfter = $this->em()->getRepository(Call::class)->count(['organization' => $organization]);
+        self::assertSame($callsBefore, $callsAfter, 'Новый звонок не должен создаваться, если next_call_id уже задан');
+
+        $original = $this->findCallById($call->id);
+        self::assertNotNull($original);
+        self::assertSame($nextCall->id, $original->nextCall->id, 'Ссылка на следующий звонок не должна изменяться');
     }
 
     public function testDeletePageWarnsAboutCampaignRecipient(): void
