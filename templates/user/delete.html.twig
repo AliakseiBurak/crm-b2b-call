@@ -1,0 +1,31 @@
+{#
+    Подтверждение удаления пользователя (change add-new-user).
+    Предупреждает о необратимости действия; отмена возвращает к списку.
+    Ожидает: user (User).
+#}
+{% extends 'base.html.twig' %}
+
+{% block title %}Удаление пользователя{% endblock %}
+
+{% block body %}
+    <section class="section section--white">
+        <div class="container">
+            <h1>Удаление пользователя</h1>
+
+            <p class="user-delete__warning">
+                Пользователь «{{ user.email }}» будет удалён. Действие необратимо.
+            </p>
+
+            <form method="post" action="{{ path('app_user_remove', { id: user.id }) }}" class="user-form__actions">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('user') }}">
+                {{ include('components/button.html.twig', { variant: 'secondary', text: 'Удалить' }) }}
+                {{ include('components/button.html.twig', {
+                    variant: 'secondary',
+                    text: 'Отмена',
+                    href: path('app_user_list'),
+                    type: 'button',
+                }) }}
+            </form>
+        </div>
+    </section>
+{% endblock %}

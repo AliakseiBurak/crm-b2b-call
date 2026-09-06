@@ -8,24 +8,34 @@
     {% block stylesheets %}{{ encore_entry_link_tags('app') }}{% endblock %}
 </head>
 <body>
-    {% set menu = app.user
+    {% set baseMenu = app.user
         ? [
             { label: 'Панель', href: path('app_dashboard') },
             { label: 'Рассылки', href: path('app_campaign_index') },
-            { label: 'Выйти', href: path('app_logout') },
         ]
-        : [
-            { label: 'Войти', href: path('app_login') },
-        ]
+        : []
     %}
+    {% if app.user and is_granted('ROLE_ADMIN') %}
+        {% set baseMenu = baseMenu|merge([{ label: 'Пользователи', href: path('app_user_list') }]) %}
+    {% endif %}
+    {% if app.user %}
+        {% set baseMenu = baseMenu|merge([{ label: 'Выйти', href: path('app_logout') }]) %}
+    {% else %}
+        {% set baseMenu = [{ label: 'Войти', href: path('app_login') }] %}
+    {% endif %}
+    {% set menu = baseMenu %}
 
     {{ include('components/header.html.twig', { menu: menu }) }}
 
-    {% for label, messages in app.flashes %}
-        {% for message in messages %}
-            <div class="alert alert--{{ label == 'error' ? 'error' : 'warning' }}" role="alert">{{ message }}</div>
+    {% block flashes %}
+        {% for label, messages in app.flashes %}
+            <div class="container">
+                {% for message in messages %}
+                    <div class="alert alert--{{ label == 'error' ? 'error' : 'warning' }}" role="alert">{{ message }}</div>
+                {% endfor %}
+            </div>
         {% endfor %}
-    {% endfor %}
+    {% endblock %}
 
     <main>
         {% block body %}{% endblock %}

@@ -28,6 +28,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: 'string', enumType: UserRole::class)]
     public private(set) UserRole $role;
 
+    #[ORM\Column(length: 255, nullable: true)]
+    public private(set) ?string $name = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    public private(set) ?string $surname = null;
+
     #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
     public private(set) \DateTimeImmutable $createdAt;
 
@@ -46,6 +52,20 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setEmail(string $email): self
     {
         $this->email = $email;
+
+        return $this;
+    }
+
+    public function setName(?string $name): self
+    {
+        $this->name = $name;
+
+        return $this;
+    }
+
+    public function setSurname(?string $surname): self
+    {
+        $this->surname = $surname;
 
         return $this;
     }

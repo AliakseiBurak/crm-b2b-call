@@ -27,7 +27,7 @@ class OrganizationGroup
     public private(set) GroupType $type;
 
     #[ORM\OneToOne(targetEntity: User::class, inversedBy: 'personalGroup')]
-    #[ORM\JoinColumn(name: 'owner_user_id', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    #[ORM\JoinColumn(name: 'owner_user_id', referencedColumnName: 'id', nullable: true, onDelete: 'CASCADE')]
     public private(set) ?User $ownerUser = null;
 
     #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]

@@ -24,7 +24,7 @@ class HomeController extends AbstractController
     ): Response {
         $user = $this->getUser();
         if (null === $user) {
-            return $this->render('home/index.html.twig');
+            return $this->redirectToRoute('app_login');
         }
 
         $now = new \DateTimeImmutable();
