@@ -60,3 +60,21 @@
   users, manager is rejected
 - [ ] 6.4 Run `openspec validate add-new-user --type change --strict`
   and fix any validation issues
+
+## 7. Redirect Home to Login
+
+- [ ] 7.1 Update `HomeController::index` to redirect unauthenticated
+  users from `/` to `/login` instead of rendering the hero page
+- [ ] 7.2 Update e2e smoke test: guest on `/` is redirected to `/login`
+
+## 8. Setup Password on Login
+
+- [ ] 8.1 Add `findOneByEmailWithNoPassword()` to `UserRepository`
+- [ ] 8.2 Add `SecurityController::setupPassword` (`POST /setup-password`)
+  with email lookup, password validation (≥8 chars, match), hashing
+  via `UserPasswordHasherInterface`, and flash messages
+- [ ] 8.3 Update login template: add checkbox «Новый пользователь»,
+  toggle JS, setup-password form with new_password + confirm_password
+- [ ] 8.4 Write PHPUnit tests for setupPassword: success, user not found,
+  already has password, short password, mismatch, empty fields
+- [ ] 8.5 Update e2e smoke test: new user sets password via login page
