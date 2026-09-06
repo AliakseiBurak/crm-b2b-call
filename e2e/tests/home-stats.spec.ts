@@ -84,13 +84,12 @@ test('администратор видит карточку Y=7 и показа
   }
 });
 
-// 5.2: гость видит только hero
-test('гость на главной видит только hero, без карточки и статистики', async ({ page }) => {
+// 5.2: гость перенаправляется на вход
+test('гость на главной перенаправляется на страницу входа', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.locator('.hero')).toBeVisible();
-  await expect(page.locator('.stats__total')).toHaveCount(0);
-  await expect(page.locator('.stats-home')).toHaveCount(0);
+  await expect(page).toHaveURL(/\/login/);
+  await expect(page.getByRole('heading', { name: 'Вход' })).toBeVisible();
 });
 
 // 5.4: на панели организаций статистики нет — только таблица
