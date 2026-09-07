@@ -56,7 +56,7 @@ final class GroupControllerTest extends DatabaseWebTestCase
         $this->client->request('GET', '/groups');
 
         $this->assertResponseIsSuccessful();
-        $this->assertSelectorNotTextContains('body', 'Other Group');
+        $this->assertSelectorNotExists('body:contains("Other Group")');
     }
 
     public function testManagerCreatesGroup(): void
@@ -194,6 +194,11 @@ final class GroupControllerTest extends DatabaseWebTestCase
         $group = $this->makeGroup('My Group', $manager);
         $this->em()->persist($group);
 
+        // Org2 доступна менеджеру через другую созданную им группу — обе
+        // организации видны на странице участников (ADR-0007).
+        $otherGroup = $this->makeGroup('Other Arena', $manager);
+        $this->em()->persist($otherGroup);
+
         $org1 = new Organization()->setName('Org1')->setIndustry('IT');
         $org2 = new Organization()->setName('Org2')->setIndustry('IT');
         $this->em()->persist($org1);
@@ -201,6 +206,7 @@ final class GroupControllerTest extends DatabaseWebTestCase
 
         $membership = new OrgGroupMembership($org1, $group);
         $this->em()->persist($membership);
+        $this->em()->persist(new OrgGroupMembership($org2, $otherGroup));
         $this->em()->flush();
         $groupId = $group->id;
 
@@ -262,6 +268,42 @@ final class GroupControllerTest extends DatabaseWebTestCase
         $this->client->request('GET', '/groups/' . $group->id . '/members');
 
         $this->assertResponseStatusCodeSame(403);
+    }
+
+    public function testManagerCannotAddInaccessibleOrgToGroupMembership(): void
+    {
+        $manager1 = $this->makeUser('manager1@b2b-crm.loc', UserRole::Manager);
+        $manager2 = $this->makeUser('manager2@b2b-crm.loc', UserRole::Manager);
+        $group = $this->makeGroup('My Group', $manager1);
+        $this->em()->persist($group);
+
+        // Организация manager2 вне области доступа manager1 (ADR-0007).
+        $inaccessibleOrg = (new Organization())
+            ->setName('Чужой Орг')
+            ->setIndustry('IT');
+        $manager2Group = $this->makeGroup('Manager2 Group', $manager2);
+        $this->em()->persist($manager2Group);
+        $this->em()->persist($inaccessibleOrg);
+        $this->em()->persist(new OrgGroupMembership($inaccessibleOrg, $manager2Group));
+        $this->em()->flush();
+        $groupId = $group->id;
+
+        // Токен — со своей страницы участников: форма доступна только
+        // аутентифицированному менеджеру (иначе GET редиректит на /login).
+        $this->login($manager1);
+        $csrfTokenManager = static::getContainer()->get('security.csrf.token_manager');
+        $token = $csrfTokenManager->getToken('group_members_' . $groupId)->getValue();
+
+        $this->client->request('POST', '/groups/' . $groupId . '/members', [
+            '_csrf_token' => $token,
+            'organizations' => [$inaccessibleOrg->id],
+        ]);
+
+        $this->assertResponseRedirects('/groups');
+        $this->em()->clear();
+
+        $group = $this->em()->find(OrganizationGroup::class, $groupId);
+        self::assertCount(0, $group->memberships);
     }
 
     // --- Admin group management (task 3.4) ---

@@ -45,34 +45,88 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
         self::assertCount(0, $organization->groupMemberships);
     }
 
-    public function testManagerCreateAddsOrganizationToPersonalGroup(): void
+    public function testManagerCreatesOrgWithoutGroupSelectionStaysUngrouped(): void
     {
         $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
         $this->em()->flush();
         $this->login($manager);
 
         $this->open('/organizations/new');
+        $this->assertResponseIsSuccessful();
+
         $this->submitFormByButton('Создать', [
             'name' => 'ООО Ромашка',
             'industry' => 'IT',
         ]);
 
         $this->assertResponseRedirects();
+        $this->assertNotNull($this->findOrganization('ООО Ромашка'));
 
-        $organization = $this->findOrganization('ООО Ромашка');
-        self::assertNotNull($organization);
-        $organizationId = $organization->id;
+        // Личных групп больше нет: без выбора группа организация не привязана
+        // ни к одной группе (spec organization-groups: создание без выбора группы).
+        $this->em()->clear();
+        self::assertCount(0, $this->findOrganization('ООО Ромашка')->groupMemberships->toArray());
+    }
 
-        // Свежая гидратация: коллекция у управляемой сущности не перечитывается.
+    public function testManagerCreatesOrgWithSelectedGroupAddsToGroup(): void
+    {
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $group = $this->makeGroup($manager);
+        $this->em()->persist($group);
+        $this->em()->flush();
+
+        $this->login($manager);
+        $this->open('/organizations/new');
+        $this->assertResponseIsSuccessful();
+
+        $this->submitFormByButton('Создать', [
+            'name' => 'ООО Ромашка',
+            'industry' => 'IT',
+            'groups' => [$group->id],
+        ]);
+
+        $this->assertResponseRedirects();
         $this->em()->clear();
 
-        /** @var OrgGroupMembership[] $memberships */
-        $memberships = $this->findOrganization('ООО Ромашка')->groupMemberships->toArray();
-        self::assertCount(1, $memberships);
-        self::assertSame(
-            $manager->id,
-            $memberships[0]->group->createdBy->id
-        );
+        $membership = $this->em()->getRepository(OrgGroupMembership::class)->findOneBy([
+            'organization' => $this->findOrganization('ООО Ромашка'),
+            'group' => $group,
+        ]);
+        self::assertNotNull($membership);
+    }
+
+    public function testManagerCannotAddInaccessibleGroupOnOrgCreate(): void
+    {
+        $manager1 = $this->makeUser('manager1@b2b-crm.loc', UserRole::Manager);
+        $manager2 = $this->makeUser('manager2@b2b-crm.loc', UserRole::Manager);
+        $otherGroup = $this->makeGroup($manager2);
+        $this->em()->persist($otherGroup);
+        $this->em()->flush();
+
+        // Прямой POST: форма не может отправить недоступный чекбокс, поэтому
+        // серверная фильтрация области доступа проверяется вручную (ADR-0007).
+        // Токен — со своей формы создания: страница доступна только
+        // аутентифицированному менеджеру (иначе GET редиректит на /login).
+        $this->login($manager1);
+        $csrfTokenManager = static::getContainer()->get('security.csrf.token_manager');
+        $token = $csrfTokenManager->getToken('organization_new')->getValue();
+
+        $this->client->request('POST', '/organizations/new', [
+            '_csrf_token' => $token,
+            'name' => 'ООО Ромашка',
+            'industry' => 'IT',
+            'groups' => [$otherGroup->id],
+        ]);
+
+        $this->assertResponseRedirects();
+        $this->em()->clear();
+
+        // Группа другого менеджера недоступна — членство не создаётся.
+        $membership = $this->em()->getRepository(OrgGroupMembership::class)->findOneBy([
+            'organization' => $this->findOrganization('ООО Ромашка'),
+            'group' => $otherGroup,
+        ]);
+        self::assertNull($membership);
     }
 
     // --- Org group checkbox tests (task 4.3) ---
@@ -81,9 +135,16 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
     {
         $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
         $group = $this->makeGroup($manager);
+        $anotherGroup = (new OrganizationGroup())
+            ->setName('Другая группа')
+            ->setCreatedBy($manager);
         $org = new Organization()->setName('ООО Ромашка')->setIndustry('IT');
         $this->em()->persist($group);
+        $this->em()->persist($anotherGroup);
         $this->em()->persist($org);
+        // Организация должна входить в область доступа менеджера (ADR-0007):
+        // членство в его группе, иначе страница редактирования вернёт 403.
+        $this->em()->persist(new OrgGroupMembership($org, $group));
         $this->em()->flush();
 
         $this->login($manager);
@@ -94,7 +155,7 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
         $this->client->submitForm('Сохранить', [
             'name' => 'ООО Ромашка',
             'industry' => 'IT',
-            'groups' => [$group->id],
+            'groups' => [$group->id, $anotherGroup->id],
         ]);
 
         $this->assertResponseRedirects();
@@ -102,7 +163,7 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
 
         $membership = $this->em()->getRepository(OrgGroupMembership::class)->findOneBy([
             'organization' => $org,
-            'group' => $group,
+            'group' => $anotherGroup,
         ]);
         self::assertNotNull($membership);
     }
@@ -220,6 +281,11 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
     {
         [$manager1] = $this->makeTwoManagersWithOrganizations();
         $visible = $this->findOrganization('ООО Ромашка');
+        // Группа менеджера явно отмечается в форме: иначе отправка без
+        // чекбоксов удаляет членство и организация выпадает из области
+        // доступа (ADR-0007).
+        $group = $this->em()->getRepository(OrganizationGroup::class)->findOneBy(['createdBy' => $manager1]);
+        self::assertNotNull($group);
 
         $this->login($manager1);
         $this->open('/organizations/' . $visible->id . '/edit');
@@ -229,6 +295,7 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
         $this->submitFormByButton('Сохранить', [
             'name' => 'ООО Ромашка',
             'industry' => 'Маркетинг',
+            'groups' => [$group->id],
         ]);
 
         $this->assertResponseRedirects();

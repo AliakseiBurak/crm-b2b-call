@@ -9,9 +9,9 @@ use App\Repository\UserRepository;
 use App\Tests\DatabaseWebTestCase;
 
 /**
- * Функциональные тесты UserController (change add-new-user):
+ * Функциональные тесты UserController (change add-new-user, organization-groups):
  * создание, удаление, список пользователей, проверка доступа (ADR-0008),
- * каскадное удаление персональной группы менеджера (ADR-0005).
+ * per-group reassign/delete выбор при удалении менеджера (organization-groups).
  */
 final class UserControllerTest extends DatabaseWebTestCase
 {
@@ -88,7 +88,7 @@ final class UserControllerTest extends DatabaseWebTestCase
         ]);
 
         $this->assertResponseStatusCodeSame(422);
-        self::assertSame(0, $this->em()->getRepository(User::class)->count([]));
+        self::assertSame(0, $this->em()->getRepository(User::class)->count(['email' => '']));
     }
 
     public function testCreateWithDuplicateEmailShowsError(): void
@@ -121,7 +121,7 @@ final class UserControllerTest extends DatabaseWebTestCase
         ]);
 
         $this->assertResponseStatusCodeSame(422);
-        self::assertSame(0, $this->em()->getRepository(User::class)->count([]));
+        self::assertSame(0, $this->em()->getRepository(User::class)->count(['email' => 'test@example.com']));
     }
 
     public function testCreateWithInvalidRoleShowsError(): void
@@ -132,11 +132,11 @@ final class UserControllerTest extends DatabaseWebTestCase
             'email' => 'test@example.com',
             'name' => '',
             'surname' => '',
-            'role' => 'supervisor',
+            'role' => 'manager',
         ]);
 
         $this->assertResponseStatusCodeSame(422);
-        self::assertSame(0, $this->em()->getRepository(User::class)->count([]));
+        self::assertSame(0, $this->em()->getRepository(User::class)->count(['email' => 'test@example.com']));
     }
 
     public function testCreateWithInvalidEmailFormatShowsError(): void
@@ -152,36 +152,81 @@ final class UserControllerTest extends DatabaseWebTestCase
 
         $this->assertResponseStatusCodeSame(422);
         $this->assertSelectorTextContains('.field__error', 'Некорректный формат email');
-        self::assertSame(0, $this->em()->getRepository(User::class)->count([]));
+        self::assertSame(0, $this->em()->getRepository(User::class)->count(['email' => 'not-an-email']));
     }
 
     // --- Delete ---
 
-    public function testAdminDeletesManagerAndPersonalGroupIsDeleted(): void
+    public function testAdminCannotDeleteManagerWithoutGroupChoice(): void
     {
         $admin = $this->makeUser('admin@b2b-crm.loc', UserRole::Admin);
         $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
-        $this->em()->flush();
-
         $group = new OrganizationGroup()
-            ->setName('Личная группа manager')
+            ->setName('Группа менеджера')
             ->setCreatedBy($manager);
         $this->em()->persist($group);
         $this->em()->flush();
-
-        $groupId = $group->id;
         $managerId = $manager->id;
 
         $this->login($admin);
         $this->open('/admin/users/' . $managerId . '/delete');
         $this->submitFormByButton('Удалить', []);
 
-        $this->assertResponseRedirects('/admin/users');
-
+        // Без выбора действия для созданной группы удаление отклоняется
+        // (spec organization-groups: «Администратор не может удалить менеджера
+        // без выбора для каждой группы»).
+        $this->assertResponseStatusCodeSame(403);
         $this->em()->clear();
+        self::assertNotNull($this->em()->find(User::class, $managerId));
+    }
+
+    public function testAdminReassignsGroupsWhenDeletingManager(): void
+    {
+        $admin = $this->makeUser('admin@b2b-crm.loc', UserRole::Admin);
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $group = new OrganizationGroup()
+            ->setName('Группа менеджера')
+            ->setCreatedBy($manager);
+        $this->em()->persist($group);
+        $this->em()->flush();
+        $groupId = $group->id;
+        $managerId = $manager->id;
+
+        $this->login($admin);
+        $this->open('/admin/users/' . $managerId . '/delete');
+        $this->submitFormByButton('Удалить', ['group_action_' . $groupId => 'reassign']);
+
+        $this->assertResponseRedirects('/admin/users');
+        $this->em()->clear();
+
+        self::assertNull($this->em()->find(User::class, $managerId));
+        $reassigned = $this->em()->find(OrganizationGroup::class, $groupId);
+        self::assertNotNull($reassigned, 'Группа сохраняется при переназначении');
+        self::assertSame($admin->id, $reassigned->createdBy->id);
+    }
+
+    public function testAdminDeletesGroupsWhenDeletingManager(): void
+    {
+        $admin = $this->makeUser('admin@b2b-crm.loc', UserRole::Admin);
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $group = new OrganizationGroup()
+            ->setName('Группа менеджера')
+            ->setCreatedBy($manager);
+        $this->em()->persist($group);
+        $this->em()->flush();
+        $groupId = $group->id;
+        $managerId = $manager->id;
+
+        $this->login($admin);
+        $this->open('/admin/users/' . $managerId . '/delete');
+        $this->submitFormByButton('Удалить', ['group_action_' . $groupId => 'delete']);
+
+        $this->assertResponseRedirects('/admin/users');
+        $this->em()->clear();
+
         self::assertNull($this->em()->find(User::class, $managerId));
         self::assertNull($this->em()->find(OrganizationGroup::class, $groupId),
-            'Персональная группа менеджера удаляется каскадно');
+            'Группа удаляется при выборе «Удалить группу»');
     }
 
     public function testAdminDeletesAdminNoGroupDeleted(): void
