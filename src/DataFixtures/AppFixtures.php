@@ -8,7 +8,6 @@ use App\Entity\CampaignAttachment;
 use App\Entity\CampaignRecipient;
 use App\Entity\Contact;
 use App\Entity\Enum\CampaignStatus;
-use App\Entity\Enum\GroupType;
 use App\Entity\Enum\UserRole;
 use App\Entity\GroupAssignment;
 use App\Entity\OrgGroupMembership;
@@ -91,9 +90,9 @@ class AppFixtures extends Fixture
         $manager2 = $this->makeUser($manager, self::SECOND_MANAGER_EMAIL, self::SECOND_MANAGER_PASSWORD, UserRole::Manager);
         $manager->flush();
 
-        $personal1 = $this->makeGroup($manager, 'user-' . $manager1->id . '-group', $manager1, GroupType::User);
-        $personal2 = $this->makeGroup($manager, 'user-' . $manager2->id . '-group', $manager2, GroupType::User);
-        $custom = $this->makeGroup($manager, 'custom-partners', null, GroupType::Custom);
+        $group1 = $this->makeGroup($manager, 'Клиенты Ромашка', $manager1);
+        $group2 = $this->makeGroup($manager, 'Клиенты Вектор', $manager2);
+        $custom = $this->makeGroup($manager, 'Клиенты-партнёры', $admin);
         $manager->flush();
 
         $manager->persist(new GroupAssignment($manager1, $custom));
@@ -109,15 +108,15 @@ class AppFixtures extends Fixture
         }
         $manager->flush();
 
-        $manager->persist(new OrgGroupMembership($organizations[0], $personal1));
-        $manager->persist(new OrgGroupMembership($organizations[1], $personal1));
+        $manager->persist(new OrgGroupMembership($organizations[0], $group1));
+        $manager->persist(new OrgGroupMembership($organizations[1], $group1));
         $manager->persist(new OrgGroupMembership($organizations[1], $custom));
-        $manager->persist(new OrgGroupMembership($organizations[2], $personal2));
+        $manager->persist(new OrgGroupMembership($organizations[2], $group2));
         $manager->persist(new OrgGroupMembership($organizations[2], $custom));
-        $manager->persist(new OrgGroupMembership($organizations[3], $personal2));
-        $manager->persist(new OrgGroupMembership($organizations[4], $personal1)); // Горизонт — без контактов
-        $manager->persist(new OrgGroupMembership($organizations[5], $personal1)); // Закат — с контактом, без звонков
-        $manager->persist(new OrgGroupMembership($organizations[6], $personal1)); // Парус — просрочки/частичные обзвоны
+        $manager->persist(new OrgGroupMembership($organizations[3], $group2));
+        $manager->persist(new OrgGroupMembership($organizations[4], $group1)); // Горизонт — без контактов
+        $manager->persist(new OrgGroupMembership($organizations[5], $group1)); // Закат — с контактом, без звонков
+        $manager->persist(new OrgGroupMembership($organizations[6], $group1)); // Парус — просрочки/частичные обзвоны
 
         $contacts = [];
         $index = 0;
@@ -384,13 +383,11 @@ class AppFixtures extends Fixture
         return $user;
     }
 
-    private function makeGroup(ObjectManager $manager, string $slug, ?User $owner, GroupType $type): OrganizationGroup
+    private function makeGroup(ObjectManager $manager, string $name, User $createdBy): OrganizationGroup
     {
         $group = new OrganizationGroup()
-            ->setName($owner ? 'Личная группа ' . $owner->email : 'Клиенты-партнёры')
-            ->setSlug($slug)
-            ->setType($type)
-            ->setOwnerUser($owner);
+            ->setName($name)
+            ->setCreatedBy($createdBy);
         $manager->persist($group);
 
         return $group;

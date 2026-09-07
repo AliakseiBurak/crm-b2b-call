@@ -15,8 +15,14 @@
         ]
         : []
     %}
+    {% if app.user and is_granted('ROLE_MANAGER') and not is_granted('ROLE_ADMIN') %}
+        {% set baseMenu = baseMenu|merge([{ label: 'Мои группы', href: path('app_group_list') }]) %}
+    {% endif %}
     {% if app.user and is_granted('ROLE_ADMIN') %}
-        {% set baseMenu = baseMenu|merge([{ label: 'Пользователи', href: path('app_user_list') }]) %}
+        {% set baseMenu = baseMenu|merge([
+            { label: 'Группы', href: path('app_group_list') },
+            { label: 'Пользователи', href: path('app_user_list') },
+        ]) %}
     {% endif %}
     {% if app.user %}
         {% set baseMenu = baseMenu|merge([{ label: 'Выйти', href: path('app_logout') }]) %}

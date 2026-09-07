@@ -2,7 +2,6 @@
 
 namespace App\Entity;
 
-use App\Entity\Enum\GroupType;
 use App\Repository\OrganizationGroupRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -20,15 +19,15 @@ class OrganizationGroup
     #[ORM\Column(length: 255)]
     public private(set) string $name;
 
-    #[ORM\Column(length: 255, unique: true)]
-    public private(set) string $slug;
+    #[ORM\Column(type: 'text', nullable: true)]
+    public private(set) ?string $description = null;
 
-    #[ORM\Column(type: 'string', enumType: GroupType::class)]
-    public private(set) GroupType $type;
+    #[ORM\Column(length: 7, nullable: true)]
+    public private(set) ?string $color = null;
 
-    #[ORM\OneToOne(targetEntity: User::class, inversedBy: 'personalGroup')]
-    #[ORM\JoinColumn(name: 'owner_user_id', referencedColumnName: 'id', nullable: true, onDelete: 'CASCADE')]
-    public private(set) ?User $ownerUser = null;
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(name: 'created_by', referencedColumnName: 'id', nullable: true, onDelete: 'SET NULL')]
+    public private(set) ?User $createdBy = null;
 
     #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
     public private(set) \DateTimeImmutable $createdAt;
@@ -53,23 +52,23 @@ class OrganizationGroup
         return $this;
     }
 
-    public function setSlug(string $slug): self
+    public function setDescription(?string $description): self
     {
-        $this->slug = $slug;
+        $this->description = $description;
 
         return $this;
     }
 
-    public function setType(GroupType $type): self
+    public function setColor(?string $color): self
     {
-        $this->type = $type;
+        $this->color = $color;
 
         return $this;
     }
 
-    public function setOwnerUser(?User $ownerUser): self
+    public function setCreatedBy(?User $createdBy): self
     {
-        $this->ownerUser = $ownerUser;
+        $this->createdBy = $createdBy;
 
         return $this;
     }

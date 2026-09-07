@@ -1,0 +1,76 @@
+{#
+    Управление участниками группы (change organization-groups).
+    Чекбоксы для добавления/удаления организаций из группы.
+    Ожидает: group (OrganizationGroup), organizations (Organization[]), memberIds (int[]).
+#}
+{% extends 'base.html.twig' %}
+
+{% block title %}Участники группы «{{ group.name }}»{% endblock %}
+
+{% block body %}
+    <section class="section section--white">
+        <div class="container">
+            <h1>Участники группы «{{ group.name }}»</h1>
+
+            <form
+                method="post"
+                action="{{ path('app_group_update_members', { id: group.id }) }}"
+                class="group-members-form"
+                style="margin-top: 24px;"
+            >
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('group') }}">
+
+                {% if organizations is not empty %}
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="select-all"></th>
+                                <th>Название</th>
+                                <th>Отрасль</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for org in organizations %}
+                                <tr>
+                                    <td>
+                                        <input
+                                            type="checkbox"
+                                            name="organizations[]"
+                                            value="{{ org.id }}"
+                                            {% if org.id in memberIds %}checked{% endif %}
+                                        >
+                                    </td>
+                                    <td>{{ org.name }}</td>
+                                    <td>{{ org.industry|default('—') }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p>Нет доступных организаций.</p>
+                {% endif %}
+
+                <div class="group-members-form__actions" style="margin-top: 24px;">
+                    {{ include('components/button.html.twig', {
+                        variant: 'primary',
+                        text: 'Сохранить',
+                    }) }}
+                    {{ include('components/button.html.twig', {
+                        variant: 'secondary',
+                        text: 'Отмена',
+                        href: path('app_group_list'),
+                        type: 'button',
+                    }) }}
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <script>
+        document.getElementById('select-all')?.addEventListener('change', function() {
+            document.querySelectorAll('input[name="organizations[]"]').forEach(cb => {
+                cb.checked = this.checked;
+            });
+        });
+    </script>
+{% endblock %}

@@ -1,7 +1,8 @@
 {#
-    Подтверждение удаления пользователя (change add-new-user).
-    Предупреждает о необратимости действия; отмена возвращает к списку.
-    Ожидает: user (User).
+    Подтверждение удаления пользователя (change add-new-user, organization-groups).
+    Предупреждает о необратимости действия; показывает группы, созданные пользователем.
+    Для каждой группы необходимо выбрать: переназначить администратору или удалить.
+    Ожидает: user (User), createdGroups (OrganizationGroup[]).
 #}
 {% extends 'base.html.twig' %}
 
@@ -15,6 +16,33 @@
             <p class="user-delete__warning">
                 Пользователь «{{ user.email }}» будет удалён. Действие необратимо.
             </p>
+
+            {% if createdGroups is not empty %}
+                <div class="user-delete__groups">
+                    <h2>Группы, созданные пользователем</h2>
+                    <p>Для каждой группы выберите действие:</p>
+
+                    {% for group in createdGroups %}
+                        <div class="user-delete__group">
+                            <h3>{{ group.name }}</h3>
+                            <p>Slug: {{ group.slug }}</p>
+                            {% if group.description %}
+                                <p>{{ group.description }}</p>
+                            {% endif %}
+                            <div class="user-delete__group-actions">
+                                <label>
+                                    <input type="radio" name="group_action_{{ group.id }}" value="reassign" required>
+                                    Переназначить администратору
+                                </label>
+                                <label>
+                                    <input type="radio" name="group_action_{{ group.id }}" value="delete" required>
+                                    Удалить группу
+                                </label>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
 
             <form method="post" action="{{ path('app_user_remove', { id: user.id }) }}" class="user-form__actions">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token('user') }}">

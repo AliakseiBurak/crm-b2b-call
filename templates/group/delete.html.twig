@@ -1,0 +1,31 @@
+{#
+    Подтверждение удаления группы (change organization-groups).
+    Предупреждает о необратимости действия; отмена возвращает к списку.
+    Ожидает: group (OrganizationGroup).
+#}
+{% extends 'base.html.twig' %}
+
+{% block title %}Удаление группы{% endblock %}
+
+{% block body %}
+    <section class="section section--white">
+        <div class="container">
+            <h1>Удаление группы</h1>
+
+            <p class="group-delete__warning">
+                Группа «{{ group.name }}» будет удалена. Все организации будут удалены из группы. Действие необратимо.
+            </p>
+
+            <form method="post" action="{{ path('app_group_remove', { id: group.id }) }}" class="group-form__actions">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('group') }}">
+                {{ include('components/button.html.twig', { variant: 'secondary', text: 'Удалить' }) }}
+                {{ include('components/button.html.twig', {
+                    variant: 'secondary',
+                    text: 'Отмена',
+                    href: path('app_group_list'),
+                    type: 'button',
+                }) }}
+            </form>
+        </div>
+    </section>
+{% endblock %}

@@ -355,8 +355,15 @@
 
 // ── Страница адресатов ─────────────────────────────────────────
 .campaign-recipients {
-    &__bulk {
+    &__bulk-row {
         margin-bottom: 24px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+
+        form {
+            flex: 0 0 auto;
+        }
     }
 
     &__add {

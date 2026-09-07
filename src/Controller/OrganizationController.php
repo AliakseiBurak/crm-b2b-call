@@ -2,7 +2,6 @@
 
 namespace App\Controller;
 
-use App\Entity\Enum\GroupType;
 use App\Entity\Enum\UserRole;
 use App\Entity\OrgGroupMembership;
 use App\Entity\Organization;
@@ -55,14 +54,6 @@ class OrganizationController extends AbstractController
         }
 
         $this->em->persist($organization);
-
-        // Менеджер: организация попадает в личную группу user-<id>-group
-        // (ADR-0005). У администратора личной группы нет (ADR-0008).
-        $user = $this->getUser();
-        if ($user instanceof User && UserRole::Manager === $user->role) {
-            $this->em->persist(new OrgGroupMembership($organization, $this->personalGroup($user)));
-        }
-
         $this->em->flush();
 
         return $this->redirectToRoute('app_dashboard', ['highlight' => $organization->id]);
@@ -72,11 +63,27 @@ class OrganizationController extends AbstractController
     public function edit(int $id): Response
     {
         $organization = $this->accessibleOrganization($id);
+        $user = $this->getUser();
+
+        // Get available groups
+        if ($user instanceof User && UserRole::Admin === $user->role) {
+            $groups = $this->groups->findAllGroups();
+        } else {
+            $groups = $this->groups->findForManager($user);
+        }
+
+        // Get current group memberships
+        $groupIds = array_map(
+            static fn (OrgGroupMembership $m): int => $m->group->id,
+            $organization->memberships->toArray()
+        );
 
         return $this->render('organization/form.html.twig', [
             'organization' => $organization,
             'errors' => [],
             'errorRecipients' => $this->campaignRecipients->findErrorRecipientsForOrganization($organization),
+            'groups' => $groups,
+            'groupIds' => $groupIds,
         ]);
     }
 
@@ -100,6 +107,10 @@ class OrganizationController extends AbstractController
                 'errors' => $errors,
             ], new Response(null, Response::HTTP_UNPROCESSABLE_ENTITY));
         }
+
+        // Handle group memberships
+        $selectedGroupIds = array_map('intval', $request->request->all('groups'));
+        $this->updateGroupMemberships($organization, $selectedGroupIds);
 
         // Сохранение изменений — updatedAt обновляется вручную (авто-таймстампов нет).
         $organization->touch();
@@ -185,27 +196,6 @@ class OrganizationController extends AbstractController
     }
 
     /**
-     * Личная группа менеджера user-<id>-group; создаётся автоматически
-     * при регистрации менеджера, здесь — страховка на случай отсутствия.
-     */
-    private function personalGroup(User $user): OrganizationGroup
-    {
-        $slug = 'user-' . $user->id . '-group';
-        $group = $this->groups->findOneBy(['slug' => $slug]);
-        if (null !== $group) {
-            return $group;
-        }
-
-        $group = new OrganizationGroup()
-            ->setName('Личная группа ' . $user->email)
-            ->setSlug($slug)
-            ->setType(GroupType::User);
-        $this->em->persist($group);
-
-        return $group;
-    }
-
-    /**
      * Защита state-changing форм от CSRF; для AJAX-запросов токен передаётся
      * в заголовке X-CSRF-Token.
      */
@@ -214,6 +204,36 @@ class OrganizationController extends AbstractController
         $token = $request->headers->get('X-CSRF-Token') ?? (string) $request->request->get('_csrf_token', '');
         if (!$this->isCsrfTokenValid('organization', $token)) {
             throw new AccessDeniedHttpException('Недействительный CSRF-токен');
+        }
+    }
+
+    private function updateGroupMemberships(Organization $organization, array $selectedGroupIds): void
+    {
+        // Remove existing memberships not in selection
+        foreach ($organization->memberships as $membership) {
+            if (!in_array($membership->group->id, $selectedGroupIds, true)) {
+                $organization->memberships->removeElement($membership);
+                $this->em->remove($membership);
+            }
+        }
+
+        // Add new memberships
+        foreach ($selectedGroupIds as $groupId) {
+            $alreadyMember = false;
+            foreach ($organization->memberships as $existing) {
+                if ($existing->group->id === $groupId) {
+                    $alreadyMember = true;
+                    break;
+                }
+            }
+
+            if (!$alreadyMember) {
+                $group = $this->groups->find($groupId);
+                if (null !== $group) {
+                    $membership = new OrgGroupMembership($organization, $group);
+                    $this->em->persist($membership);
+                }
+            }
         }
     }
 }

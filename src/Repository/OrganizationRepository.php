@@ -41,9 +41,9 @@ class OrganizationRepository extends ServiceEntityRepository
     }
 
     /**
-     * Возвращает ID организаций, доступных менеджеру (личная группа
-     * user-<id>-group + все назначенные группы). Администратору и
-     * гостю возвращается null — полный доступ ко всем организациям.
+     * Возвращает ID организаций, доступных менеджеру (созданные и
+     * назначенные группы). Администратору и гостю возвращается null —
+     * полный доступ ко всем организациям.
      *
      * @return int[]|null
      */
@@ -58,7 +58,7 @@ class OrganizationRepository extends ServiceEntityRepository
             ->distinct()
             ->join('App\Entity\OrgGroupMembership', 'm', 'WITH', 'm.organization = o')
             ->join('m.group', 'g')
-            ->where('g.ownerUser = :user')
+            ->where('g.createdBy = :user')
             ->orWhere('EXISTS (SELECT a FROM App\Entity\GroupAssignment a WHERE a.group = m.group AND a.user = :user)')
             ->setParameter('user', $user)
             ->getQuery()

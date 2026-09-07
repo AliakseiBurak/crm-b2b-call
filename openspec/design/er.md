@@ -35,10 +35,10 @@ erDiagram
 
     ORGANIZATION_GROUP {
         bigint id PK
-        string name "user-<id>-group | custom name"
-        string slug UK "напр. minsk-region-group"
-        enum type "user|custom"
-        bigint owner_user_id FK "менеджер для type=user; NULL для admin/custom"
+        string name
+        text description
+        string color "напр. #3b82f6"
+        bigint created_by FK → USER.id
         datetime created_at
     }
 
@@ -161,7 +161,7 @@ erDiagram
 3. **Пользователи создаются администратором**; при создании менеджера
    автосоздаётся `user-<id>-group` (ADR-0003, ADR-0005). Админ собственной
    группы не имеет; группы для него не проверяются (ADR-0008).
-4. **Custom-группы** — slug-имена, создаёт администратор, назначаются
+4. **Custom-группы** — имена, создаёт администратор/менеджер, назначаются
    менеджерам через `GROUP_ASSIGNMENT`; членство организации в группах —
    many-to-many (ADR-0006).
 5. **Область доступа менеджера** — бинарная: организации собственной группы +

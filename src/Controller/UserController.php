@@ -3,10 +3,10 @@
 namespace App\Controller;
 
 use App\Dto\CreateUserRequest;
-use App\Entity\Enum\GroupType;
 use App\Entity\Enum\UserRole;
 use App\Entity\OrganizationGroup;
 use App\Entity\User;
+use App\Repository\OrganizationGroupRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -23,6 +23,7 @@ class UserController extends AbstractController
 {
     public function __construct(
         private readonly UserRepository $users,
+        private readonly OrganizationGroupRepository $groups,
         private readonly EntityManagerInterface $em,
     ) {
     }
@@ -100,16 +101,6 @@ class UserController extends AbstractController
 
             $this->em->persist($user);
             $this->em->flush();
-
-            if (UserRole::Manager === $role) {
-                $group = new OrganizationGroup()
-                    ->setName('Личная группа ' . $user->email)
-                    ->setSlug('user-' . $user->id . '-group')
-                    ->setType(GroupType::User)
-                    ->setOwnerUser($user);
-                $this->em->persist($group);
-                $this->em->flush();
-            }
         });
 
         return $this->redirectToRoute('app_user_list');
@@ -123,8 +114,11 @@ class UserController extends AbstractController
             throw $this->createNotFoundException('Пользователь не найден');
         }
 
+        $createdGroups = $this->groups->findCreatedBy($user);
+
         return $this->render('user/delete.html.twig', [
             'user' => $user,
+            'createdGroups' => $createdGroups,
         ]);
     }
 
@@ -144,9 +138,27 @@ class UserController extends AbstractController
             throw new AccessDeniedHttpException('Нельзя удалить самого себя');
         }
 
-        $this->em->wrapInTransaction(function () use ($user): void {
-            $this->em->remove($user);
-        });
+        $createdGroups = $this->groups->findCreatedBy($user);
+
+        // Process per-group choices
+        foreach ($createdGroups as $group) {
+            $action = $request->request->get('group_action_' . $group->id);
+            if ('reassign' === $action) {
+                $group->setCreatedBy($currentUser);
+            } elseif ('delete' === $action) {
+                $this->em->remove($group);
+            }
+            // If no action selected, throw error
+            if (null === $action) {
+                throw new AccessDeniedHttpException('Необходимо выбрать действие для каждой группы');
+            }
+        }
+
+        $this->em->flush();
+
+        // Now delete the user (personal groups will be removed by cascade)
+        $this->em->remove($user);
+        $this->em->flush();
 
         return $this->redirectToRoute('app_user_list');
     }

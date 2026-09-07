@@ -1,0 +1,60 @@
+{#
+    Список групп менеджера (change organization-groups).
+    Таблица с названием, описанием, цветом и действиями.
+    Ожидает: groups (OrganizationGroup[]).
+#}
+{% extends 'base.html.twig' %}
+
+{% block title %}{% if is_granted('ROLE_ADMIN') %}Группы{% else %}Мои группы{% endif %}{% endblock %}
+
+{% block body %}
+    <section class="section section--white">
+        <div class="container">
+            <h1>{% if is_granted('ROLE_ADMIN') %}Группы{% else %}Мои группы{% endif %}</h1>
+
+            <div class="group-list__actions" style="margin-bottom: 24px;">
+                {{ include('components/button.html.twig', {
+                    variant: 'primary',
+                    text: 'Новая группа',
+                    href: path('app_group_new'),
+                    sm: true,
+                }) }}
+            </div>
+
+            {% if groups is not empty %}
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Название</th>
+                            <th>Цвет</th>
+                            <th>Описание</th>
+                            <th style="white-space:nowrap"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for group in groups %}
+                            <tr>
+                                <td>{{ group.name }}</td>
+                                <td>
+                                    {% if group.color %}
+                                        <span style="display:inline-block;width:20px;height:20px;background-color:{{ group.color }};border-radius:4px;vertical-align:middle;"></span>
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                                <td>{{ group.description|default('—') }}</td>
+                                <td style="white-space:nowrap">
+                                    <a href="{{ path('app_group_edit', { id: group.id }) }}" class="btn btn--secondary btn--sm">Редактировать</a>
+                                    <a href="{{ path('app_group_members', { id: group.id }) }}" class="btn btn--secondary btn--sm">Участники</a>
+                                    <a href="{{ path('app_group_delete', { id: group.id }) }}" class="btn btn--secondary btn--sm">Удалить</a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Групп нет.</p>
+            {% endif %}
+        </div>
+    </section>
+{% endblock %}

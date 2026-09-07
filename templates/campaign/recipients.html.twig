@@ -1,7 +1,8 @@
 {#
     Страница адресатов рассылки: список, добавление, удаление.
     Редактирование доступно для всех статусов, кроме archived.
-    Ожидает: campaign (Campaign), availableOrganizations (Organization[]).
+    Ожидает: campaign (Campaign), availableOrganizations (Organization[]),
+    availableGroups (OrganizationGroup[]).
 #}
 {% extends 'base.html.twig' %}
 
@@ -14,16 +15,34 @@
 
             {% set canEdit = campaign.status.value != 'archived' %}
 
-            {% if canEdit and availableOrganizations is not empty %}
-                <div class="campaign-recipients__bulk">
-                    <form method="post" action="{{ path('app_campaign_recipient_bulk', { id: campaign.id }) }}">
-                        <input type="hidden" name="_csrf_token" value="{{ csrf_token('campaign_recipient') }}">
-                        {{ include('components/button.html.twig', {
-                            variant: 'secondary',
-                            text: 'Выбрать все организации',
-                            sm: true,
-                        }) }}
-                    </form>
+            {% set hasGroups = canEdit and availableGroups is not empty %}
+            {% if (canEdit and availableOrganizations is not empty) or hasGroups %}
+                <div class="campaign-recipients__bulk-row">
+                    {% if canEdit and availableOrganizations is not empty %}
+                        <form method="post" action="{{ path('app_campaign_recipient_bulk', { id: campaign.id }) }}">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token('campaign_recipient') }}">
+                            {{ include('components/button.html.twig', {
+                                variant: 'secondary',
+                                text: 'Выбрать все организации',
+                                sm: true,
+                            }) }}
+                        </form>
+                    {% endif %}
+
+                    {% if hasGroups %}
+                        {% for group in availableGroups %}
+                            <form method="post" action="{{ path('app_campaign_recipients_bulk_by_group', { id: campaign.id }) }}">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token('campaign') }}">
+                                <input type="hidden" name="group_id" value="{{ group.id }}">
+                                {{ include('components/button.html.twig', {
+                                    variant: 'secondary',
+                                    text: group.name,
+                                    sm: true,
+                                    attr: group.color ? { style: 'background:' ~ group.color ~ ';color:#fff;border-color:' ~ group.color } : {},
+                                }) }}
+                            </form>
+                        {% endfor %}
+                    {% endif %}
                 </div>
             {% endif %}
 

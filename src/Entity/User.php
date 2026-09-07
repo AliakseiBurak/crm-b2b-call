@@ -37,9 +37,6 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(name: 'created_at', type: 'datetime_immutable')]
     public private(set) \DateTimeImmutable $createdAt;
 
-    #[ORM\OneToOne(mappedBy: 'ownerUser', targetEntity: OrganizationGroup::class)]
-    public private(set) ?OrganizationGroup $personalGroup = null;
-
     #[ORM\OneToMany(mappedBy: 'user', targetEntity: GroupAssignment::class)]
     public private(set) Collection $groupAssignments;
 

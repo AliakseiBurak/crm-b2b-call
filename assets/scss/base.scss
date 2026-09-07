@@ -97,6 +97,11 @@ main {
 .alert {
     padding: 0.9rem 1.2rem;
     border-radius: $radius-modal;
+    margin-top: 1.5rem;
+}
+
+.section .alert {
+    margin-top: 0;
     margin-bottom: 1.5rem;
 }
 

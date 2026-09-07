@@ -10,7 +10,7 @@ enum UserRole: string
     public function roles(): array
     {
         return match ($this) {
-            self::Admin => ['ROLE_USER', 'ROLE_ADMIN'],
+            self::Admin => ['ROLE_USER', 'ROLE_MANAGER', 'ROLE_ADMIN'],
             self::Manager => ['ROLE_USER', 'ROLE_MANAGER'],
         };
     }

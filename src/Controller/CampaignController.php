@@ -8,11 +8,14 @@ use App\Entity\CampaignRecipient;
 use App\Entity\Contact;
 use App\Entity\Enum\CampaignStatus;
 use App\Entity\Enum\RecipientStatus;
+use App\Entity\Enum\UserRole;
 use App\Entity\Organization;
 use App\Repository\CampaignRecipientRepository;
 use App\Repository\CampaignRepository;
+use App\Repository\OrganizationGroupRepository;
 use App\Repository\OrganizationRepository;
 use App\Service\CampaignAttachmentStorage;
+use App\Service\CampaignRecipientService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -37,7 +40,9 @@ class CampaignController extends AbstractController
         private readonly CampaignRepository $campaigns,
         private readonly CampaignRecipientRepository $campaignRecipients,
         private readonly OrganizationRepository $organizations,
+        private readonly OrganizationGroupRepository $groups,
         private readonly CampaignAttachmentStorage $storage,
+        private readonly CampaignRecipientService $recipientService,
         private readonly EntityManagerInterface $em,
     ) {
     }
@@ -349,6 +354,10 @@ class CampaignController extends AbstractController
     {
         $campaign = $this->campaign($id);
         $available = $this->availableOrganizations($campaign);
+        $user = $this->getUser();
+        $availableGroups = (UserRole::Admin === $user->role)
+            ? $this->groups->findAllGroups()
+            : $this->groups->findForManager($user);
 
         $contactsByOrg = [];
         foreach ($available as $org) {
@@ -361,6 +370,7 @@ class CampaignController extends AbstractController
         return $this->render('campaign/recipients.html.twig', [
             'campaign' => $campaign,
             'availableOrganizations' => $available,
+            'availableGroups' => $availableGroups,
             'contactsByOrg' => $contactsByOrg,
         ]);
     }
@@ -394,6 +404,8 @@ class CampaignController extends AbstractController
             ++$added;
         }
         $this->em->flush();
+
+        $this->addFlash('success', sprintf('Добавлено: %d, пропущено: %d', $added, count($available) - $added));
 
         if ($request->headers->get('X-Requested-With') === 'XMLHttpRequest') {
             return $this->json([
@@ -854,5 +866,33 @@ class CampaignController extends AbstractController
         }
 
         $this->em->flush();
+    }
+
+    #[Route('/campaigns/{id}/recipients/bulk-by-group', name: 'app_campaign_recipients_bulk_by_group', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function bulkAddByGroup(int $id, Request $request): Response
+    {
+        $campaign = $this->campaigns->find($id);
+        if (null === $campaign) {
+            throw $this->createNotFoundException('Рассылка не найдена');
+        }
+
+        $this->assertCsrfToken($request, 'campaign');
+
+        $groupId = (int) $request->request->get('group_id', 0);
+        $group = $this->groups->find($groupId);
+        if (null === $group) {
+            throw $this->createNotFoundException('Группа не найдена');
+        }
+
+        try {
+            $result = $this->recipientService->bulkAddByGroup($campaign, $group, $this->getUser());
+            $this->addFlash('success', sprintf('Добавлено: %d, пропущено: %d', $result['added'], $result['skipped']));
+        } catch (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $e) {
+            $this->addFlash('error', $e->getMessage());
+        } catch (\InvalidArgumentException $e) {
+            $this->addFlash('error', $e->getMessage());
+        }
+
+        return $this->redirectToRoute('app_campaign_recipients', ['id' => $campaign->id]);
     }
 }

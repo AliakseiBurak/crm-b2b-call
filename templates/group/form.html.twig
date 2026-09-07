@@ -1,0 +1,67 @@
+{#
+    Форма создания/редактирования группы (change organization-groups).
+    Поля: name (обязательное), description, color.
+    Ожидает: group (OrganizationGroup|null), errors (array), name/description/color (old values on error).
+#}
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ group ? 'Редактировать группу' : 'Новая группа' }}{% endblock %}
+
+{% block body %}
+    <section class="section section--white">
+        <div class="container">
+            <h1>{{ group ? 'Редактировать группу' : 'Новая группа' }}</h1>
+
+            <form
+                class="group-form"
+                method="post"
+                action="{{ group ? path('app_group_update', { id: group.id }) : path('app_group_create') }}"
+            >
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('group') }}">
+
+                {{ include('components/form_field.html.twig', {
+                    name: 'name',
+                    label: 'Название',
+                    value: name|default(group.name|default('')),
+                    error: errors.name|default(null),
+                    required: true,
+                }) }}
+
+                {{ include('components/form_field.html.twig', {
+                    name: 'description',
+                    type: 'textarea',
+                    label: 'Описание',
+                    value: description|default(group.description|default('')),
+                    error: errors.description|default(null),
+                }) }}
+
+                <div class="field">
+                    <label class="field__label" for="color">Цвет</label>
+                    <input
+                        type="color"
+                        id="color"
+                        name="color"
+                        value="{{ color|default(group.color|default('#3b82f6')) }}"
+                        style="width: 60px; height: 40px; padding: 0; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;"
+                    >
+                    {% if errors.color is defined and errors.color %}
+                        <span class="field__error" role="alert">{{ errors.color }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="group-form__actions" style="margin-top: 24px;">
+                    {{ include('components/button.html.twig', {
+                        variant: 'primary',
+                        text: group ? 'Сохранить' : 'Создать',
+                    }) }}
+                    {{ include('components/button.html.twig', {
+                        variant: 'secondary',
+                        text: 'Отмена',
+                        href: path('app_group_list'),
+                        type: 'button',
+                    }) }}
+                </div>
+            </form>
+        </div>
+    </section>
+{% endblock %}

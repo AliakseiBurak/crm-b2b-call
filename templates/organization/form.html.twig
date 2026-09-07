@@ -3,7 +3,8 @@
     (change organizations-crud). Поля — компонент form_field (подчёркивание
     дизайн-системы), ошибки валидации — под полем на русском.
     Ожидает: organization (?Organization), errors (array<string, string>),
-    errorRecipients (CampaignRecipient[]|null).
+    errorRecipients (CampaignRecipient[]|null), groups (OrganizationGroup[]),
+    groupIds (int[]).
 #}
 {% extends 'base.html.twig' %}
 
@@ -38,6 +39,28 @@
                     value: organization.industry|default(''),
                     error: errors.industry|default(null),
                 }) }}
+
+                {% if groups is defined and groups is not empty %}
+                    <div class="field">
+                        <label class="field__label">Группы</label>
+                        <div class="field__checkboxes">
+                            {% for group in groups %}
+                                <label class="field__checkbox">
+                                    <input
+                                        type="checkbox"
+                                        name="groups[]"
+                                        value="{{ group.id }}"
+                                        {% if group.id in groupIds %}checked{% endif %}
+                                    >
+                                    {{ group.name }}
+                                    {% if group.color %}
+                                        <span style="display:inline-block;width:12px;height:12px;background-color:{{ group.color }};border-radius:2px;vertical-align:middle;margin-left:4px;"></span>
+                                    {% endif %}
+                                </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endif %}
 
                 {% if isEdit %}
                     <div class="organization-form__contacts">
