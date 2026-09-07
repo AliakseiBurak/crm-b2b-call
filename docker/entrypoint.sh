@@ -18,8 +18,12 @@ fi
 echo "[entrypoint] Проверка сертификатов (первый старт — генерация)..."
 gen-certs
 
-echo "[entrypoint] Миграции..."
-php bin/console doctrine:migrations:migrate --no-interaction
+if [ "${RUN_MIGRATIONS:-1}" = "1" ]; then
+    echo "[entrypoint] Миграции..."
+    php bin/console doctrine:migrations:migrate --no-interaction
+else
+    echo "[entrypoint] RUN_MIGRATIONS != 1, миграции пропущены."
+fi
 
 if [ "${ENABLE_FIXTURES:-1}" = "1" ]; then
     echo "[entrypoint] Fixtures..."
