@@ -3,7 +3,6 @@
 namespace App\Tests\Functional\Controller;
 
 use App\Entity\Contact;
-use App\Entity\Enum\GroupType;
 use App\Entity\Enum\UserRole;
 use App\Entity\OrgGroupMembership;
 use App\Entity\Organization;
@@ -381,8 +380,8 @@ final class ContactControllerTest extends DatabaseWebTestCase
         $manager2 = $this->makeUser('manager2@b2b-crm.loc', UserRole::Manager);
         $em->flush();
 
-        $personal1 = $this->personalGroup($manager1);
-        $personal2 = $this->personalGroup($manager2);
+        $personal1 = $this->makeGroup($manager1);
+        $personal2 = $this->makeGroup($manager2);
         $em->persist($personal1);
         $em->persist($personal2);
 
@@ -398,13 +397,11 @@ final class ContactControllerTest extends DatabaseWebTestCase
         return [$manager1, $manager2, $romashka, $zavod];
     }
 
-    private function personalGroup(User $owner): OrganizationGroup
+    private function makeGroup(User $owner): OrganizationGroup
     {
         return new OrganizationGroup()
             ->setName('Личная группа ' . $owner->email)
-            ->setSlug('user-' . $owner->id . '-group')
-            ->setType(GroupType::User)
-            ->setOwnerUser($owner);
+            ->setCreatedBy($owner);
     }
 
     private function findOrganization(string $name): ?Organization

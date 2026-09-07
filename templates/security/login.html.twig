@@ -2,17 +2,9 @@
 
 {% block title %}Вход{% endblock %}
 
-{% block flashes %}{% endblock %}
-
 {% block body %}
     <section class="section section--white">
         <div class="container">
-            {% for label, messages in app.flashes %}
-                {% for message in messages %}
-                    <div class="alert alert--{{ label == 'error' ? 'error' : 'warning' }}" role="alert">{{ message }}</div>
-                {% endfor %}
-            {% endfor %}
-
             {% if error %}
                 <div class="alert alert--error" role="alert">Неверный email или пароль</div>
             {% endif %}

@@ -4,7 +4,6 @@ namespace App\Tests\Functional\Controller;
 
 use App\Entity\Call;
 use App\Entity\Contact;
-use App\Entity\Enum\GroupType;
 use App\Entity\Enum\UserRole;
 use App\Entity\OrgGroupMembership;
 use App\Entity\Organization;
@@ -71,9 +70,104 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
         $memberships = $this->findOrganization('ООО Ромашка')->groupMemberships->toArray();
         self::assertCount(1, $memberships);
         self::assertSame(
-            'user-' . $manager->id . '-group',
-            $memberships[0]->group->slug
+            $manager->id,
+            $memberships[0]->group->createdBy->id
         );
+    }
+
+    // --- Org group checkbox tests (task 4.3) ---
+
+    public function testManagerCanAssignGroupViaEditPage(): void
+    {
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $group = $this->makeGroup($manager);
+        $org = new Organization()->setName('ООО Ромашка')->setIndustry('IT');
+        $this->em()->persist($group);
+        $this->em()->persist($org);
+        $this->em()->flush();
+
+        $this->login($manager);
+        $this->open('/organizations/' . $org->id . '/edit');
+        $this->assertResponseIsSuccessful();
+
+        // Submit with group checked
+        $this->client->submitForm('Сохранить', [
+            'name' => 'ООО Ромашка',
+            'industry' => 'IT',
+            'groups' => [$group->id],
+        ]);
+
+        $this->assertResponseRedirects();
+        $this->em()->clear();
+
+        $membership = $this->em()->getRepository(OrgGroupMembership::class)->findOneBy([
+            'organization' => $org,
+            'group' => $group,
+        ]);
+        self::assertNotNull($membership);
+    }
+
+    public function testManagerCanRemoveGroupViaEditPage(): void
+    {
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $group = $this->makeGroup($manager);
+        $org = new Organization()->setName('ООО Ромашка')->setIndustry('IT');
+        $this->em()->persist($group);
+        $this->em()->persist($org);
+        $this->em()->flush();
+
+        $membership = new OrgGroupMembership($org, $group);
+        $this->em()->persist($membership);
+        $this->em()->flush();
+
+        $this->login($manager);
+        $this->open('/organizations/' . $org->id . '/edit');
+
+        // Submit without group checked
+        $this->client->submitForm('Сохранить', [
+            'name' => 'ООО Ромашка',
+            'industry' => 'IT',
+            'groups' => [],
+        ]);
+
+        $this->assertResponseRedirects();
+        $this->em()->clear();
+
+        $membership = $this->em()->getRepository(OrgGroupMembership::class)->findOneBy([
+            'organization' => $org,
+            'group' => $group,
+        ]);
+        self::assertNull($membership);
+    }
+
+    public function testAdminCanAssignAnyGroupViaEditPage(): void
+    {
+        $admin = $this->makeUser('admin@b2b-crm.loc', UserRole::Admin);
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $group = $this->makeGroup($manager);
+        $org = new Organization()->setName('ООО Ромашка')->setIndustry('IT');
+        $this->em()->persist($group);
+        $this->em()->persist($org);
+        $this->em()->flush();
+
+        $this->login($admin);
+        $this->open('/organizations/' . $org->id . '/edit');
+        $this->assertResponseIsSuccessful();
+
+        $this->client->submitForm('Сохранить', [
+            'name' => 'ООО Ромашка',
+            'industry' => 'IT',
+            'groups' => [$group->id],
+        ]);
+
+        $this->assertResponseRedirects();
+        $this->em()->clear();
+
+        $membership = $this->em()->getRepository(OrgGroupMembership::class)->findOneBy([
+            'organization' => $org,
+            'group' => $group,
+        ]);
+        self::assertNotNull($membership);
     }
 
     public function testCreateWithBlankNameShowsRussianErrorAndDoesNotSave(): void
@@ -295,8 +389,8 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
         $manager2 = $this->makeUser('manager2@b2b-crm.loc', UserRole::Manager);
         $em->flush();
 
-        $personal1 = $this->personalGroup($manager1);
-        $personal2 = $this->personalGroup($manager2);
+        $personal1 = $this->makeGroup($manager1);
+        $personal2 = $this->makeGroup($manager2);
         $em->persist($personal1);
         $em->persist($personal2);
 
@@ -325,13 +419,11 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
         return $user;
     }
 
-    private function personalGroup(User $owner): OrganizationGroup
+    private function makeGroup(User $owner): OrganizationGroup
     {
         return new OrganizationGroup()
             ->setName('Личная группа ' . $owner->email)
-            ->setSlug('user-' . $owner->id . '-group')
-            ->setType(GroupType::User)
-            ->setOwnerUser($owner);
+            ->setCreatedBy($owner);
     }
 
     private function findOrganization(string $name): ?Organization

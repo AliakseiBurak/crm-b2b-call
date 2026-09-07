@@ -2,7 +2,6 @@
 
 namespace App\Tests\Functional\Controller;
 
-use App\Entity\Enum\GroupType;
 use App\Entity\Enum\UserRole;
 use App\Entity\OrganizationGroup;
 use App\Entity\User;
@@ -59,30 +58,6 @@ final class UserControllerTest extends DatabaseWebTestCase
         self::assertNull($user->surname);
     }
 
-    public function testCreateManagerCreatesPersonalGroup(): void
-    {
-        $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
-        $this->open('/admin/users/new');
-        $this->submitFormByButton('Создать', [
-            'email' => 'manager@example.com',
-            'name' => 'Иван',
-            'surname' => 'Петров',
-            'role' => 'manager',
-        ]);
-
-        $this->assertResponseRedirects('/admin/users');
-
-        $this->em()->clear();
-        $user = $this->findUser('manager@example.com');
-        self::assertNotNull($user);
-
-        $group = $this->em()->getRepository(OrganizationGroup::class)
-            ->findOneBy(['slug' => 'user-' . $user->id . '-group']);
-        self::assertNotNull($group, 'Персональная группа создаётся для менеджера');
-        self::assertSame(GroupType::User, $group->type);
-        self::assertSame($user->id, $group->ownerUser->id);
-    }
-
     public function testCreateAdminDoesNotCreatePersonalGroup(): void
     {
         $this->login($this->makeUser('admin@b2b-crm.loc', UserRole::Admin));
@@ -99,10 +74,6 @@ final class UserControllerTest extends DatabaseWebTestCase
         $this->em()->clear();
         $user = $this->findUser('newadmin@example.com');
         self::assertNotNull($user);
-
-        $group = $this->em()->getRepository(OrganizationGroup::class)
-            ->findOneBy(['slug' => 'user-' . $user->id . '-group']);
-        self::assertNull($group, 'Персональная группа не создаётся для admin');
     }
 
     public function testCreateWithMissingEmailShowsError(): void
@@ -194,9 +165,7 @@ final class UserControllerTest extends DatabaseWebTestCase
 
         $group = new OrganizationGroup()
             ->setName('Личная группа manager')
-            ->setSlug('user-' . $manager->id . '-group')
-            ->setType(GroupType::User)
-            ->setOwnerUser($manager);
+            ->setCreatedBy($manager);
         $this->em()->persist($group);
         $this->em()->flush();
 

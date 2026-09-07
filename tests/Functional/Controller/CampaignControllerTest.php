@@ -6,7 +6,6 @@ use App\Entity\Campaign;
 use App\Entity\CampaignAttachment;
 use App\Entity\CampaignRecipient;
 use App\Entity\Enum\CampaignStatus;
-use App\Entity\Enum\GroupType;
 use App\Entity\Enum\UserRole;
 use App\Entity\Organization;
 use App\Entity\OrganizationGroup;
@@ -627,6 +626,110 @@ final class CampaignControllerTest extends DatabaseWebTestCase
         $this->assertSelectorNotExists('form[action="' . $this->launchPath($launched->id) . '"]');
     }
 
+    // --- Campaign bulk-by-group tests (task 6.7) ---
+
+    public function testBulkAddByGroupAddsOrgsToCampaign(): void
+    {
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $group = (new OrganizationGroup())->setName('Группа А')->setCreatedBy($manager);
+        $this->em()->persist($group);
+
+        $org1 = $this->persistOrganization('ООО Ромашка');
+        $org2 = $this->persistOrganization('ООО Вектор');
+        $this->em()->persist(new OrgGroupMembership($org1, $group));
+        $this->em()->persist(new OrgGroupMembership($org2, $group));
+        $this->em()->flush();
+
+        $campaign = $this->persistCampaign('Рассылка');
+        $campaignId = $campaign->id;
+        $this->login($manager);
+
+        $token = $this->campaignToken($campaignId);
+        $this->client->request('POST', '/campaigns/' . $campaignId . '/recipients/bulk-by-group', [
+            '_csrf_token' => $token,
+            'group_id' => $group->id,
+        ]);
+
+        $this->assertResponseRedirects();
+        $this->em()->clear();
+
+        $recipients = $this->findCampaign('Рассылка')->recipients;
+        self::assertCount(2, $recipients);
+    }
+
+    public function testBulkAddByGroupSkipsExistingRecipients(): void
+    {
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $group = (new OrganizationGroup())->setName('Группа А')->setCreatedBy($manager);
+        $this->em()->persist($group);
+
+        $org1 = $this->persistOrganization('ООО Ромашка');
+        $this->em()->persist(new OrgGroupMembership($org1, $group));
+        $this->em()->flush();
+
+        $campaign = $this->persistCampaign('Рассылка');
+        $existing = new CampaignRecipient($campaign, $org1);
+        $this->em()->persist($existing);
+        $this->em()->flush();
+        $campaignId = $campaign->id;
+
+        $this->login($manager);
+        $token = $this->campaignToken($campaignId);
+        $this->client->request('POST', '/campaigns/' . $campaignId . '/recipients/bulk-by-group', [
+            '_csrf_token' => $token,
+            'group_id' => $group->id,
+        ]);
+
+        $this->assertResponseRedirects();
+        $this->em()->clear();
+
+        $recipients = $this->findCampaign('Рассылка')->recipients;
+        self::assertCount(1, $recipients);
+    }
+
+    public function testManagerCannotBulkAddFromInaccessibleGroup(): void
+    {
+        $manager1 = $this->makeUser('manager1@b2b-crm.loc', UserRole::Manager);
+        $manager2 = $this->makeUser('manager2@b2b-crm.loc', UserRole::Manager);
+        $group = (new OrganizationGroup())->setName('Чужая')->setCreatedBy($manager2);
+        $this->em()->persist($group);
+        $this->em()->flush();
+
+        $campaign = $this->persistCampaign('Рассылка');
+        $this->login($manager1);
+
+        $token = $this->campaignToken($campaign->id);
+        $this->client->request('POST', '/campaigns/' . $campaign->id . '/recipients/bulk-by-group', [
+            '_csrf_token' => $token,
+            'group_id' => $group->id,
+        ]);
+
+        $this->assertResponseRedirects();
+        $this->em()->clear();
+        self::assertCount(0, $this->findCampaign('Рассылка')->recipients);
+    }
+
+    public function testBulkAddByGroupWithEmptyGroupAddsNothing(): void
+    {
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $group = (new OrganizationGroup())->setName('Пустая')->setCreatedBy($manager);
+        $this->em()->persist($group);
+        $this->em()->flush();
+
+        $campaign = $this->persistCampaign('Рассылка');
+        $this->login($manager);
+
+        $token = $this->campaignToken($campaign->id);
+        $this->client->request('POST', '/campaigns/' . $campaign->id . '/recipients/bulk-by-group', [
+            '_csrf_token' => $token,
+            'group_id' => $group->id,
+        ]);
+
+        $this->assertResponseRedirects();
+        $this->em()->clear();
+        self::assertCount(0, $this->findCampaign('Рассылка')->recipients);
+    }
+
     private function storage(): CampaignAttachmentStorage
     {
         /** @var CampaignAttachmentStorage $storage */
@@ -715,16 +818,12 @@ final class CampaignControllerTest extends DatabaseWebTestCase
         $manager2 = $this->makeUser('manager2@b2b-crm.loc', UserRole::Manager);
         $em->flush();
 
-        $personal1 = new OrganizationGroup()
+        $personal1 = (new OrganizationGroup())
             ->setName('Личная группа ' . $manager1->email)
-            ->setSlug('user-' . $manager1->id . '-group')
-            ->setType(GroupType::User)
-            ->setOwnerUser($manager1);
-        $personal2 = new OrganizationGroup()
+            ->setCreatedBy($manager1);
+        $personal2 = (new OrganizationGroup())
             ->setName('Личная группа ' . $manager2->email)
-            ->setSlug('user-' . $manager2->id . '-group')
-            ->setType(GroupType::User)
-            ->setOwnerUser($manager2);
+            ->setCreatedBy($manager2);
         $em->persist($personal1);
         $em->persist($personal2);
 
