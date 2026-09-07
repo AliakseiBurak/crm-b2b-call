@@ -31,7 +31,7 @@ Stack: Symfony 7.x, PHP 8.5, Doctrine ORM 3.x, MySQL, Twig.
 ## Decisions
 
 ### 1. Personal Groups Removed
-**Decision**: Remove all personal groups (`user-<id>-group`). Orgs previously in personal groups become ungrouped. Personal group removal is mentioned in manager deletion confirmation. No extra fields (no `type` column) — personal groups identified by naming convention.
+**Decision**: Remove all personal groups (`user-<id>-group`). Orgs previously in personal groups become ungrouped. Personal group removal is mentioned in manager deletion confirmation. No new `type` column is introduced — the migration identifies personal groups by the existing `type = 'user'` value in the legacy schema and drops the column afterwards.
 
 **Rationale**:
 - Personal groups are an implementation detail that leaks into the UI.
@@ -40,7 +40,7 @@ Stack: Symfony 7.x, PHP 8.5, Doctrine ORM 3.x, MySQL, Twig.
 
 **Alternatives considered**:
 - Hide personal groups from managers only -> Rejected: still maintenance overhead, confusing for admin.
-- Add `type` column to distinguish -> Rejected: overkill, naming convention is sufficient.
+- Add a new `type` column to distinguish -> Rejected: the legacy `type` column already marks them, so no new field is needed.
 
 ### 2. Group Ownership via `created_by`
 **Decision**: Add `created_by` (INT NULL, FK → users) to `organization_groups`. Manager sees groups WHERE `created_by = self` OR assigned via `GroupAssignment`. Manager can edit/delete only groups where `created_by = self`. Admin sees all, manages all.

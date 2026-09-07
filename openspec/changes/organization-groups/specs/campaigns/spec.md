@@ -16,7 +16,7 @@ The system SHALL allow managers to bulk-add all organizations from a specific gr
 
 #### Scenario: Группа без организаций
 - **WHEN** менеджер выбирает группу, в которой нет организаций
-- **THEN** системы не добавляет ни одной организации
+- **THEN** система не добавляет ни одной организации
 - **AND** возвращается сообщение о пустом результате
 
 ## MODIFIED Requirements

@@ -44,7 +44,7 @@
 - [x] 6.2 Implement access check: verify manager has access to group (created or assigned)
 - [x] 6.3 Implement query: organizations in group via `OrganizationGroupMembership`
 - [x] 6.4 Create `CampaignRecipient` entries for each organization, skip existing (catch UniqueConstraintViolationException or check first)
-- [x] 6.5 Create `POST /campaigns/{id}/recipients/bulk-by-group` endpoint accepting `{ "groupId": "..." }`, returning `{ added: N, skipped: M }`
+- [x] 6.5 Create `POST /campaigns/{id}/recipients/bulk-by-group` endpoint accepting `group_id` form field, returning `{ added: N, skipped: M }` for AJAX requests (redirect + flash otherwise)
 - [x] 6.6 Add "Добавить по группе" button and group select dropdown to campaign recipients Twig template (populated from group API)
 - [x] 6.7 Write functional tests: bulk add by group, 403 for unauthorized group, skip existing, empty group
 
