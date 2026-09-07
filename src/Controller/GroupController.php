@@ -193,6 +193,13 @@ class GroupController extends AbstractController
 
         $selectedIds = array_map('intval', $request->request->all('organizations'));
 
+        // Менеджер может добавлять в группу только организации своей области
+        // доступа (ADR-0007); администратору доступны все (ADR-0008).
+        $accessibleIds = $this->organizations->findAccessibleIds($this->getUser());
+        if (null !== $accessibleIds) {
+            $selectedIds = array_values(array_intersect($selectedIds, $accessibleIds));
+        }
+
         // Remove existing memberships not in selection
         foreach ($group->memberships as $membership) {
             if (!in_array($membership->organization->id, $selectedIds, true)) {

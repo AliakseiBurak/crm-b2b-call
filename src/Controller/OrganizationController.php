@@ -36,6 +36,8 @@ class OrganizationController extends AbstractController
         return $this->render('organization/form.html.twig', [
             'organization' => null,
             'errors' => [],
+            'groups' => $this->availableGroupsFor($this->getUser()),
+            'groupIds' => [],
         ]);
     }
 
@@ -46,14 +48,18 @@ class OrganizationController extends AbstractController
 
         $organization = new Organization();
         $errors = $this->applyRequest($request, $validator, $organization);
+        $selectedGroupIds = $this->normalizeGroupSelection($request, $this->getUser());
         if ([] !== $errors) {
             return $this->render('organization/form.html.twig', [
                 'organization' => $organization,
                 'errors' => $errors,
+                'groups' => $this->availableGroupsFor($this->getUser()),
+                'groupIds' => $selectedGroupIds,
             ], new Response(null, Response::HTTP_UNPROCESSABLE_ENTITY));
         }
 
         $this->em->persist($organization);
+        $this->updateGroupMemberships($organization, $selectedGroupIds);
         $this->em->flush();
 
         return $this->redirectToRoute('app_dashboard', ['highlight' => $organization->id]);
@@ -63,19 +69,14 @@ class OrganizationController extends AbstractController
     public function edit(int $id): Response
     {
         $organization = $this->accessibleOrganization($id);
-        $user = $this->getUser();
 
         // Get available groups
-        if ($user instanceof User && UserRole::Admin === $user->role) {
-            $groups = $this->groups->findAllGroups();
-        } else {
-            $groups = $this->groups->findForManager($user);
-        }
+        $groups = $this->availableGroupsFor($this->getUser());
 
         // Get current group memberships
         $groupIds = array_map(
             static fn (OrgGroupMembership $m): int => $m->group->id,
-            $organization->memberships->toArray()
+            $organization->groupMemberships->toArray()
         );
 
         return $this->render('organization/form.html.twig', [
@@ -97,6 +98,7 @@ class OrganizationController extends AbstractController
         $this->assertCsrfToken($request);
 
         $errors = $this->applyRequest($request, $validator, $organization);
+        $selectedGroupIds = $this->normalizeGroupSelection($request, $this->getUser());
         if ([] !== $errors) {
             if ($ajax) {
                 return $this->json(['ok' => false, 'errors' => $errors], Response::HTTP_UNPROCESSABLE_ENTITY);
@@ -105,11 +107,12 @@ class OrganizationController extends AbstractController
             return $this->render('organization/form.html.twig', [
                 'organization' => $organization,
                 'errors' => $errors,
+                'groups' => $this->availableGroupsFor($this->getUser()),
+                'groupIds' => $selectedGroupIds,
             ], new Response(null, Response::HTTP_UNPROCESSABLE_ENTITY));
         }
 
         // Handle group memberships
-        $selectedGroupIds = array_map('intval', $request->request->all('groups'));
         $this->updateGroupMemberships($organization, $selectedGroupIds);
 
         // Сохранение изменений — updatedAt обновляется вручную (авто-таймстампов нет).
@@ -207,12 +210,45 @@ class OrganizationController extends AbstractController
         }
     }
 
+    /**
+     * Выбранные в форме группы, ограниченные областью доступа пользователя:
+     * администратору — все, менеджеру — только созданные и назначенные
+     * (ADR-0007/0008). Недоступные группы игнорируются.
+     *
+     * @return int[]
+     */
+    private function normalizeGroupSelection(Request $request, ?User $user): array
+    {
+        $selected = array_map('intval', $request->request->all('groups'));
+        $allowed = array_map(
+            static fn (OrganizationGroup $g): int => $g->id,
+            $this->availableGroupsFor($user)
+        );
+
+        return array_values(array_intersect($selected, $allowed));
+    }
+
+    /**
+     * Группы, доступные для выбора при создании/редактировании организации:
+     * администратору — все, менеджеру — созданные и назначенные (ADR-0007/0008).
+     *
+     * @return OrganizationGroup[]
+     */
+    private function availableGroupsFor(?User $user): array
+    {
+        if ($user instanceof User && UserRole::Admin === $user->role) {
+            return $this->groups->findAllGroups();
+        }
+
+        return $this->groups->findForManager($user);
+    }
+
     private function updateGroupMemberships(Organization $organization, array $selectedGroupIds): void
     {
         // Remove existing memberships not in selection
-        foreach ($organization->memberships as $membership) {
+        foreach ($organization->groupMemberships as $membership) {
             if (!in_array($membership->group->id, $selectedGroupIds, true)) {
-                $organization->memberships->removeElement($membership);
+                $organization->groupMemberships->removeElement($membership);
                 $this->em->remove($membership);
             }
         }
@@ -220,7 +256,7 @@ class OrganizationController extends AbstractController
         // Add new memberships
         foreach ($selectedGroupIds as $groupId) {
             $alreadyMember = false;
-            foreach ($organization->memberships as $existing) {
+            foreach ($organization->groupMemberships as $existing) {
                 if ($existing->group->id === $groupId) {
                     $alreadyMember = true;
                     break;

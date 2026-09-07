@@ -28,6 +28,7 @@
                             <th>Название</th>
                             <th>Цвет</th>
                             <th>Описание</th>
+                            <th>Создатель</th>
                             <th style="white-space:nowrap"></th>
                         </tr>
                     </thead>
@@ -43,6 +44,14 @@
                                     {% endif %}
                                 </td>
                                 <td>{{ group.description|default('—') }}</td>
+                                <td>
+                                    {% if group.createdBy %}
+                                        {% set creatorFullName = (group.createdBy.name|default('') ~ ' ' ~ group.createdBy.surname|default(''))|trim %}
+                                        {{ creatorFullName ?: group.createdBy.email }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
                                 <td style="white-space:nowrap">
                                     <a href="{{ path('app_group_edit', { id: group.id }) }}" class="btn btn--secondary btn--sm">Редактировать</a>
                                     <a href="{{ path('app_group_members', { id: group.id }) }}" class="btn btn--secondary btn--sm">Участники</a>
