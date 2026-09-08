@@ -40,6 +40,37 @@ async function navigateToGroupsPage(page: Page) {
   await expect(page.locator('h1', { hasText: 'Мои группы' })).toBeVisible();
 }
 
+async function logout(page: Page) {
+  await page.goto('/logout');
+}
+
+function uniqueEmail(prefix: string) {
+  return `${prefix}-${Date.now()}-${++counter}@b2b-crm.loc`;
+}
+
+async function createCampaign(page: Page, name: string): Promise<number> {
+  await page.goto('/campaigns/new');
+  await page.fill('input[name="name"]', name);
+  await page.fill('input[name="subject"]', 'Тема теста');
+  await page.fill('textarea[name="body"]', 'Текст письма');
+  await page.selectOption('select[name="status"]', 'ready');
+  await page.click('button:has-text("Создать")');
+  await expect(page).toHaveURL(/highlight=(\d+)/);
+  const match = page.url().match(/highlight=(\d+)/);
+
+  return match ? parseInt(match[1] as string, 10) : 0;
+}
+
+// Созданная менеджером группа: id по ссылке «Редактировать» в строке списка.
+async function groupIdByName(page: Page, name: string): Promise<number> {
+  await page.goto('/groups');
+  const href = await page.locator('[data-group-row]', { hasText: name }).first()
+    .locator('a[href$="/edit"]').first().getAttribute('href');
+  const match = (href ?? '').match(/\/groups\/(\d+)\/edit/);
+
+  return match ? parseInt(match[1] as string, 10) : 0;
+}
+
 // ─── Manager Group CRUD ───────────────────────────────────────────────
 
 test('manager can create a new group', async ({ page }) => {
@@ -79,7 +110,7 @@ test('manager can edit their own group', async ({ page }) => {
   const groupRow = page.locator('[data-group-row]', { hasText: groupName }).first();
   await groupRow.locator('a:has-text("Редактировать")').click();
   
-  await expect(page.locator('h1', { hasText: 'Редактирование группы' })).toBeVisible();
+  await expect(page.locator('h1', { hasText: 'Редактировать группу' })).toBeVisible();
   
   await page.fill('input[name="name"]', `${groupName} Обновленная`);
   await page.fill('textarea[name="description"]', 'Обновленное описание');
@@ -91,18 +122,17 @@ test('manager can edit their own group', async ({ page }) => {
 });
 
 test('manager cannot edit other manager\'s group', async ({ page }) => {
-  await login(page, 'manager1@b2b-crm.loc', 'manager123');
-  
-  await page.goto('/groups');
-  
-  // Try to access another manager's group edit page (should get 403)
-  const response = await page.goto('/groups/1/edit');
-  
-  // Check for 403 error or access denied message
-  const hasAccessDenied = await page.locator('text=Доступ запрещен').isVisible().catch(() => false);
-  const hasForbidden = await page.locator('text=Forbidden').isVisible().catch(() => false);
-  
-  expect(hasAccessDenied || hasForbidden || response?.status() === 403).toBe(true);
+  const groupName = uniqueName('Чужая группа (edit)');
+  await login(page, 'manager@b2b-crm.loc', 'manager123');
+  await createGroup(page, groupName);
+  const groupId = await groupIdByName(page, groupName);
+  expect(groupId).toBeGreaterThan(0);
+
+  await logout(page);
+  await login(page, 'manager2@b2b-crm.loc', 'manager123');
+
+  const response = await page.goto(`/groups/${groupId}/edit`);
+  expect(response?.status()).toBe(403);
 });
 
 test('manager can delete their own group', async ({ page }) => {
@@ -133,18 +163,17 @@ test('manager can delete their own group', async ({ page }) => {
 });
 
 test('manager cannot delete other manager\'s group', async ({ page }) => {
-  await login(page, 'manager1@b2b-crm.loc', 'manager123');
-  
-  await page.goto('/groups');
-  
-  // Try to access another manager's group delete page (should get 403)
-  const response = await page.goto('/groups/1/delete');
-  
-  // Check for 403 error or access denied message
-  const hasAccessDenied = await page.locator('text=Доступ запрещен').isVisible().catch(() => false);
-  const hasForbidden = await page.locator('text=Forbidden').isVisible().catch(() => false);
-  
-  expect(hasAccessDenied || hasForbidden || response?.status() === 403).toBe(true);
+  const groupName = uniqueName('Чужая группа (delete)');
+  await login(page, 'manager@b2b-crm.loc', 'manager123');
+  await createGroup(page, groupName);
+  const groupId = await groupIdByName(page, groupName);
+  expect(groupId).toBeGreaterThan(0);
+
+  await logout(page);
+  await login(page, 'manager2@b2b-crm.loc', 'manager123');
+
+  const response = await page.goto(`/groups/${groupId}/delete`);
+  expect(response?.status()).toBe(403);
 });
 
 // ─── Group Membership Management ──────────────────────────────────────
@@ -171,16 +200,15 @@ test('manager can add organizations to their group', async ({ page }) => {
   await expect(page.locator('h1', { hasText: 'Участники группы' })).toBeVisible();
   
   // Select some organizations
-  await page.locator('input[type="checkbox"][value="1"]').check().catch(() => {});
-  await page.locator('input[type="checkbox"][value="2"]').check().catch(() => {});
+  await page.locator('input[name="organizations[]"]').first().check();
   await page.click('button:has-text("Сохранить")');
   
   await expect(page).toHaveURL(/\/groups$/);
   
-  // Verify the group now shows participants
-  await page.goto('/groups');
-  const updatedGroupRow = page.locator('[data-group-row]', { hasText: groupName }).first();
-  await expect(updatedGroupRow.locator('text=Участники')).toBeVisible();
+  // Verify the membership persisted: reopen members, a checkbox is checked
+  const groupRowAfter = page.locator('[data-group-row]', { hasText: groupName }).first();
+  await groupRowAfter.locator('a:has-text("Участники")').click();
+  await expect(page.locator('input[name="organizations[]"]:checked').first()).toBeChecked();
 });
 
 test('manager can remove organizations from their group', async ({ page }) => {
@@ -204,15 +232,27 @@ test('manager can remove organizations from their group', async ({ page }) => {
   
   await expect(page.locator('h1', { hasText: 'Участники группы' })).toBeVisible();
   
-  // Uncheck all organizations
-  const checkboxes = await page.locator('input[type="checkbox"]').all();
-  for (const checkbox of checkboxes) {
-    await checkbox.uncheck().catch(() => {});
+  // Add an organization first, then remove it again
+  await page.locator('input[name="organizations[]"]').first().check();
+  await page.click('button:has-text("Сохранить")');
+  await expect(page).toHaveURL(/\/groups$/);
+
+  const groupRowAgain = page.locator('[data-group-row]', { hasText: groupName }).first();
+  await groupRowAgain.locator('a:has-text("Участники")').click();
+
+  const checkboxes = page.locator('input[name="organizations[]"]');
+  const count = await checkboxes.count();
+  for (let i = 0; i < count; i++) {
+    await checkboxes.nth(i).uncheck();
   }
-  
   await page.click('button:has-text("Сохранить")');
   
   await expect(page).toHaveURL(/\/groups$/);
+
+  // Reopen members: nothing is checked anymore
+  const groupRowAfter = page.locator('[data-group-row]', { hasText: groupName }).first();
+  await groupRowAfter.locator('a:has-text("Участники")').click();
+  await expect(page.locator('input[name="organizations[]"]:checked')).toHaveCount(0);
 });
 
 // ─── Campaign Recipient Bulk Add-By-Group ──────────────────────────────
@@ -222,36 +262,25 @@ test('manager can bulk add organizations from group to campaign recipients', asy
   const groupName = uniqueName('Группа для рассылки');
   const campaignName = uniqueName('Рассылка для групп');
 
-  // First create a group
-  await navigateToGroupsPage(page);
-  
-  await page.click('a:has-text("Новая группа")');
-  await page.fill('input[name="name"]', groupName);
-  await page.fill('textarea[name="description"]', 'Группа для теста рассылки');
-  await page.fill('input[name="color"]', '#3b82f6');
-  await page.click('button:has-text("Создать")');
-  
+  // Create a group with at least one organization
+  await createGroup(page, groupName);
+  const groupRow = page.locator('[data-group-row]', { hasText: groupName }).first();
+  await groupRow.locator('a:has-text("Участники")').click();
+  await page.locator('input[name="organizations[]"]').first().check();
+  await page.click('button:has-text("Сохранить")');
   await expect(page).toHaveURL(/\/groups$/);
-  
+
   // Create a campaign
-  await page.goto('/campaigns/new');
-  await page.fill('input[name="name"]', campaignName);
-  await page.fill('input[name="subject"]', 'Тема теста');
-  await page.fill('textarea[name="body"]', 'Текст письма');
-  await page.selectOption('select[name="status"]', 'ready');
-  await page.click('button:has-text("Создать")');
-  
-  await expect(page).toHaveURL(/highlight=(\d+)/);
-  const match = page.url().match(/highlight=(\d+)/);
-  const campaignId = match ? parseInt(match[1], 10) : 0;
-  
+  const campaignId = await createCampaign(page, campaignName);
+  expect(campaignId).toBeGreaterThan(0);
+
   // Navigate to campaign recipients page
   await page.goto(`/campaigns/${campaignId}/recipients`);
   
   await expect(page.locator('h1', { hasText: 'Адресаты рассылки' })).toBeVisible();
   
   // Look for the group in the bulk add buttons
-  const groupButton = page.locator('button', { hasText: groupName });
+  const groupButton = page.locator('button[data-group-id]', { hasText: groupName });
   await expect(groupButton).toBeVisible();
   
   // Click the group button to add recipients
@@ -265,47 +294,85 @@ test('manager can bulk add organizations from group to campaign recipients', asy
 });
 
 test('manager cannot bulk add from inaccessible group', async ({ page }) => {
-  await login(page, 'manager1@b2b-crm.loc', 'manager123');
-  
-  // Try to access a group that belongs to another manager
-  await page.goto('/campaigns/1/recipients');
-  
-  // Look for group buttons - should not see groups from other managers
-  const groupButtons = await page.locator('button[data-group-id]').count();
-  expect(groupButtons).toBe(0);
+  await login(page, 'manager2@b2b-crm.loc', 'manager123');
+  const campaignId = await createCampaign(page, uniqueName('Рассылка manager2'));
+  expect(campaignId).toBeGreaterThan(0);
+
+  await page.goto(`/campaigns/${campaignId}/recipients`);
+  await expect(page.locator('h1', { hasText: 'Адресаты рассылки' })).toBeVisible();
+
+  // Своя группа видна, чужая (менеджера manager@) — нет
+  await expect(page.locator('button[data-group-id]', { hasText: 'Клиенты Вектор' })).toBeVisible();
+  await expect(page.locator('button[data-group-id]', { hasText: 'Клиенты Ромашка' })).toHaveCount(0);
 });
 
 // ─── Manager Deletion Flow ────────────────────────────────────────────
 
 test('admin can delete manager with group reassign/delete choices', async ({ page }) => {
+  const victimEmail = uniqueEmail('e2e-victim');
+  const victimPassword = 'victimpass123';
+  const groupA = uniqueName('Victim group A'); // переназначается админу
+  const groupB = uniqueName('Victim group B'); // удаляется
+
+  // Админ создаёт одноразового менеджера
   await login(page, 'admin@b2b-crm.loc', 'admin123');
-  
-  // Navigate to users list
-  await page.goto('/admin/users');
-  
-  // Find a manager user
-  const managerRow = page.locator('[data-user-row]', { hasText: 'manager@b2b-crm.loc' }).first();
-  await expect(managerRow).toBeVisible();
-  
-  // Click delete for the manager
-  await managerRow.locator('a:has-text("Удалить")').click();
-  
-  await expect(page.locator('h1', { hasText: 'Удаление пользователя' })).toBeVisible();
-  
-  // Verify group choice section is visible
-  await expect(page.locator('h2', { hasText: 'Группы, созданные пользователем' })).toBeVisible();
-  
-  // Select reassign option for groups
-  const radioButtons = await page.locator('input[type="radio"][name*="group_action_"]').count();
-  expect(radioButtons).toBeGreaterThan(0);
-  
-  // Select first reassign option
-  await page.locator('input[type="radio"][value="reassign"]').first().click();
-  
-  // Click delete
-  await page.click('button:has-text("Удалить")');
-  
+  await page.goto('/admin/users/new');
+  await page.fill('input[name="email"]', victimEmail);
+  await page.selectOption('select[name="role"]', 'manager');
+  await page.click('button:has-text("Создать")');
   await expect(page).toHaveURL(/\/admin\/users$/);
+
+  // Жертва устанавливает пароль через анонимную форму на /login
+  await logout(page);
+  await page.goto('/login');
+  const csrf = await page.locator('#setup-password-form input[name="_csrf_token"]').inputValue();
+  const setupResponse = await page.request.post('/setup-password', {
+    form: {
+      email: victimEmail,
+      new_password: victimPassword,
+      confirm_password: victimPassword,
+      _csrf_token: csrf,
+    },
+  });
+  expect(setupResponse.ok()).toBe(true);
+
+  // Жертва создаёт две группы
+  await logout(page);
+  await login(page, victimEmail, victimPassword);
+  await createGroup(page, groupA);
+  await createGroup(page, groupB);
+  await logout(page);
+
+  // Админ удаляет жертву: A — переназначить, B — удалить
+  await login(page, 'admin@b2b-crm.loc', 'admin123');
+  await page.goto('/admin/users');
+  const victimRow = page.locator('[data-user-row]', { hasText: victimEmail }).first();
+  await expect(victimRow).toBeVisible();
+  await victimRow.locator('a:has-text("Удалить")').click();
+
+  await expect(page.locator('h1', { hasText: 'Удаление пользователя' })).toBeVisible();
+  await expect(page.locator('h2', { hasText: 'Группы, созданные пользователем' })).toBeVisible();
+
+  const choices = page.locator('.user-delete__group');
+  expect(await choices.count()).toBeGreaterThanOrEqual(2);
+  await choices.filter({ hasText: groupA }).locator('input[value="reassign"]').check();
+  await choices.filter({ hasText: groupB }).locator('input[value="delete"]').check();
+
+  await page.locator('button:has-text("Удалить")').click();
+  await expect(page).toHaveURL(/\/admin\/users$/);
+  await expect(page.locator('[data-user-row]', { hasText: victimEmail })).toHaveCount(0);
+
+  // A досталась админу и видна в списке, B удалена
+  await page.goto('/groups');
+  await expect(page.locator('[data-group-row]', { hasText: groupA }).first()).toBeVisible();
+  await expect(page.locator('[data-group-row]', { hasText: groupB })).toHaveCount(0);
+
+  // Уборка: админ удаляет переназначенную группу
+  const rowA = page.locator('[data-group-row]', { hasText: groupA }).first();
+  await rowA.locator('a:has-text("Удалить")').click();
+  await page.locator('button:has-text("Удалить")').click();
+  await expect(page).toHaveURL(/\/groups$/);
+  await expect(page.locator('[data-group-row]', { hasText: groupA })).toHaveCount(0);
 });
 
 test('admin cannot delete manager without selecting group action', async ({ page }) => {
@@ -313,19 +380,19 @@ test('admin cannot delete manager without selecting group action', async ({ page
   
   await page.goto('/admin/users');
   
-  // Find a manager user
-  const managerRow = page.locator('[data-user-row]', { hasText: 'manager@b2b-crm.loc' }).first();
+  // Менеджер с созданными группами (fixture manager2 владеет «Клиенты Вектор»)
+  const managerRow = page.locator('[data-user-row]', { hasText: 'manager2@b2b-crm.loc' }).first();
   await expect(managerRow).toBeVisible();
-  
-  // Click delete for the manager
   await managerRow.locator('a:has-text("Удалить")').click();
   
   await expect(page.locator('h1', { hasText: 'Удаление пользователя' })).toBeVisible();
+  await expect(page.locator('.user-delete__group').first()).toBeVisible();
   
-  // Click delete without selecting any group action
-  const deleteButton = page.locator('button:has-text("Удалить")');
-  await deleteButton.click();
-  
-  // Should stay on the same page with error
+  // Клик «Удалить» без выбора действия: native required-validation блокирует отправку
+  await page.locator('button:has-text("Удалить")').click();
   await expect(page).toHaveURL(/\/admin\/users\/\d+\/delete$/);
+
+  // Менеджер по-прежнему существует
+  await page.goto('/admin/users');
+  await expect(page.locator('[data-user-row]', { hasText: 'manager2@b2b-crm.loc' })).toBeVisible();
 });

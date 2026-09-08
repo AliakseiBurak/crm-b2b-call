@@ -291,8 +291,8 @@ final class GroupControllerTest extends DatabaseWebTestCase
         // Токен — со своей страницы участников: форма доступна только
         // аутентифицированному менеджеру (иначе GET редиректит на /login).
         $this->login($manager1);
-        $csrfTokenManager = static::getContainer()->get('security.csrf.token_manager');
-        $token = $csrfTokenManager->getToken('group_members_' . $groupId)->getValue();
+        $crawler = $this->client->request('GET', '/groups/' . $groupId . '/members');
+        $token = $crawler->filter('input[name="_csrf_token"]')->first()->attr('value');
 
         $this->client->request('POST', '/groups/' . $groupId . '/members', [
             '_csrf_token' => $token,

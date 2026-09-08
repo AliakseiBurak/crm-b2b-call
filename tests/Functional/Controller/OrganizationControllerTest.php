@@ -108,8 +108,8 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
         // Токен — со своей формы создания: страница доступна только
         // аутентифицированному менеджеру (иначе GET редиректит на /login).
         $this->login($manager1);
-        $csrfTokenManager = static::getContainer()->get('security.csrf.token_manager');
-        $token = $csrfTokenManager->getToken('organization_new')->getValue();
+        $crawler = $this->client->request('GET', '/organizations/new');
+        $token = $crawler->filter('input[name="_csrf_token"]')->first()->attr('value');
 
         $this->client->request('POST', '/organizations/new', [
             '_csrf_token' => $token,

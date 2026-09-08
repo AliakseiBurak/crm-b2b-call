@@ -704,9 +704,43 @@ final class CampaignControllerTest extends DatabaseWebTestCase
             'group_id' => $group->id,
         ]);
 
-        $this->assertResponseRedirects();
+        $this->assertResponseStatusCodeSame(403);
         $this->em()->clear();
         self::assertCount(0, $this->findCampaign('Рассылка')->recipients);
+    }
+
+    public function testBulkAddByGroupAjaxReturnsJson(): void
+    {
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $group = (new OrganizationGroup())->setName('Группа А')->setCreatedBy($manager);
+        $this->em()->persist($group);
+
+        $org1 = $this->persistOrganization('ООО Ромашка');
+        $this->em()->persist(new OrgGroupMembership($org1, $group));
+        $this->em()->flush();
+
+        $campaign = $this->persistCampaign('Рассылка');
+        $existing = new CampaignRecipient($campaign, $org1);
+        $this->em()->persist($existing);
+        $org2 = $this->persistOrganization('ООО Вектор');
+        $this->em()->persist(new OrgGroupMembership($org2, $group));
+        $this->em()->flush();
+        $campaignId = $campaign->id;
+
+        $this->login($manager);
+        $token = $this->campaignToken($campaignId);
+        $this->client->request(
+            'POST',
+            '/campaigns/' . $campaignId . '/recipients/bulk-by-group',
+            ['_csrf_token' => $token, 'group_id' => $group->id],
+            [],
+            ['HTTP_X-Requested-With' => 'XMLHttpRequest'],
+        );
+
+        $this->assertResponseIsSuccessful();
+        self::assertSame(['added' => 1, 'skipped' => 1], json_decode((string) $this->client->getResponse()->getContent(), true));
+        $this->em()->clear();
+        self::assertCount(2, $this->findCampaign('Рассылка')->recipients);
     }
 
     public function testBulkAddByGroupWithEmptyGroupAddsNothing(): void

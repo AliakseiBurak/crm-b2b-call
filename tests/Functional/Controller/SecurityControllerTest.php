@@ -62,7 +62,7 @@ final class SecurityControllerTest extends DatabaseWebTestCase
             'email' => 'newuser@b2b-crm.loc',
             'new_password' => 'securepass123',
             'confirm_password' => 'securepass123',
-            '_csrf_token' => csrf_token('setup-password'),
+            '_csrf_token' => $this->setupPasswordCsrfToken(),
         ]);
 
         $this->assertResponseRedirects('/login');
@@ -81,7 +81,7 @@ final class SecurityControllerTest extends DatabaseWebTestCase
             'email' => 'nonexistent@b2b-crm.loc',
             'new_password' => 'securepass123',
             'confirm_password' => 'securepass123',
-            '_csrf_token' => csrf_token('setup-password'),
+            '_csrf_token' => $this->setupPasswordCsrfToken(),
         ]);
 
         $this->assertResponseRedirects('/login');
@@ -97,7 +97,7 @@ final class SecurityControllerTest extends DatabaseWebTestCase
             'email' => 'haspassword@b2b-crm.loc',
             'new_password' => 'newpassword123',
             'confirm_password' => 'newpassword123',
-            '_csrf_token' => csrf_token('setup-password'),
+            '_csrf_token' => $this->setupPasswordCsrfToken(),
         ]);
 
         $this->assertResponseRedirects('/login');
@@ -113,7 +113,7 @@ final class SecurityControllerTest extends DatabaseWebTestCase
             'email' => 'short@b2b-crm.loc',
             'new_password' => '1234567',
             'confirm_password' => '1234567',
-            '_csrf_token' => csrf_token('setup-password'),
+            '_csrf_token' => $this->setupPasswordCsrfToken(),
         ]);
 
         $this->assertResponseRedirects('/login');
@@ -129,7 +129,7 @@ final class SecurityControllerTest extends DatabaseWebTestCase
             'email' => 'mismatch@b2b-crm.loc',
             'new_password' => 'securepass123',
             'confirm_password' => 'differentpass',
-            '_csrf_token' => csrf_token('setup-password'),
+            '_csrf_token' => $this->setupPasswordCsrfToken(),
         ]);
 
         $this->assertResponseRedirects('/login');
@@ -143,7 +143,7 @@ final class SecurityControllerTest extends DatabaseWebTestCase
             'email' => '',
             'new_password' => '',
             'confirm_password' => '',
-            '_csrf_token' => csrf_token('setup-password'),
+            '_csrf_token' => $this->setupPasswordCsrfToken(),
         ]);
 
         $this->assertResponseRedirects('/login');
@@ -152,6 +152,18 @@ final class SecurityControllerTest extends DatabaseWebTestCase
     }
 
     // --- Helpers ---
+
+    /**
+     * CSRF-токен формы установки пароля со страницы входа (user-setup-password:
+     * форма содержит _csrf_token; в PHP-контексте Twig-функция csrf_token()
+     * недоступна — токен берётся из разметки).
+     */
+    private function setupPasswordCsrfToken(): string
+    {
+        $crawler = $this->client->request('GET', '/login');
+
+        return $crawler->filter('#setup-password-form input[name="_csrf_token"]')->first()->attr('value');
+    }
 
     private function makeUser(string $email, UserRole $role, string $password): User
     {

@@ -90,9 +90,15 @@ class AppFixtures extends Fixture
         $manager2 = $this->makeUser($manager, self::SECOND_MANAGER_EMAIL, self::SECOND_MANAGER_PASSWORD, UserRole::Manager);
         $manager->flush();
 
-        $group1 = $this->makeGroup($manager, 'Клиенты Ромашка', $manager1);
-        $group2 = $this->makeGroup($manager, 'Клиенты Вектор', $manager2);
-        $custom = $this->makeGroup($manager, 'Клиенты-партнёры', $admin);
+        $group1 = $this->makeGroup(
+            $manager,
+            'Клиенты Ромашка',
+            $manager1,
+            'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.',
+            '#20799e',
+        );
+        $group2 = $this->makeGroup($manager, 'Клиенты Вектор', $manager2, 'Логистические клиенты и перевозчики', '#5e9e47');
+        $custom = $this->makeGroup($manager, 'Клиенты-партнёры', $admin, 'Общая база партнёров для всех менеджеров', '#d66a2b');
         $manager->flush();
 
         $manager->persist(new GroupAssignment($manager1, $custom));
@@ -383,10 +389,12 @@ class AppFixtures extends Fixture
         return $user;
     }
 
-    private function makeGroup(ObjectManager $manager, string $name, User $createdBy): OrganizationGroup
+    private function makeGroup(ObjectManager $manager, string $name, User $createdBy, ?string $description = null, ?string $color = null): OrganizationGroup
     {
         $group = new OrganizationGroup()
             ->setName($name)
+            ->setDescription($description)
+            ->setColor($color)
             ->setCreatedBy($createdBy);
         $manager->persist($group);
 
