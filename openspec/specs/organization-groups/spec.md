@@ -71,6 +71,7 @@ The system SHALL allow managers to create, edit, and delete custom groups. Manag
 - **THEN** группа удаляется
 - **AND** членство организаций в группе удаляется
 - **AND** назначения группы другим менеджерам удаляются
+- **AND** сами организации остаются в системе
 
 #### Scenario: Менеджер не может редактировать чужую группу
 - **WHEN** менеджер "Иван Петров" пытается отредактировать группу "Южный регион", созданную другим менеджером
@@ -81,7 +82,7 @@ The system SHALL allow managers to create, edit, and delete custom groups. Manag
 - **THEN** система отклоняет запрос с ошибкой 403
 
 ### Requirement: Менеджер управляет членством организаций в своих группах
-The system SHALL allow managers to add and remove organizations from groups they created. Managers SHALL be able to add organizations they have access to into their groups.
+The system SHALL allow managers to add and remove organizations from groups they created. Managers SHALL be able to add organizations they have access to into their groups. Groups assigned to a manager by the administrator SHALL be visible to the manager in read-only mode: the composition of such a group is displayed, but the manager SHALL NOT be able to change it.
 
 #### Scenario: Менеджер добавляет организацию в свою группу
 - **WHEN** менеджер "Иван Петров" открывает страницу своей группы "Минский регион"
@@ -92,6 +93,16 @@ The system SHALL allow managers to add and remove organizations from groups they
 - **WHEN** менеджер "Иван Петров" удаляет организацию "ООО Ромашка" из группы "Минский регион"
 - **THEN** организация "ООО Ромашка" больше не состоит в группе "Минский регион"
 - **AND** организация остаётся в других группах
+
+#### Scenario: Менеджер просматривает состав назначенной группы
+- **WHEN** менеджер "Иван Петров" открывает страницу участников группы "Южный регион", созданной администратором и назначенной ему
+- **THEN** система показывает организации этой группы
+- **AND** форма изменения состава не отображается
+
+#### Scenario: Менеджер не может изменить состав назначенной группы
+- **WHEN** менеджер "Иван Петров" отправляет запрос на изменение состава группы "Южный регион", созданной администратором
+- **THEN** система отклоняет запрос с ошибкой 403
+- **AND** членство организаций в группе не меняется
 
 ### Requirement: Группы имеют метаданные для использования в рассылках
 Each organization group SHALL support optional metadata fields: a description field (text, nullable) and a color field (hex string, VARCHAR(7), nullable). These fields SHALL be manageable by administrators and by managers for their own groups.
@@ -118,7 +129,12 @@ When creating an organization, the system SHALL display checkboxes for available
 - **THEN** он видит все доступные группы в списке чекбоксов
 
 ### Requirement: При удалении менеджера администратор выбирает судьбу его групп
-When deleting a manager, the system SHALL display a warning listing all groups created by that manager. The administrator SHALL be forced to choose per-group: "Reassign to Admin" (changes `created_by` to admin, keeps group and assignments) or "Delete group" (removes group, membership, and assignments).
+When deleting a manager, the system SHALL display a warning listing all groups created by that manager, with the number of organizations in each group and the managers it is assigned to. The administrator SHALL be forced to choose per-group: "Reassign to Admin" (changes `created_by` to admin, keeps group and assignments) or "Delete group" (removes group, membership, and assignments; organizations themselves are not deleted).
+
+#### Scenario: Администратор видит контекст групп перед удалением менеджера
+- **WHEN** администратор открывает страницу удаления менеджера "Иван Петров"
+- **AND** тот создал группу "Минский регион" с двумя организациями, назначенную менеджеру "Мария Смирнова"
+- **THEN** в предупреждении отображается название группы, число организаций и имя менеджера, которому она назначена
 
 #### Scenario: Администратор переназначает группы при удалении менеджера
 - **WHEN** администратор удаляет менеджера "Иван Петров", создавшего группы "Минский регион" и "Южный регион"
@@ -141,3 +157,9 @@ The group management UI SHALL be visible to both administrators and managers. Ma
 #### Scenario: Менеджер не видит чужие группы в управлении
 - **WHEN** менеджер "Иван Петров" открывает раздел "Мои группы"
 - **THEN** он видит только группы, которые создал сам, и группы, назначенные ему администратором
+
+#### Scenario: Назначенная группа отображается без правки
+- **WHEN** менеджер "Иван Петров" открывает раздел "Мои группы"
+- **AND** в списке есть назначенная ему группа "Южный регион", созданная администратором
+- **THEN** для группы "Южный регион" отображается ссылка "Участники" с пометкой «только просмотр»
+- **AND** ссылка "Редактировать" для этой группы не отображается

@@ -60,3 +60,20 @@
 
 - [x] 8.1 Update `openspec/specs/organization-groups/spec.md` with ADDED/MODIFIED requirements from delta (after archive)
 - [x] 8.2 Update `openspec/specs/campaigns/spec.md` with ADDED/MODIFIED requirements from delta (after archive)
+
+## 9. Verification Follow-ups
+
+- [x] 9.1 `bulkAddByGroup` skips organizations without deliverable e-mail (campaigns e-mail rule applies to every creation path)
+- [x] 9.2 Result flash reports `пропущено: M (в том числе нет e-mail: K)` only when K > 0 (both bulk paths); AJAX returns `{ added, skipped, no_email }`
+- [x] 9.3 Empty group bulk add shows a dedicated notice: «В группе «…» нет организаций — добавлять нечего»
+- [x] 9.4 Assigned (not created) groups are read-only for managers: no "Редактировать" link, members page without edit form, membership POST returns 403
+- [x] 9.5 Manager delete confirmation shows organization count and assigned managers per group; spacing between group choices and action buttons fixed
+- [x] 9.6 Group delete confirmation clarifies that organizations are not deleted, only memberships and assignments
+- [x] 9.7 Sync delta specs, main specs, proposal and design with the above
+
+Отложено до архивации (fix while archiving):
+- обновить `openspec/specs/access-control/spec.md` — убрать `user-<id>-group` из
+  формулировок области доступа менеджера (ADR-0011);
+- убрать устаревшие комментарии о «личной группе» в `src/Controller/UserController.php`,
+  `src/Controller/OrganizationController.php`, `src/Controller/ContactController.php`,
+  `src/Repository/OrganizationRepository.php`, `src/Controller/CampaignController.php`.

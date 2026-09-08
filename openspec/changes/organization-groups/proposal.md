@@ -4,8 +4,8 @@ The current organization-groups capability uses personal groups (`user-<id>-grou
 
 ## What Changes
 
-- **Restructured `organization-groups` capability**: Remove personal groups entirely. Add `created_by` field so managers own their custom groups. Managers get full CRUD on own groups (create, edit, delete, manage membership). Admin retains full control over all groups and manages group assignments. Org creation page gains group checkboxes. Manager deletion flow requires per-group reassign/delete choice.
-- **Modified `campaigns` capability**: Add group-based bulk recipient selection (select all organizations in a specific group). "Add all" button retains existing behavior (all orgs in manager's custom groups).
+- **Restructured `organization-groups` capability**: Remove personal groups entirely. Add `created_by` field so managers own their custom groups. Managers get full CRUD on own groups (create, edit, delete, manage membership); groups assigned to them are visible read-only (members without edit rights). Admin retains full control over all groups and manages group assignments. Org creation page gains group checkboxes. Manager deletion flow requires per-group reassign/delete choice with group context (organization count, assigned managers).
+- **Modified `campaigns` capability**: Add group-based bulk recipient selection (select all organizations in a specific group), skipping organizations without a deliverable e-mail and reporting that in the result message. "Add all" button retains existing behavior (all orgs in manager's custom groups).
 
 ## Capabilities
 
@@ -20,10 +20,10 @@ The current organization-groups capability uses personal groups (`user-<id>-grou
 
 **Database**: Add `description` (TEXT NULL), `color` (VARCHAR(7) NULL), `created_by` (INT NULL, FK → users) to `organization_group`. Remove personal groups (legacy `type = 'user'` rows).
 
-**Routes**: Manager group management is implemented as web routes (`/groups`, `/groups/new`, `/groups/{id}/edit`, `/groups/{id}/delete`, `/groups/{id}/members`) rather than a REST API. New web endpoint `POST /campaigns/{id}/recipients/bulk-by-group`, accepting `group_id` and returning `{ added, skipped }` for AJAX requests (redirect + flash otherwise).
+**Routes**: Manager group management is implemented as web routes (`/groups`, `/groups/new`, `/groups/{id}/edit`, `/groups/{id}/delete`, `/groups/{id}/members`) rather than a REST API. New web endpoint `POST /campaigns/{id}/recipients/bulk-by-group`, accepting `group_id` and returning `{ added, skipped, no_email }` for AJAX requests (redirect + flash otherwise); organizations without a deliverable e-mail are skipped.
 
 **Services**: `CampaignRecipientService` extended with group-based bulk add. Group repository updated with ownership queries. Manager deletion service updated with reassign/delete flow.
 
-**UI**: New menu item "Мои группы" for managers. Group management pages (list with creator column, create, edit, members). Org create/edit pages gain group checkboxes. Campaign recipients page gains per-group "Добавить по группе" buttons (name, color, description tooltip). Manager delete confirmation shows group reassign/delete per-group choice.
+**UI**: New menu item "Мои группы" for managers. Group management pages (list with creator column, create, edit, members; assigned groups are read-only). Org create/edit pages gain group checkboxes. Campaign recipients page gains per-group "Добавить по группе" buttons (name, color, description tooltip). Manager delete confirmation shows group reassign/delete per-group choice with organization count and assigned managers; group deletion never deletes organizations.
 
 **ADRs**: No new ADRs needed (extends existing organization-groups model).

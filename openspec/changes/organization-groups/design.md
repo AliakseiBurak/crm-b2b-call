@@ -55,15 +55,16 @@ Stack: Symfony 7.x, PHP 8.5, Doctrine ORM 3.x, MySQL, Twig.
 - Manager sees only own groups (no assignment) -> Rejected: admin needs to share groups to new managers.
 
 ### 3. Manager Group CRUD
-**Decision**: Managers can create, edit, delete custom groups, and manage group membership (add/remove orgs). New menu item "Мои группы" for group management. Org edit page gains group checkboxes.
+**Decision**: Managers can create, edit, delete custom groups, and manage group membership (add/remove orgs). New menu item "Мои группы" for group management. Org edit page gains group checkboxes. Groups assigned to a manager (not created by them) are read-only: the list shows no "Редактировать" link (label "только просмотр"), the members page shows the composition without the edit form, and the membership POST returns 403.
 
 **Rationale**:
 - Groups become a first-class tool for managers to organize their orgs.
 - Checkbox model allows org to belong to multiple groups (many-to-many).
-- Same visibility rules apply everywhere: created_by = self OR assigned.
+- Visibility rules: created_by = self OR assigned; write rules: created_by = self (or admin).
+- Assigned groups must be inspectable so a manager understands the scope they got.
 
 ### 4. Manager Deletion Flow
-**Decision**: When admin deletes a manager, the system shows a warning listing all groups created by that manager. Admin MUST choose per-group: "Reassign to Admin" (changes `created_by` to admin, keeps group and assignments) or "Delete group" (removes group, membership, and assignments). Personal group (`user-<id>-group`) is always removed without choice.
+**Decision**: When admin deletes a manager, the system shows a warning listing all groups created by that manager together with the organization count and the managers the group is assigned to. Admin MUST choose per-group: "Reassign to Admin" (changes `created_by` to admin, keeps group and assignments) or "Delete group" (removes group, membership, and assignments; organizations themselves are never deleted). Personal groups are already eliminated by the migration, so there is nothing to remove silently.
 
 **Rationale**:
 - Prevents accidental data loss (groups with active assignments).
@@ -79,16 +80,22 @@ Stack: Symfony 7.x, PHP 8.5, Doctrine ORM 3.x, MySQL, Twig.
 - No new schema needed — uses existing `OrgGroupMembership`.
 
 ### 6. Campaign Recipient Group-Based Bulk Add
-**Decision**: New web endpoint `POST /campaigns/{id}/recipients/bulk-by-group` accepting the `group_id` form field (with CSRF token). AJAX requests (`X-Requested-With: XMLHttpRequest`) receive JSON `{ added, skipped }`; regular form posts get a redirect + flash message. Unauthorized group access results in a 403 response. Service:
+**Decision**: New web endpoint `POST /campaigns/{id}/recipients/bulk-by-group` accepting the `group_id` form field (with CSRF token). AJAX requests (`X-Requested-With: XMLHttpRequest`) receive JSON `{ added, skipped, no_email }`; regular form posts get a redirect + flash message. Unauthorized group access results in a 403 response. Service:
 1. Verify manager has access to group (created or assigned).
 2. Query organizations in group via `OrgGroupMembership`.
-3. Create `CampaignRecipient` entries for each, skipping existing (unique constraint).
-4. Return count of added/skipped.
+3. Create `CampaignRecipient` entries for each, skipping existing recipients (unique constraint)
+   and organizations without a deliverable e-mail among their contacts (campaigns rule
+   "Организация без e-mail не может стать адресатом" applies to every creation path).
+4. Return counts of added/skipped plus the `no_email` breakdown.
+
+The flash message is `Добавлено: N, пропущено: M`, extended with `(в том числе нет e-mail: K)`
+only when `K > 0`; a group without organizations produces a dedicated notice instead.
 
 **Rationale**:
 - Dedicated endpoint keeps controller clean.
 - Reuses existing `CampaignRecipientService` logic.
 - Access check at group level, not per-org (performance).
+- The same e-mail rule everywhere prevents recipients that cannot receive a letter.
 
 ### 7. Group Metadata Fields
 **Decision**: Add `description` (text, nullable) and `color` (hex string, VARCHAR(7) nullable, e.g. `#ff0000`) to `OrganizationGroup` entity. Managed via group CRUD (both admin and manager pages use the same `GroupController` form). Surfaced in the manager group list UI and as group buttons on the campaign recipients page (name as label, color as button style, description as `title` tooltip).
@@ -114,7 +121,9 @@ Stack: Symfony 7.x, PHP 8.5, Doctrine ORM 3.x, MySQL, Twig.
 -> Mitigation: Migration removes personal groups; orgs become ungrouped. Admin/manager can re-add to custom groups.
 
 [Risk] Manager deletion reassign flow may cause confusion if admin doesn't understand the choice.
--> Mitigation: Clear UI with group details (name, org count, assigned managers) per-group.
+-> Mitigation: UI shows group name, organization count, assigned managers, and the note that
+   deleting a group removes memberships only, never organizations
+   (`templates/user/delete.html.twig`, same clarification on the group delete page).
 
 ## Migration Plan
 
