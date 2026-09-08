@@ -71,9 +71,12 @@
 - [x] 9.6 Group delete confirmation clarifies that organizations are not deleted, only memberships and assignments
 - [x] 9.7 Sync delta specs, main specs, proposal and design with the above
 
-Отложено до архивации (fix while archiving):
-- обновить `openspec/specs/access-control/spec.md` — убрать `user-<id>-group` из
-  формулировок области доступа менеджера (ADR-0011);
-- убрать устаревшие комментарии о «личной группе» в `src/Controller/UserController.php`,
-  `src/Controller/OrganizationController.php`, `src/Controller/ContactController.php`,
-  `src/Repository/OrganizationRepository.php`, `src/Controller/CampaignController.php`.
+Выполнено при архивации:
+- [x] A.1 `openspec/specs/access-control/spec.md`, `openspec/config.yaml`,
+  `openspec/project.md` — область доступа менеджера переформулирована на
+  «созданные + назначенные группы» (ADR-0011); дельта `organization-visibility`
+  приведена в соответствие.
+Вторая часть (зона кода, этим же архивом): убрать устаревшие комментарии о
+«личной группе» в `src/Controller/UserController.php`,
+`src/Controller/OrganizationController.php`, `src/Controller/ContactController.php`,
+`src/Repository/OrganizationRepository.php`, `src/Controller/CampaignController.php`.
