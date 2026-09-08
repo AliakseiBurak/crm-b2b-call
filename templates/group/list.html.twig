@@ -61,6 +61,9 @@
                                         <a href="{{ path('app_group_members', { id: group.id }) }}" class="btn btn--secondary btn--sm">Участники</a>
                                         <span class="group-list__readonly">только просмотр</span>
                                     {% endif %}
+                                    {% if is_granted('ROLE_ADMIN') %}
+                                        <a href="{{ path('app_group_assign', { id: group.id }) }}" class="btn btn--secondary btn--sm">Назначить</a>
+                                    {% endif %}
                                 </td>
                             </tr>
                         {% endfor %}

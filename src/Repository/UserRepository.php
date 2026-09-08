@@ -34,6 +34,23 @@ class UserRepository extends ServiceEntityRepository
     }
 
     /**
+     * Все менеджеры (без администраторов), отсортированные по email.
+     * Страница назначения группы показывает только менеджеров: администратор
+     * видит все группы без GroupAssignment (ADR-0008).
+     *
+     * @return User[]
+     */
+    public function findManagers(): array
+    {
+        return $this->createQueryBuilder('u')
+            ->where('u.role = :role')
+            ->setParameter('role', UserRole::Manager)
+            ->orderBy('u.email', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Все администраторы системы. Используется для отправки уведомлений.
      *
      * @return User[]

@@ -4,6 +4,7 @@ namespace App\Controller;
 
 use App\Dto\CreateUserRequest;
 use App\Entity\Enum\UserRole;
+use App\Entity\GroupAssignment;
 use App\Entity\OrganizationGroup;
 use App\Entity\User;
 use App\Repository\OrganizationGroupRepository;
@@ -161,6 +162,70 @@ class UserController extends AbstractController
         $this->em->flush();
 
         return $this->redirectToRoute('app_user_list');
+    }
+
+    #[Route('/{id}/assign', name: 'app_user_assign', methods: ['GET'], requirements: ['id' => '\d+'])]
+    public function assign(int $id): Response
+    {
+        $user = $this->managerUser($id);
+
+        return $this->render('user/assign.html.twig', [
+            'user' => $user,
+            'groups' => $this->groups->findAllGroups(),
+            'assignedIds' => array_map(
+                static fn (GroupAssignment $a): int => $a->group->id,
+                $user->groupAssignments->toArray(),
+            ),
+        ]);
+    }
+
+    #[Route('/{id}/assign', name: 'app_user_update_assign', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function updateAssign(int $id, Request $request): Response
+    {
+        $user = $this->managerUser($id);
+        $this->assertCsrfToken($request);
+
+        $selectedIds = array_map('intval', $request->request->all('groups'));
+
+        // Remove existing assignments not in selection
+        foreach ($user->groupAssignments as $assignment) {
+            if (!in_array($assignment->group->id, $selectedIds, true)) {
+                $user->groupAssignments->removeElement($assignment);
+                $this->em->remove($assignment);
+            }
+        }
+
+        // Add new assignments (несуществующие id групп игнорируются)
+        $currentIds = array_map(
+            static fn (GroupAssignment $a): int => $a->group->id,
+            $user->groupAssignments->toArray(),
+        );
+        foreach ($selectedIds as $groupId) {
+            if (!in_array($groupId, $currentIds, true)) {
+                $group = $this->groups->find($groupId);
+                if (null !== $group) {
+                    $this->em->persist(new GroupAssignment($user, $group));
+                }
+            }
+        }
+
+        $this->em->flush();
+
+        return $this->redirectToRoute('app_user_list');
+    }
+
+    /**
+     * Пользователь, которому назначаются группы: только менеджеры (design D6).
+     * Администратору доступны все группы без GroupAssignment (ADR-0008).
+     */
+    private function managerUser(int $id): User
+    {
+        $user = $this->users->find($id);
+        if (null === $user || UserRole::Manager !== $user->role) {
+            throw $this->createNotFoundException('Менеджер не найден');
+        }
+
+        return $user;
     }
 
     private function assertCsrfToken(Request $request): void

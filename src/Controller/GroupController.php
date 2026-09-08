@@ -3,12 +3,14 @@
 namespace App\Controller;
 
 use App\Entity\Enum\UserRole;
+use App\Entity\GroupAssignment;
 use App\Entity\OrgGroupMembership;
 use App\Entity\Organization;
 use App\Entity\OrganizationGroup;
 use App\Entity\User;
 use App\Repository\OrganizationGroupRepository;
 use App\Repository\OrganizationRepository;
+use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -23,6 +25,7 @@ class GroupController extends AbstractController
 {
     public function __construct(
         private readonly OrganizationGroupRepository $groups,
+        private readonly UserRepository $users,
         private readonly OrganizationRepository $organizations,
         private readonly EntityManagerInterface $em,
         private readonly ValidatorInterface $validator,
@@ -260,6 +263,66 @@ class GroupController extends AbstractController
                 if (null !== $organization) {
                     $membership = new OrgGroupMembership($organization, $group);
                     $this->em->persist($membership);
+                }
+            }
+        }
+
+        $this->em->flush();
+
+        return $this->redirectToRoute('app_group_list');
+    }
+
+    #[Route('/{id}/assign', name: 'app_group_assign', methods: ['GET'], requirements: ['id' => '\d+'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function assign(int $id): Response
+    {
+        $group = $this->findGroup($id);
+
+        return $this->render('group/assign.html.twig', [
+            'group' => $group,
+            'managers' => $this->users->findManagers(),
+            'assignedIds' => array_map(
+                static fn (GroupAssignment $a): int => $a->user->id,
+                $group->assignments->toArray(),
+            ),
+        ]);
+    }
+
+    #[Route('/{id}/assign', name: 'app_group_update_assign', methods: ['POST'], requirements: ['id' => '\d+'])]
+    #[IsGranted('ROLE_ADMIN')]
+    public function updateAssign(int $id, Request $request): Response
+    {
+        $group = $this->findGroup($id);
+        $this->assertCsrfToken($request);
+
+        $selectedIds = array_map('intval', $request->request->all('managers'));
+
+        // Назначать группу можно только менеджерам (ADR-0008): администратор
+        // видит все группы без GroupAssignment, отправка id админа игнорируется.
+        $managerIds = array_map(
+            static fn (User $m): int => $m->id,
+            $this->users->findManagers(),
+        );
+        $selectedIds = array_values(array_intersect($selectedIds, $managerIds));
+
+        // Remove existing assignments not in selection
+        foreach ($group->assignments as $assignment) {
+            if (!in_array($assignment->user->id, $selectedIds, true)) {
+                $group->assignments->removeElement($assignment);
+                $this->em->remove($assignment);
+            }
+        }
+
+        // Add new assignments
+        $currentIds = array_map(
+            static fn (GroupAssignment $a): int => $a->user->id,
+            $group->assignments->toArray(),
+        );
+        foreach ($selectedIds as $managerId) {
+            if (!in_array($managerId, $currentIds, true)) {
+                $manager = $this->users->find($managerId);
+                if (null !== $manager) {
+                    $this->em->persist(new GroupAssignment($manager, $group));
                 }
             }
         }

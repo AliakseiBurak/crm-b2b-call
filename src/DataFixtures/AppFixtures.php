@@ -99,10 +99,17 @@ class AppFixtures extends Fixture
         );
         $group2 = $this->makeGroup($manager, 'Клиенты Вектор', $manager2, 'Логистические клиенты и перевозчики', '#5e9e47');
         $custom = $this->makeGroup($manager, 'Клиенты-партнёры', $admin, 'Общая база партнёров для всех менеджеров', '#d66a2b');
+        // Пустая группа (без организаций) для проверки назначения: смена
+        // флажков на странице «Назначить» не меняет область доступа (change
+        // organization-group-assignment).
+        $archive = $this->makeGroup($manager, 'Архивные клиенты', $admin, 'Группа без организаций: песочница для назначения менеджерам', '#8a8f98');
         $manager->flush();
 
         $manager->persist(new GroupAssignment($manager1, $custom));
         $manager->persist(new GroupAssignment($manager2, $custom));
+        // Единичное назначение: на странице группы «Архивные клиенты» отмечен
+        // ровно один менеджер, на страницах «Клиенты Ромашка»/«Клиенты Вектор» — ни одного.
+        $manager->persist(new GroupAssignment($manager1, $archive));
 
         $organizations = [];
         foreach (self::ORGANIZATIONS as [$name, $industry]) {

@@ -41,6 +41,9 @@
                                 <td>{{ user.surname|default('—') }}</td>
                                 <td>{{ user.role.value == 'admin' ? 'Администратор' : 'Менеджер' }}</td>
                                 <td>
+                                    {% if user.role.value == 'manager' %}
+                                        <a href="{{ path('app_user_assign', { id: user.id }) }}" class="btn btn--secondary btn--sm">Назначить</a>
+                                    {% endif %}
                                     {% if user.id != app.user.id %}
                                         <a href="{{ path('app_user_delete', { id: user.id }) }}" class="btn btn--secondary btn--sm">Удалить</a>
                                     {% endif %}

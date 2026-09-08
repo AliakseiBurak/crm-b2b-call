@@ -1,0 +1,79 @@
+{#
+    Назначение группы менеджерам (change organization-group-assignment).
+    Администратор отмечает менеджеров с доступом к группе (GroupAssignment).
+    Ожидает: group (OrganizationGroup), managers (User[]), assignedIds (int[]).
+#}
+{% extends 'base.html.twig' %}
+
+{% block title %}Назначение группы «{{ group.name }}»{% endblock %}
+
+{% block body %}
+    <section class="section section--white">
+        <div class="container">
+            <h1>Назначение группы «{{ group.name }}»</h1>
+
+            <form
+                method="post"
+                action="{{ path('app_group_update_assign', { id: group.id }) }}"
+                class="group-assign-form"
+                style="margin-top: 24px;"
+            >
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token('group') }}">
+
+                {% if managers is not empty %}
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th><input type="checkbox" id="select-all"></th>
+                                <th>Менеджер</th>
+                                <th>Email</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for manager in managers %}
+                                <tr data-assign-row>
+                                    <td>
+                                        <input
+                                            type="checkbox"
+                                            name="managers[]"
+                                            value="{{ manager.id }}"
+                                            {% if manager.id in assignedIds %}checked{% endif %}
+                                        >
+                                    </td>
+                                    <td>
+                                        {% set fullName = (manager.name|default('') ~ ' ' ~ manager.surname|default(''))|trim %}
+                                        {{ fullName ?: '—' }}
+                                    </td>
+                                    <td>{{ manager.email }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p>Менеджеров нет.</p>
+                {% endif %}
+
+                <div class="group-assign-form__actions" style="margin-top: 24px;">
+                    {{ include('components/button.html.twig', {
+                        variant: 'primary',
+                        text: 'Сохранить',
+                    }) }}
+                    {{ include('components/button.html.twig', {
+                        variant: 'secondary',
+                        text: 'Отмена',
+                        href: path('app_group_list'),
+                        type: 'button',
+                    }) }}
+                </div>
+            </form>
+
+            <script>
+                document.getElementById('select-all')?.addEventListener('change', function() {
+                    document.querySelectorAll('input[name="managers[]"]').forEach(cb => {
+                        cb.checked = this.checked;
+                    });
+                });
+            </script>
+        </div>
+    </section>
+{% endblock %}
