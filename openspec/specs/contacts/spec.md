@@ -51,7 +51,7 @@ The system SHALL NOT store contact type or contact person fields.
 ### Requirement: Управление контактами
 The system SHALL allow the administrator and managers to update and delete
 contacts; a manager SHALL have access only to contacts of organizations in
-their `user-<id>-group` and assigned groups.
+the groups they created (`created_by`) and assigned groups.
 
 #### Scenario: Обновление контакта
 - **WHEN** в системе существует контакт "Иван Петров" с телефоном "+7-900-000-00-00"

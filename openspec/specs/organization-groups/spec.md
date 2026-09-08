@@ -2,7 +2,7 @@
 
 Группы организаций распределяют организации между менеджерами. Менеджеры
 создают собственные группы; администратор видит и управляет всеми группами. Организация может
-состоять в нескольких группах одновременно (`OrganizationGroupMembership`).
+состоять в нескольких группах одновременно (`OrgGroupMembership`, таблица `org_group_membership`).
 
 ## Purpose
 
@@ -25,11 +25,12 @@ for an administrator SHALL skip groups entirely.
 - **THEN** он видит все организации без проверки групп
 
 ### Requirement: Администратор управляет custom-группами
-The administrator SHALL be able to create, modify, and delete ALL custom groups (including manager-owned groups), with a name, an optional description, and an optional hex color, assign them to managers, and add organizations to groups. Adding an organization to a group SHALL NOT remove it from other groups: an organization MAY belong to several groups at once.
+The administrator SHALL be able to create, modify, and delete ALL custom groups (including manager-owned groups), with a name, an optional description, and an optional hex color, and add organizations to groups. Assignment of groups to managers (`GroupAssignment` management UI) is out of scope for this change and is delivered by the follow-up `organization-group-assignment` change. Adding an organization to a group SHALL NOT remove it from other groups: an organization MAY belong to several groups at once.
 
-#### Scenario: Админ создаёт custom-группу и назначает её менеджеру
-- **WHEN** аутентифицированный администратор создаёт custom-группу "Минский регион" с описанием "Организации Минской области", цветом "#3b82f6" и назначает её менеджеру "Иван Петров"
-- **THEN** менеджер "Иван Петров" получает доступ к организациям группы "Минский регион"
+#### Scenario: Админ создаёт custom-группу
+- **WHEN** аутентифицированный администратор создаёт custom-группу "Минский регион" с описанием "Организации Минской области" и цветом "#3b82f6"
+- **THEN** группа сохраняется с `created_by = admin`
+- **AND** группа видна в списке групп администратора
 
 #### Scenario: Админ видит создателя группы
 - **WHEN** администратор открывает список групп
@@ -46,12 +47,11 @@ The administrator SHALL be able to create, modify, and delete ALL custom groups 
 - **THEN** организация "ООО Ромашка" продолжает состоять в группе "Южный регион"
 
 ### Requirement: Членство организации в группах является many-to-many
-An organization SHALL be able to belong to several groups at once through `OrganizationGroupMembership`, and one group MAY be assigned to several managers through `GroupAssignment`.
+An organization SHALL be able to belong to several groups at once through `OrgGroupMembership`, and one group MAY be assigned to several managers through `GroupAssignment`.
 
-#### Scenario: Одна группа назначается нескольким менеджерам
-- **WHEN** custom-группа "Минский регион" создана менеджером "Иван Петров"
-- **AND** администратор назначает группу "Минский регион" менеджеру "Мария Смирнова"
-- **THEN** оба менеджера имеют доступ к организациям группы "Минский регион"
+#### Scenario: Одна группа назначена нескольким менеджерам
+- **WHEN** группа "Минский регион" создана менеджером "Иван Петров" и назначена (`GroupAssignment`) менеджеру "Мария Смирнова"
+- **THEN** обоим менеджерам доступны организации группы "Минский регион"
 
 ### Requirement: Менеджер управляет своими custom-группами
 The system SHALL allow managers to create, edit, and delete custom groups. Managers SHALL have full CRUD access to groups they created (`created_by = self`). Managers SHALL NOT be able to edit or delete groups created by other managers or by the administrator.

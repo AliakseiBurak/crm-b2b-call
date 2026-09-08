@@ -4,7 +4,7 @@
 пользователей: вместо отображения hero-страницы система перенаправляет
 на страницу входа.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Домашняя страница перенаправляет гостей на вход
 The system SHALL redirect unauthenticated users from `/` to `/login`

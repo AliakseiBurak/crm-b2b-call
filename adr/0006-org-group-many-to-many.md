@@ -1,6 +1,6 @@
 # ADR-0006: Many-to-many членство организации в группах
 
-- **Status:** accepted
+- **Status:** accepted (изменён ADR-0011: класс `OrgGroupMembership` (таблица `org_group_membership`); формула области доступа — см. ADR-0011)
 - **Date:** 2026-08-10
 
 ## Context

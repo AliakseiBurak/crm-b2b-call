@@ -1,7 +1,7 @@
 ## 1. Database & Entity Layer
 
-- [x] 1.1 Create Doctrine migration to add `description` (TEXT NULL), `color` (VARCHAR(7) NULL), `created_by` (INT NULL, FK → users) columns to `organization_groups` table
-- [x] 1.2 Remove personal groups (`user-<id>-group`): delete matching rows and cascade remove `OrganizationGroupMembership` and `GroupAssignment` rows
+- [x] 1.1 Create Doctrine migration to add `description` (TEXT NULL), `color` (VARCHAR(7) NULL), `created_by` (INT NULL, FK → users) columns to `organization_group` table
+- [x] 1.2 Remove personal groups (`user-<id>-group`): delete matching rows and cascade remove `OrgGroupMembership` and `GroupAssignment` rows
 - [x] 1.3 Add `description`, `color`, `createdBy` fields to `OrganizationGroup` entity with getters/setters
 - [x] 1.4 Update `OrganizationGroupRepository` with ownership queries (created_by = self OR assigned)
 
@@ -20,13 +20,13 @@
 
 - [x] 3.1 Update admin group list to show `created_by` column (who created the group)
 - [x] 3.2 Update admin group form to include description and color fields
-- [x] 3.3 Update admin group assignment to work with manager-owned groups
+- [x] 3.3 Admin group management works with manager-owned groups (admin sees/edits all groups incl. `created_by` of managers; assignment UI deferred to `organization-group-assignment` change)
 - [x] 3.4 Functional tests: admin manages all groups including manager-owned groups
 
 ## 4. Org Edit Group Checkboxes
 
 - [x] 4.1 Add group checkboxes to org edit page (manager: created + assigned groups; admin: all groups)
-- [x] 4.2 On org save, update `OrganizationGroupMembership` based on checked groups
+- [x] 4.2 On org save, update `OrgGroupMembership` based on checked groups
 - [x] 4.3 Functional tests: org group assignment via edit page
 
 ## 5. Manager Deletion Flow
@@ -42,10 +42,10 @@
 
 - [x] 6.1 Add `bulkAddByGroup(int $campaignId, string $groupId)` method to `CampaignRecipientService`
 - [x] 6.2 Implement access check: verify manager has access to group (created or assigned)
-- [x] 6.3 Implement query: organizations in group via `OrganizationGroupMembership`
+- [x] 6.3 Implement query: organizations in group via `OrgGroupMembership`
 - [x] 6.4 Create `CampaignRecipient` entries for each organization, skip existing (catch UniqueConstraintViolationException or check first)
 - [x] 6.5 Create `POST /campaigns/{id}/recipients/bulk-by-group` endpoint accepting `group_id` form field, returning `{ added: N, skipped: M }` for AJAX requests (redirect + flash otherwise)
-- [x] 6.6 Add "Добавить по группе" button and group select dropdown to campaign recipients Twig template (populated from group API)
+- [x] 6.6 Add "Добавить по группе" buttons (one per available group: name label, color style, description tooltip) to campaign recipients Twig template
 - [x] 6.7 Write functional tests: bulk add by group, 403 for unauthorized group, skip existing, empty group
 
 ## 7. Integration & Regression Tests

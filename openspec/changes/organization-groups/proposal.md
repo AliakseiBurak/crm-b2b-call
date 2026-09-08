@@ -18,12 +18,12 @@ The current organization-groups capability uses personal groups (`user-<id>-grou
 
 ## Impact
 
-**Database**: Add `description` (TEXT NULL), `color` (VARCHAR(7) NULL), `created_by` (INT NULL, FK → users) to `organization_groups`. Remove personal groups (`user-<id>-group` pattern).
+**Database**: Add `description` (TEXT NULL), `color` (VARCHAR(7) NULL), `created_by` (INT NULL, FK → users) to `organization_group`. Remove personal groups (legacy `type = 'user'` rows).
 
 **Routes**: Manager group management is implemented as web routes (`/groups`, `/groups/new`, `/groups/{id}/edit`, `/groups/{id}/delete`, `/groups/{id}/members`) rather than a REST API. New web endpoint `POST /campaigns/{id}/recipients/bulk-by-group`, accepting `group_id` and returning `{ added, skipped }` for AJAX requests (redirect + flash otherwise).
 
 **Services**: `CampaignRecipientService` extended with group-based bulk add. Group repository updated with ownership queries. Manager deletion service updated with reassign/delete flow.
 
-**UI**: New menu item "Мои группы" for managers. Group management pages (list with creator column, create, edit, members). Org create/edit pages gain group checkboxes. Campaign recipients page gains "Add by group" dropdown. Manager delete confirmation shows group reassign/delete per-group choice.
+**UI**: New menu item "Мои группы" for managers. Group management pages (list with creator column, create, edit, members). Org create/edit pages gain group checkboxes. Campaign recipients page gains per-group "Добавить по группе" buttons (name, color, description tooltip). Manager delete confirmation shows group reassign/delete per-group choice.
 
 **ADRs**: No new ADRs needed (extends existing organization-groups model).

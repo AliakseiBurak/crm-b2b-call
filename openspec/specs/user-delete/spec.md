@@ -4,7 +4,7 @@
 условия должны быть соблюдены, что происходит с персональной группой
 при удалении менеджера и как обеспечивается доступ к операции удаления.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Удалять пользователя может только администратор
 The system SHALL allow deleting a user only to an authenticated
@@ -32,20 +32,21 @@ SHALL return an error indicating self-deletion is not permitted.
 - **WHEN** аутентифицированный администратор пытается удалить собственную учётную запись
 - **THEN** система отклоняет операцию с ошибкой валидации и не удаляет учётную запись
 
-### Requirement: Персональная группа удаляется при удалении менеджера
-The system SHALL automatically delete the personal `user-<id>-group`
-when a user with role `manager` is deleted (ADR-0005). When a user with
-role `admin` is deleted, no group deletion occurs (ADR-0008).
+### Requirement: Судьба групп менеджера выбирается при удалении
+The system SHALL NOT automatically delete groups when a manager is deleted;
+for every group created by the manager (`created_by`) the administrator MUST
+choose per-group: reassign to the administrator or delete (ADR-0011,
+capability `organization-groups`). When a user with role `admin` is deleted,
+no group ownership change occurs (ADR-0008).
 
-#### Scenario: Удаление менеджера удаляет персональную группу
-- **WHEN** администратор удаляет пользователя с ролью manager
-- **THEN** система удаляет пользователя и его персональную группу
-  `user-<id>-group`
+#### Scenario: Удаление менеджера требует выбора для его групп
+- **WHEN** администратор удаляет пользователя с ролью manager, создавшего группы
+- **THEN** система требует выбрать действие для каждой группы (переназначить или удалить)
+- **AND** пользователь удаляется только после выбора
 
-#### Scenario: Удаление администратора не удаляет группу
+#### Scenario: Удаление администратора не затрагивает группы
 - **WHEN** администратор удаляет пользователя с ролью admin
-- **THEN** система удаляет пользователя; персональная группа не
-  существует и не затрагивается
+- **THEN** система удаляет пользователя; группы не затрагиваются
 
 ### Requirement: Удаление каскадно — связанные данные обрабатываются
 The system SHALL handle all related data when deleting a user. Calls,

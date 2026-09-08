@@ -22,15 +22,18 @@ The system SHALL let the administrator create an organization with name and indu
 - **THEN** форма отображает ошибку "Название обязательно для заполнения"
 - **AND** организация не сохраняется
 
-### Requirement: Менеджер создаёт организацию в своей группе
-The system SHALL let the manager create an organization, and SHALL automatically add it to the manager's personal group `user-<id>-group`.
+### Requirement: Менеджер создаёт организацию с выбором групп
+The system SHALL let the manager create an organization and select the groups
+available to them (`created_by` + assigned) via checkboxes. If no group is
+selected, the organization SHALL exist ungrouped.
 
 #### Scenario: Менеджер создаёт организацию
 - **WHEN** менеджер открывает форму создания организации
 - **AND** вводит название "ООО Ромашка" и отрасль "IT"
+- **AND** отмечает доступную группу
 - **AND** нажимает кнопку "Создать"
 - **THEN** организация "ООО Ромашка" сохраняется в системе
-- **AND** организация добавляется в группу менеджера `user-<id>-group`
+- **AND** организация добавляется в отмеченные группы
 
 ### Requirement: Администратор редактирует организацию
 The system SHALL let the administrator update organization name and industry through a form.
@@ -51,7 +54,7 @@ The system SHALL let the administrator update organization name and industry thr
 - **AND** организация не обновляется
 
 ### Requirement: Менеджер редактирует видимую организацию
-The system SHALL let the manager update only the organizations visible to them (own `user-<id>-group` + assigned groups).
+The system SHALL let the manager update only the organizations visible to them (groups they created (`created_by`) + assigned groups).
 
 #### Scenario: Менеджер редактирует видимую организацию
 - **WHEN** менеджер открывает форму редактирования организации "ООО Ромашка"

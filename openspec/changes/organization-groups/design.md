@@ -1,10 +1,10 @@
 ## Context
 
 Current state (see proposal.md for motivation):
-- Existing `organization-groups` capability with personal groups (`user-<id>-group`), custom groups, many-to-many membership (`OrganizationGroupMembership`), and group assignments (`GroupAssignment`).
+- Existing `organization-groups` capability with personal groups (`user-<id>-group`), custom groups, many-to-many membership (`OrgGroupMembership`), and group assignments (`GroupAssignment`).
 - Existing `campaigns` capability with recipient management, bulk "add all accessible organizations", and per-letter status tracking.
 - ADR-0005: Manager personal groups auto-created, orgs land there.
-- ADR-0006: Org<->group many-to-many via `OrganizationGroupMembership`.
+- ADR-0006: Org<->group many-to-many via `OrgGroupMembership`.
 - ADR-0007: Manager access = own group + assigned custom groups.
 - ADR-0008: Admin sees everything, no personal group, groups not checked.
 
@@ -43,7 +43,7 @@ Stack: Symfony 7.x, PHP 8.5, Doctrine ORM 3.x, MySQL, Twig.
 - Add a new `type` column to distinguish -> Rejected: the legacy `type` column already marks them, so no new field is needed.
 
 ### 2. Group Ownership via `created_by`
-**Decision**: Add `created_by` (INT NULL, FK → users) to `organization_groups`. Manager sees groups WHERE `created_by = self` OR assigned via `GroupAssignment`. Manager can edit/delete only groups where `created_by = self`. Admin sees all, manages all.
+**Decision**: Add `created_by` (INT NULL, FK → users) to `organization_group`. Manager sees groups WHERE `created_by = self` OR assigned via `GroupAssignment`. Manager can edit/delete only groups where `created_by = self`. Admin sees all, manages all.
 
 **Rationale**:
 - Clean ownership model: creator controls the group.
@@ -76,12 +76,12 @@ Stack: Symfony 7.x, PHP 8.5, Doctrine ORM 3.x, MySQL, Twig.
 **Rationale**:
 - Aligns with many-to-many model (org can be in multiple groups).
 - Allows immediate organization during creation.
-- No new schema needed — uses existing `OrganizationGroupMembership`.
+- No new schema needed — uses existing `OrgGroupMembership`.
 
 ### 6. Campaign Recipient Group-Based Bulk Add
-**Decision**: New endpoint `POST /api/campaigns/{id}/recipients/bulk-by-group` accepting `{ groupId }`. Service:
+**Decision**: New web endpoint `POST /campaigns/{id}/recipients/bulk-by-group` accepting the `group_id` form field (with CSRF token). AJAX requests (`X-Requested-With: XMLHttpRequest`) receive JSON `{ added, skipped }`; regular form posts get a redirect + flash message. Unauthorized group access results in a 403 response. Service:
 1. Verify manager has access to group (created or assigned).
-2. Query organizations in group via `OrganizationGroupMembership`.
+2. Query organizations in group via `OrgGroupMembership`.
 3. Create `CampaignRecipient` entries for each, skipping existing (unique constraint).
 4. Return count of added/skipped.
 
@@ -91,7 +91,7 @@ Stack: Symfony 7.x, PHP 8.5, Doctrine ORM 3.x, MySQL, Twig.
 - Access check at group level, not per-org (performance).
 
 ### 7. Group Metadata Fields
-**Decision**: Add `description` (text, nullable) and `color` (hex string, VARCHAR(7) nullable, e.g. `#ff0000`) to `OrganizationGroup` entity. Admin-managed via existing group CRUD. Exposed in manager group listing API.
+**Decision**: Add `description` (text, nullable) and `color` (hex string, VARCHAR(7) nullable, e.g. `#ff0000`) to `OrganizationGroup` entity. Managed via group CRUD (both admin and manager pages use the same `GroupController` form). Surfaced in the manager group list UI and as group buttons on the campaign recipients page (name as label, color as button style, description as `title` tooltip).
 
 **Rationale**:
 - Minimal schema change.
@@ -105,7 +105,7 @@ Stack: Symfony 7.x, PHP 8.5, Doctrine ORM 3.x, MySQL, Twig.
 ## Risks / Trade-offs
 
 [Risk] Group metadata (color) needs validation (hex format).
--> Mitigation: Validate on entity (regex `^#[0-9a-fA-F]{6}$`), default to null.
+-> Mitigation: Validate with `#[Assert\Regex]` on the entity (`^#[0-9a-fA-F]{6}$`), enforced via the validator in group CRUD, default to null.
 
 [Risk] Performance of bulk add for large groups.
 -> Mitigation: Process in batches, return progress, or use async job for very large groups.
@@ -119,8 +119,8 @@ Stack: Symfony 7.x, PHP 8.5, Doctrine ORM 3.x, MySQL, Twig.
 ## Migration Plan
 
 1. **Database migration**:
-   - Add `description` (TEXT NULL), `color` (VARCHAR(7) NULL), `created_by` (INT NULL, FK → users) to `organization_groups`.
-   - Remove personal groups (`user-<id>-group`): delete rows where name matches `user-%-group` pattern. Remove associated `OrganizationGroupMembership` and `GroupAssignment` rows.
+   - Add `description` (TEXT NULL), `color` (VARCHAR(7) NULL), `created_by` (INT NULL, FK → users) to `organization_group`.
+   - Remove personal groups: delete rows with legacy `type = 'user'` (the `user-<id>-group` rows). Their `OrgGroupMembership` and `GroupAssignment` rows go away via FK `ON DELETE CASCADE`.
 
 2. **Entity/Repository**: Add `description`, `color`, `createdBy` fields to `OrganizationGroup` entity. Update `OrganizationGroupRepository` with ownership queries.
 
@@ -129,8 +129,8 @@ Stack: Symfony 7.x, PHP 8.5, Doctrine ORM 3.x, MySQL, Twig.
 4. **Manager Deletion**: Update delete confirmation to show per-group reassign/delete choice.
 
 5. **Campaign Recipients**:
-   - Add bulk-by-group endpoint.
-   - Add "Add by group" dropdown to recipients Twig template.
+   - Add bulk-by-group web endpoint.
+   - Add per-group "Добавить по группе" buttons to the campaign recipients Twig template (group name label, color as button style, description tooltip).
 
 6. **Tests**: Unit tests for repository; functional tests for endpoints; integration tests for manager deletion flow.
 

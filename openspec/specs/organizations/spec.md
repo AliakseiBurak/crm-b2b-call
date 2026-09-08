@@ -2,8 +2,8 @@
 
 Организация — центральная сущность CRM: карточка компании, к которой привязаны
 контакты, звонки, рассылки и предложения курсов. Видимость организаций
-определяется моделью доступа (`adr/0005–0008`): менеджер видит организации
-своей группы (`user-<id>-group`) и назначенных групп, администратор — все.
+определяется моделью доступа (`adr/0006–0008, 0011`): менеджер видит организации
+групп, созданных им (`created_by`), и назначенных групп, администратор — все.
 
 ## Purpose
 
@@ -34,13 +34,15 @@ organizations, and SHALL return organization details by identifier.
 ### Requirement: Менеджер управляет видимыми организациями
 The system SHALL let the manager create organizations, and SHALL let the
 manager view, update, and delete only the organizations visible to them
-(organizations of own `user-<id>-group` and assigned custom groups). The
+(organizations of groups they created (`created_by`) and assigned custom
+groups). The
 system SHALL deny the manager access to organizations outside this scope.
 
 #### Scenario: Менеджер создаёт организацию
 - **WHEN** аутентифицированный менеджер создаёт организацию с названием "ООО Ромашка"
+- **AND** выбирает доступные группы (чекбоксы) при создании
 - **THEN** организация "ООО Ромашка" появляется в списке менеджера
-- **AND** организация "ООО Ромашка" попадает в группу менеджера `user-<id>-group`
+- **AND** организация добавляется в выбранные группы
 
 #### Scenario: Менеджер изменяет видимую организацию
 - **WHEN** в системе существует организация "ООО Ромашка", видимая менеджеру

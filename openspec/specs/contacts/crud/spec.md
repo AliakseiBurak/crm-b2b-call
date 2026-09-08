@@ -25,7 +25,7 @@ The system SHALL let the administrator create a contact with all fields through 
 - **AND** контакт не сохраняется
 
 ### Requirement: Менеджер создаёт контакт в доступной организации
-The system SHALL let the manager create a contact only in organizations visible to them (own `user-<id>-group` + assigned groups).
+The system SHALL let the manager create a contact only in organizations visible to them (groups they created (`created_by`) + assigned groups).
 
 #### Scenario: Менеджер создаёт контакт
 - **WHEN** менеджер открывает форму создания контакта

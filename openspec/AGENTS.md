@@ -14,12 +14,16 @@ Project-specific conventions for agents working in this OpenSpec workspace.
 
 ## Access model (hard constraints)
 
-Do not re-introduce per-org ACL tiers. See `adr/0005–0008`:
+Do not re-introduce per-org ACL tiers. See `adr/0006–0008, 0011`:
 
-- ADR-0005: `user-<id>-group` auto-created per manager; manager's orgs land there.
-- ADR-0006: org ↔ group many-to-many (`OrganizationGroupMembership`); one group
-  assignable to many managers (`GroupAssignment`).
-- ADR-0007: manager gets full access to own (`user-<id>-group`) + assigned groups.
+- ADR-0011: personal groups (`user-<id>-group`) eliminated; managers own custom
+  groups via `created_by`, full CRUD on own groups; manager access scope =
+  orgs in created + assigned groups.
+- ADR-0006: org ↔ group many-to-many (`OrgGroupMembership`, table
+  `org_group_membership`); one group assignable to many managers
+  (`GroupAssignment`).
+- ADR-0007 (amended by ADR-0011): manager gets full access to created +
+  assigned groups.
 - ADR-0008: admin sees everything, manages groups and assignments; admin has no
   personal group, groups are not checked for admin.
 
@@ -32,9 +36,10 @@ Do not rename inconsistently.
 ## Source of truth
 
 - OpenSpec — единственный источник истины. Исходный PRD удалён.
-- `openspec/specs/` — спецификации возможностей; `adr/0000–0010` —
+- `openspec/specs/` — спецификации возможностей; `adr/0000–0011` —
   архитектурные решения (инфраструктура, организация, контакты, модель
-  взаимодействия/обзвон, группы `user-<id>-group`/custom, M2M членство,
+  взаимодействия/обзвон, владение группами через `created_by` (ADR-0011),
+  M2M членство,
   область доступа, фиксированные роли, e-mail/рассылки).
 
 ## Tooling caveats

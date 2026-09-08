@@ -4,7 +4,7 @@
 принимаются при создании, как валидируется роль и как обеспечивается доступ к
 операции создания.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Создавать пользователя может только администратор
 The system SHALL allow creating a user only to an authenticated administrator.
@@ -82,15 +82,16 @@ them.
 - **WHEN** администратор создаёт пользователя, указывая только имя
 - **THEN** пользователь создаётся с указанным именем и пустой фамилией
 
-### Requirement: Персональная группа создаётся только для менеджера
-The system SHALL auto-create a personal `user-<id>-group` for a created user
-with role `manager` (ADR-0005). For a created user with role `admin`, the
-personal group SHALL NOT be created (ADR-0008).
+### Requirement: Группы при создании пользователя не создаются
+The system SHALL NOT create any group automatically when a user is created,
+for either role (`manager` or `admin`) — personal groups are eliminated
+(ADR-0011). Group access starts empty until a custom group is created by the
+manager or assigned by the administrator.
 
-#### Scenario: Создание менеджера создаёт персональную группу
+#### Scenario: Создание менеджера не создаёт группу
 - **WHEN** администратор создаёт пользователя с ролью manager
-- **THEN** система автоматически создаёт персональную группу `user-<id>-group` и связывает её с новым пользователем
+- **THEN** пользователь создаётся без какой-либо автоматически созданной группы
 
 #### Scenario: Создание администратора не создаёт группу
 - **WHEN** администратор создаёт пользователя с ролью admin
-- **THEN** персональная группа `user-<id>-group` не создаётся
+- **THEN** группа для пользователя не создаётся

@@ -4,7 +4,7 @@
 отображаются, как обеспечивается доступ и как реализуется удаление
 со списка.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Список пользователей доступен только администратору
 The system SHALL show the user list at `/admin/users` only to authenticated

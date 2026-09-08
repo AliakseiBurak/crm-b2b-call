@@ -4,7 +4,7 @@
 входа: как переключается форма, как валидируется пароль и как
 хешируется перед сохранением.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Чекбокс «Новый пользователь» переключает форму
 The login page SHALL display a "Новый пользователь" checkbox below the

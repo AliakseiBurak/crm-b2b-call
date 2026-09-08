@@ -1,6 +1,6 @@
 # ADR-0005: Собственная группа менеджера (user-<id>-group)
 
-- **Status:** accepted
+- **Status:** superseded by [ADR-0011](0011-group-ownership-replaces-personal-groups.md) (личные группы упразднены, 2026-09-08)
 - **Date:** 2026-08-10
 
 ## Context

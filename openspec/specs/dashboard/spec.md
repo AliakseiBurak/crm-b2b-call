@@ -42,9 +42,8 @@ hardcoded.
 ### Requirement: Область доступа статистики
 The system SHALL compute dashboard statistics within the user's access
 scope: an administrator SHALL see statistics across all organizations,
-while a manager SHALL see statistics only for organizations in their own
-group (`user-<id>-group`) and in the custom groups assigned to them
-(`adr/0007`). The dashboard SHALL NOT display statistics of organizations
+while a manager SHALL see statistics only for organizations in groups they created (`created_by`) and in the custom groups assigned to them
+(`adr/0007, 0011`). The dashboard SHALL NOT display statistics of organizations
 outside the user's access scope.
 
 #### Scenario: Менеджер видит статистику своей области доступа
@@ -211,8 +210,8 @@ within the enabled column sort directions.
 ### Requirement: Область доступа списка организаций
 The system SHALL render the organization table on the dashboard within the
 user's access scope: an administrator SHALL see all organizations, while a
-manager SHALL see only the organizations of their own group
-(`user-<id>-group`) and of the custom groups assigned to them (`adr/0007`).
+manager SHALL see only the organizations of the groups they created
+(`created_by`) and of the custom groups assigned to them (`adr/0007, 0011`).
 The dashboard SHALL NOT render organizations outside the user's access
 scope.
 
@@ -400,9 +399,8 @@ following captions: «Звонков сегодня», «Звонков за 7 �
 The system SHALL compute the by-organization indicators, the total
 organizations card and the navigation links within the user's access scope:
 an administrator SHALL see organizations and indicators across all
-organizations, while a manager SHALL see only the organizations in their own
-group (`user-<id>-group`) and in the custom groups assigned to them
-(`adr/0007`). Negative or foreign organizations SHALL NOT affect the
+organizations, while a manager SHALL see only the organizations in groups they created (`created_by`) and in the custom groups assigned to them
+(`adr/0007, 0011`). Negative or foreign organizations SHALL NOT affect the
 indicators.
 
 #### Scenario: Менеджер видит индикаторы только своей области доступа
