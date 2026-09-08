@@ -1,0 +1,48 @@
+@use '../tokens' as *;
+
+// Страница удаления пользователя (change organization-groups):
+// блоки групп и действия разнесены, чтобы кнопки не липли к радиокнопкам.
+
+.user-delete {
+    &__warning {
+        max-width: 560px;
+        color: $color-text-body;
+    }
+
+    &__groups {
+        margin-top: 24px;
+    }
+
+    &__group {
+        padding: 16px;
+        margin-top: 16px;
+        border: 1px solid $color-bg-secondary-btn;
+        border-radius: $radius-modal;
+    }
+
+    &__group-meta {
+        margin: 8px 0 0;
+        padding-left: 20px;
+        color: $color-text-body;
+    }
+
+    &__group-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 16px;
+    }
+
+    &__choice {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    &__actions {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        margin-top: 32px;
+    }
+}

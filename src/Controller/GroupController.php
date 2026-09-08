@@ -6,6 +6,7 @@ use App\Entity\Enum\UserRole;
 use App\Entity\OrgGroupMembership;
 use App\Entity\Organization;
 use App\Entity\OrganizationGroup;
+use App\Entity\User;
 use App\Repository\OrganizationGroupRepository;
 use App\Repository\OrganizationRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -33,12 +34,20 @@ class GroupController extends AbstractController
     public function list(): Response
     {
         $user = $this->getUser();
-        $groups = (UserRole::Admin === $user->role)
-            ? $this->groups->findAllGroups()
-            : $this->groups->findForManager($user);
+        $isAdmin = UserRole::Admin === $user->role;
 
         return $this->render('group/list.html.twig', [
-            'groups' => $groups,
+            'groups' => $isAdmin
+                ? $this->groups->findAllGroups()
+                : $this->groups->findForManager($user),
+            // null — доступна правка всех групп (админ, ADR-0008); иначе — id
+            // групп, созданных менеджером (spec: organization-groups).
+            'manageableIds' => $isAdmin
+                ? null
+                : array_map(
+                    static fn (OrganizationGroup $g): int => $g->id,
+                    $this->groups->findCreatedBy($user),
+                ),
         ]);
     }
 
@@ -99,7 +108,7 @@ class GroupController extends AbstractController
     #[IsGranted('ROLE_MANAGER')]
     public function edit(int $id): Response
     {
-        $group = $this->accessibleGroup($id);
+        $group = $this->editableGroup($id);
 
         return $this->render('group/form.html.twig', [
             'group' => $group,
@@ -111,7 +120,7 @@ class GroupController extends AbstractController
     #[IsGranted('ROLE_MANAGER')]
     public function update(int $id, Request $request): Response
     {
-        $group = $this->accessibleGroup($id);
+        $group = $this->editableGroup($id);
         $this->assertCsrfToken($request);
 
         $name = trim((string) $request->request->get('name', ''));
@@ -154,7 +163,7 @@ class GroupController extends AbstractController
     #[IsGranted('ROLE_MANAGER')]
     public function delete(int $id): Response
     {
-        $group = $this->accessibleGroup($id);
+        $group = $this->editableGroup($id);
 
         return $this->render('group/delete.html.twig', [
             'group' => $group,
@@ -165,7 +174,7 @@ class GroupController extends AbstractController
     #[IsGranted('ROLE_MANAGER')]
     public function remove(int $id, Request $request): Response
     {
-        $group = $this->accessibleGroup($id);
+        $group = $this->editableGroup($id);
         $this->assertCsrfToken($request);
 
         $this->em->remove($group);
@@ -178,18 +187,36 @@ class GroupController extends AbstractController
     #[IsGranted('ROLE_MANAGER')]
     public function members(int $id): Response
     {
-        $group = $this->accessibleGroup($id);
+        $group = $this->viewableGroup($id);
+        $canEdit = $this->canManageGroup($group);
 
         $memberIds = array_map(
             static fn (OrgGroupMembership $m): int => $m->organization->id,
             $group->memberships->toArray()
         );
 
+        if (!$canEdit) {
+            // Назначенная группа доступна только на просмотр (spec:
+            // organization-groups): состав показывается без формы изменения.
+            return $this->render('group/members.html.twig', [
+                'group' => $group,
+                'canEdit' => false,
+                'organizations' => [],
+                'members' => array_map(
+                    static fn (OrgGroupMembership $m): Organization => $m->organization,
+                    $group->memberships->toArray(),
+                ),
+                'memberIds' => $memberIds,
+            ]);
+        }
+
         $organizations = $this->organizations->findAccessibleOrganizations($this->getUser());
 
         return $this->render('group/members.html.twig', [
             'group' => $group,
+            'canEdit' => true,
             'organizations' => $organizations,
+            'members' => [],
             'memberIds' => $memberIds,
         ]);
     }
@@ -198,7 +225,7 @@ class GroupController extends AbstractController
     #[IsGranted('ROLE_MANAGER')]
     public function updateMembers(int $id, Request $request): Response
     {
-        $group = $this->accessibleGroup($id);
+        $group = $this->editableGroup($id);
         $this->assertCsrfToken($request);
 
         $selectedIds = array_map('intval', $request->request->all('organizations'));
@@ -242,26 +269,57 @@ class GroupController extends AbstractController
         return $this->redirectToRoute('app_group_list');
     }
 
-    private function accessibleGroup(int $id): OrganizationGroup
+    /**
+     * Группа, доступная менеджеру хотя бы на просмотр: созданная им или
+     * назначенная через GroupAssignment (ADR-0011); администратору доступны
+     * все группы (ADR-0008).
+     */
+    private function viewableGroup(int $id): OrganizationGroup
+    {
+        $group = $this->findGroup($id);
+        if ($this->canManageGroup($group)) {
+            return $group;
+        }
+
+        /** @var User $user */
+        $user = $this->getUser();
+        if ($this->groups->isAssignedTo($group, $user)) {
+            return $group;
+        }
+
+        throw new AccessDeniedHttpException('Группа вне области доступа');
+    }
+
+    /**
+     * Группа, доступная для изменения (правка, состав, удаление): только
+     * создатель группы и администратор.
+     */
+    private function editableGroup(int $id): OrganizationGroup
+    {
+        $group = $this->findGroup($id);
+        if (!$this->canManageGroup($group)) {
+            throw new AccessDeniedHttpException('Группа вне области доступа');
+        }
+
+        return $group;
+    }
+
+    private function canManageGroup(OrganizationGroup $group): bool
+    {
+        $user = $this->getUser();
+
+        return $user instanceof User
+            && (UserRole::Admin === $user->role || $group->createdBy?->id === $user->id);
+    }
+
+    private function findGroup(int $id): OrganizationGroup
     {
         $group = $this->groups->find($id);
         if (null === $group) {
             throw $this->createNotFoundException('Группа не найдена');
         }
 
-        $user = $this->getUser();
-
-        // Admin can access all groups
-        if ($user instanceof \App\Entity\User && UserRole::Admin === $user->role) {
-            return $group;
-        }
-
-        // Manager can only access own groups
-        if ($group->createdBy && $group->createdBy->id === $user->id) {
-            return $group;
-        }
-
-        throw new AccessDeniedHttpException('Группа вне области доступа');
+        return $group;
     }
 
     private function assertCsrfToken(Request $request): void

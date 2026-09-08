@@ -1,6 +1,6 @@
 {#
     Подтверждение удаления группы (change organization-groups).
-    Предупреждает о необратимости действия; отмена возвращает к списку.
+    Уточняет, что удаляется только группа и связи: организации остаются.
     Ожидает: group (OrganizationGroup).
 #}
 {% extends 'base.html.twig' %}
@@ -13,8 +13,12 @@
             <h1>Удаление группы</h1>
 
             <p class="group-delete__warning">
-                Группа «{{ group.name }}» будет удалена. Все организации будут удалены из группы. Действие необратимо.
+                Группа «{{ group.name }}» будет удалена. Действие необратимо.
             </p>
+            <ul class="group-delete__details">
+                <li>Организации ({{ group.memberships|length }}) останутся в системе — будут удалены только записи о членстве в этой группе.</li>
+                <li>Назначения группы менеджерам ({{ group.assignments|length }}) будут удалены.</li>
+            </ul>
 
             <form method="post" action="{{ path('app_group_remove', { id: group.id }) }}" class="group-form__actions">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token('group') }}">

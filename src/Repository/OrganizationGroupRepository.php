@@ -53,4 +53,24 @@ class OrganizationGroupRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * Назначена ли группа менеджеру (GroupAssignment) — запрос к БД, чтобы не
+     * зависеть от уже загруженной коллекции группы.
+     */
+    public function isAssignedTo(OrganizationGroup $group, User $manager): bool
+    {
+        $row = $this->createQueryBuilder('g')
+            ->select('1')
+            ->innerJoin('g.assignments', 'a')
+            ->where('g.id = :groupId')
+            ->andWhere('a.user = :manager')
+            ->setParameter('groupId', $group->id)
+            ->setParameter('manager', $manager)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+
+        return null !== $row;
+    }
 }

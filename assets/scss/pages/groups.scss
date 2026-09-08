@@ -1,0 +1,35 @@
+@use '../tokens' as *;
+
+// Страницы управления группами (change organization-groups).
+
+.group-form {
+    &__actions {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+    }
+}
+
+// Назначенная группа: в списке нет правки, участники — только просмотр.
+.group-list__readonly {
+    color: $color-text-secondary;
+    font-size: 14px;
+    margin-left: 8px;
+    white-space: nowrap;
+}
+
+.group-members__readonly {
+    max-width: 560px;
+    color: $color-text-body;
+}
+
+.group-delete__warning {
+    max-width: 560px;
+    color: $color-text-body;
+}
+
+.group-delete__details {
+    margin: 8px 0 24px;
+    padding-left: 20px;
+    color: $color-text-body;
+}

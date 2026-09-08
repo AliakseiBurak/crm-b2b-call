@@ -1,7 +1,8 @@
 {#
     Список групп менеджера (change organization-groups).
     Таблица с названием, описанием, цветом и действиями.
-    Ожидает: groups (OrganizationGroup[]).
+    Ожидает: groups (OrganizationGroup[]), manageableIds (int[]|null) —
+    null означает доступ на изменение для всех групп (администратор).
 #}
 {% extends 'base.html.twig' %}
 
@@ -53,8 +54,13 @@
                                     {% endif %}
                                 </td>
                                 <td style="white-space:nowrap">
-                                    <a href="{{ path('app_group_edit', { id: group.id }) }}" class="btn btn--secondary btn--sm">Редактировать</a>
-                                    <a href="{{ path('app_group_members', { id: group.id }) }}" class="btn btn--secondary btn--sm">Участники</a>
+                                    {% if manageableIds is null or group.id in manageableIds %}
+                                        <a href="{{ path('app_group_edit', { id: group.id }) }}" class="btn btn--secondary btn--sm">Редактировать</a>
+                                        <a href="{{ path('app_group_members', { id: group.id }) }}" class="btn btn--secondary btn--sm">Участники</a>
+                                    {% else %}
+                                        <a href="{{ path('app_group_members', { id: group.id }) }}" class="btn btn--secondary btn--sm">Участники</a>
+                                        <span class="group-list__readonly">только просмотр</span>
+                                    {% endif %}
                                 </td>
                             </tr>
                         {% endfor %}

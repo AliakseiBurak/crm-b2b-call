@@ -3,6 +3,9 @@
 namespace App\Tests\Functional\Controller;
 
 use App\Entity\Enum\UserRole;
+use App\Entity\GroupAssignment;
+use App\Entity\OrgGroupMembership;
+use App\Entity\Organization;
 use App\Entity\OrganizationGroup;
 use App\Entity\User;
 use App\Repository\UserRepository;
@@ -178,6 +181,34 @@ final class UserControllerTest extends DatabaseWebTestCase
         $this->assertResponseStatusCodeSame(403);
         $this->em()->clear();
         self::assertNotNull($this->em()->find(User::class, $managerId));
+    }
+
+    public function testDeleteConfirmationShowsGroupContext(): void
+    {
+        $admin = $this->makeUser('admin@b2b-crm.loc', UserRole::Admin);
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $colleague = $this->makeUser('colleague@b2b-crm.loc', UserRole::Manager);
+        $colleague->setName('Пётр')->setSurname('Сидоров');
+
+        $group = (new OrganizationGroup())->setName('Группа менеджера')->setCreatedBy($manager);
+        $this->em()->persist($group);
+        $this->em()->persist(new GroupAssignment($colleague, $group));
+
+        $org = (new Organization())->setName('ООО Ромашка')->setIndustry('IT');
+        $this->em()->persist($org);
+        $this->em()->flush();
+        $this->em()->persist(new OrgGroupMembership($org, $group));
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $this->login($admin);
+        $this->open('/admin/users/' . $manager->id . '/delete');
+
+        $this->assertResponseIsSuccessful();
+        $this->assertSelectorTextContains('body', 'Группа менеджера');
+        $this->assertSelectorTextContains('body', 'Организаций в группе: 1');
+        $this->assertSelectorTextContains('body', 'Пётр Сидоров');
+        $this->assertSelectorTextContains('body', 'организации останутся в системе');
     }
 
     public function testAdminReassignsGroupsWhenDeletingManager(): void

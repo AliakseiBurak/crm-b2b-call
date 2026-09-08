@@ -1,7 +1,10 @@
 {#
-    Управление участниками группы (change organization-groups).
-    Чекбоксы для добавления/удаления организаций из группы.
-    Ожидает: group (OrganizationGroup), organizations (Organization[]), memberIds (int[]).
+    Участники группы (change organization-groups).
+    canEdit=true: чекбоксы для добавления/удаления организаций из группы.
+    canEdit=false: только просмотр состава (назначенная группа — право
+    изменения остаётся у создателя или администратора).
+    Ожидает: group (OrganizationGroup), canEdit (bool), organizations (Organization[]),
+    members (Organization[]), memberIds (int[]).
 #}
 {% extends 'base.html.twig' %}
 
@@ -12,34 +15,23 @@
         <div class="container">
             <h1>Участники группы «{{ group.name }}»</h1>
 
-            <form
-                method="post"
-                action="{{ path('app_group_update_members', { id: group.id }) }}"
-                class="group-members-form"
-                style="margin-top: 24px;"
-            >
-                <input type="hidden" name="_csrf_token" value="{{ csrf_token('group') }}">
+            {% if not canEdit %}
+                <p class="group-members__readonly">
+                    Группа назначена вам администратором: состав доступен только на просмотр,
+                    изменение доступно её создателю или администратору.
+                </p>
 
-                {% if organizations is not empty %}
-                    <table class="table">
+                {% if members is not empty %}
+                    <table class="table" style="margin-top: 24px;">
                         <thead>
                             <tr>
-                                <th><input type="checkbox" id="select-all"></th>
                                 <th>Название</th>
                                 <th>Отрасль</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for org in organizations %}
-                                <tr>
-                                    <td>
-                                        <input
-                                            type="checkbox"
-                                            name="organizations[]"
-                                            value="{{ org.id }}"
-                                            {% if org.id in memberIds %}checked{% endif %}
-                                        >
-                                    </td>
+                            {% for org in members %}
+                                <tr data-member-row>
                                     <td>{{ org.name }}</td>
                                     <td>{{ org.industry|default('—') }}</td>
                                 </tr>
@@ -47,30 +39,77 @@
                         </tbody>
                     </table>
                 {% else %}
-                    <p>Нет доступных организаций.</p>
+                    <p>В группе пока нет организаций.</p>
                 {% endif %}
 
-                <div class="group-members-form__actions" style="margin-top: 24px;">
-                    {{ include('components/button.html.twig', {
-                        variant: 'primary',
-                        text: 'Сохранить',
-                    }) }}
+                <div style="margin-top: 24px;">
                     {{ include('components/button.html.twig', {
                         variant: 'secondary',
-                        text: 'Отмена',
+                        text: 'К списку групп',
                         href: path('app_group_list'),
-                        type: 'button',
                     }) }}
                 </div>
-            </form>
+            {% else %}
+                <form
+                    method="post"
+                    action="{{ path('app_group_update_members', { id: group.id }) }}"
+                    class="group-members-form"
+                    style="margin-top: 24px;"
+                >
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('group') }}">
+
+                    {% if organizations is not empty %}
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="select-all"></th>
+                                    <th>Название</th>
+                                    <th>Отрасль</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for org in organizations %}
+                                    <tr>
+                                        <td>
+                                            <input
+                                                type="checkbox"
+                                                name="organizations[]"
+                                                value="{{ org.id }}"
+                                                {% if org.id in memberIds %}checked{% endif %}
+                                            >
+                                        </td>
+                                        <td>{{ org.name }}</td>
+                                        <td>{{ org.industry|default('—') }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p>Нет доступных организаций.</p>
+                    {% endif %}
+
+                    <div class="group-members-form__actions" style="margin-top: 24px;">
+                        {{ include('components/button.html.twig', {
+                            variant: 'primary',
+                            text: 'Сохранить',
+                        }) }}
+                        {{ include('components/button.html.twig', {
+                            variant: 'secondary',
+                            text: 'Отмена',
+                            href: path('app_group_list'),
+                            type: 'button',
+                        }) }}
+                    </div>
+                </form>
+
+                <script>
+                    document.getElementById('select-all')?.addEventListener('change', function() {
+                        document.querySelectorAll('input[name="organizations[]"]').forEach(cb => {
+                            cb.checked = this.checked;
+                        });
+                    });
+                </script>
+            {% endif %}
         </div>
     </section>
-
-    <script>
-        document.getElementById('select-all')?.addEventListener('change', function() {
-            document.querySelectorAll('input[name="organizations[]"]').forEach(cb => {
-                cb.checked = this.checked;
-            });
-        });
-    </script>
 {% endblock %}

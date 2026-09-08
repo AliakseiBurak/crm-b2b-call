@@ -1,6 +1,7 @@
 {#
     Подтверждение удаления пользователя (change add-new-user, organization-groups).
-    Предупреждает о необратимости действия; показывает группы, созданные пользователем.
+    Предупреждает о необратимости действия; показывает группы, созданные
+    пользователем, с числом организаций и назначенными менеджерами.
     Для каждой группы необходимо выбрать: переназначить администратору или удалить.
     Ожидает: user (User), createdGroups (OrganizationGroup[]).
 #}
@@ -17,7 +18,7 @@
                 Пользователь «{{ user.email }}» будет удалён. Действие необратимо.
             </p>
 
-            <form method="post" action="{{ path('app_user_remove', { id: user.id }) }}" class="user-form__actions">
+            <form method="post" action="{{ path('app_user_remove', { id: user.id }) }}" class="user-delete__form">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token('user') }}">
 
                 {% if createdGroups is not empty %}
@@ -26,17 +27,29 @@
                         <p>Для каждой группы выберите действие:</p>
 
                         {% for group in createdGroups %}
-                            <div class="user-delete__group">
+                            <div class="user-delete__group" data-group-row>
                                 <h3>{{ group.name }}</h3>
                                 {% if group.description %}
                                     <p>{{ group.description }}</p>
                                 {% endif %}
+                                <ul class="user-delete__group-meta">
+                                    <li>Организаций в группе: {{ group.memberships|length }}</li>
+                                    <li>
+                                        Назначена менеджерам:
+                                        {% for assignment in group.assignments %}
+                                            {{ (assignment.user.name|default('') ~ ' ' ~ assignment.user.surname|default(''))|trim
+                                                ?: assignment.user.email }}{{ not loop.last ? ', ' }}
+                                        {% else %}
+                                            никому
+                                        {% endfor %}
+                                    </li>
+                                </ul>
                                 <div class="user-delete__group-actions">
-                                    <label>
+                                    <label class="user-delete__choice">
                                         <input type="radio" name="group_action_{{ group.id }}" value="reassign" required>
                                         Переназначить администратору
                                     </label>
-                                    <label>
+                                    <label class="user-delete__choice">
                                         <input type="radio" name="group_action_{{ group.id }}" value="delete" required>
                                         Удалить группу
                                     </label>
@@ -46,13 +59,15 @@
                     </div>
                 {% endif %}
 
-                {{ include('components/button.html.twig', { variant: 'secondary', text: 'Удалить' }) }}
-                {{ include('components/button.html.twig', {
-                    variant: 'secondary',
-                    text: 'Отмена',
-                    href: path('app_user_list'),
-                    type: 'button',
-                }) }}
+                <div class="user-delete__actions">
+                    {{ include('components/button.html.twig', { variant: 'secondary', text: 'Удалить' }) }}
+                    {{ include('components/button.html.twig', {
+                        variant: 'secondary',
+                        text: 'Отмена',
+                        href: path('app_user_list'),
+                        type: 'button',
+                    }) }}
+                </div>
             </form>
         </div>
     </section>

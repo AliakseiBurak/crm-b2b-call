@@ -6,6 +6,7 @@ use App\Entity\Campaign;
 use App\Entity\CampaignRecipient;
 use App\Entity\Enum\CampaignStatus;
 use App\Entity\Enum\UserRole;
+use App\Entity\Organization;
 use App\Entity\OrganizationGroup;
 use App\Entity\User;
 use App\Repository\CampaignRecipientRepository;
@@ -30,7 +31,11 @@ final class CampaignRecipientService
     /**
      * Массовое добавление организаций из группы в рассылку.
      *
-     * @return array{added: int, skipped: int}
+     * Пропускаются уже существующие адресаты и организации без e-mail у
+     * контактов (spec: campaigns — «Организация без e-mail не может стать
+     * адресатом» распространяется на все пути создания адресатов).
+     *
+     * @return array{added: int, skipped: int, no_email: int, total: int}
      */
     public function bulkAddByGroup(Campaign $campaign, OrganizationGroup $group, User $user): array
     {
@@ -62,6 +67,8 @@ final class CampaignRecipientService
 
         $added = 0;
         $skipped = 0;
+        $noEmail = 0;
+        $total = $group->memberships->count();
 
         foreach ($organizations as $organization) {
             // Check if recipient already exists
@@ -75,6 +82,13 @@ final class CampaignRecipientService
                 continue;
             }
 
+            // Доменная проверка: организация без e-mail адресатом не становится.
+            if (!$this->organizationHasEmail($organization)) {
+                ++$skipped;
+                ++$noEmail;
+                continue;
+            }
+
             $recipient = new CampaignRecipient($campaign, $organization);
             $this->em->persist($recipient);
             ++$added;
@@ -82,6 +96,17 @@ final class CampaignRecipientService
 
         $this->em->flush();
 
-        return ['added' => $added, 'skipped' => $skipped];
+        return ['added' => $added, 'skipped' => $skipped, 'no_email' => $noEmail, 'total' => $total];
+    }
+
+    private function organizationHasEmail(Organization $organization): bool
+    {
+        foreach ($organization->contacts as $contact) {
+            if (null !== $contact->email && '' !== $contact->email) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

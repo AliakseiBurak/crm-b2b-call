@@ -5,6 +5,7 @@ namespace App\Tests\Functional\Controller;
 use App\Entity\Campaign;
 use App\Entity\CampaignAttachment;
 use App\Entity\CampaignRecipient;
+use App\Entity\Contact;
 use App\Entity\Enum\CampaignStatus;
 use App\Entity\Enum\UserRole;
 use App\Entity\Organization;
@@ -634,8 +635,8 @@ final class CampaignControllerTest extends DatabaseWebTestCase
         $group = (new OrganizationGroup())->setName('Группа А')->setCreatedBy($manager);
         $this->em()->persist($group);
 
-        $org1 = $this->persistOrganization('ООО Ромашка');
-        $org2 = $this->persistOrganization('ООО Вектор');
+        $org1 = $this->persistOrganizationWithEmail('ООО Ромашка', 'romashka@example.com');
+        $org2 = $this->persistOrganizationWithEmail('ООО Вектор', 'vector@example.com');
         $this->em()->persist(new OrgGroupMembership($org1, $group));
         $this->em()->persist(new OrgGroupMembership($org2, $group));
         $this->em()->flush();
@@ -663,7 +664,7 @@ final class CampaignControllerTest extends DatabaseWebTestCase
         $group = (new OrganizationGroup())->setName('Группа А')->setCreatedBy($manager);
         $this->em()->persist($group);
 
-        $org1 = $this->persistOrganization('ООО Ромашка');
+        $org1 = $this->persistOrganizationWithEmail('ООО Ромашка', 'romashka@example.com');
         $this->em()->persist(new OrgGroupMembership($org1, $group));
         $this->em()->flush();
 
@@ -681,10 +682,45 @@ final class CampaignControllerTest extends DatabaseWebTestCase
         ]);
 
         $this->assertResponseRedirects();
+        $this->client->followRedirect();
+        $this->assertSelectorTextContains('.alert', 'Добавлено: 0, пропущено: 1');
+        self::assertStringNotContainsString('нет e-mail', (string) $this->client->getResponse()->getContent());
         $this->em()->clear();
 
         $recipients = $this->findCampaign('Рассылка')->recipients;
         self::assertCount(1, $recipients);
+    }
+
+    public function testBulkAddByGroupSkipsOrganizationsWithoutEmail(): void
+    {
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $group = (new OrganizationGroup())->setName('Группа А')->setCreatedBy($manager);
+        $this->em()->persist($group);
+
+        $withEmail = $this->persistOrganizationWithEmail('ООО Ромашка', 'romashka@example.com');
+        $withoutEmail = $this->persistOrganization('ООО Без Почты');
+        $this->em()->persist(new OrgGroupMembership($withEmail, $group));
+        $this->em()->persist(new OrgGroupMembership($withoutEmail, $group));
+        $this->em()->flush();
+
+        $campaign = $this->persistCampaign('Рассылка');
+        $campaignId = $campaign->id;
+        $this->login($manager);
+
+        $token = $this->campaignToken($campaignId);
+        $this->client->request('POST', '/campaigns/' . $campaignId . '/recipients/bulk-by-group', [
+            '_csrf_token' => $token,
+            'group_id' => $group->id,
+        ]);
+
+        $this->assertResponseRedirects();
+        $this->client->followRedirect();
+        $this->assertSelectorTextContains('.alert', 'Добавлено: 1, пропущено: 1 (в том числе нет e-mail: 1)');
+
+        $this->em()->clear();
+        $recipients = $this->findCampaign('Рассылка')->recipients;
+        self::assertCount(1, $recipients);
+        self::assertSame('ООО Ромашка', $recipients->first()->organization->name);
     }
 
     public function testManagerCannotBulkAddFromInaccessibleGroup(): void
@@ -715,14 +751,14 @@ final class CampaignControllerTest extends DatabaseWebTestCase
         $group = (new OrganizationGroup())->setName('Группа А')->setCreatedBy($manager);
         $this->em()->persist($group);
 
-        $org1 = $this->persistOrganization('ООО Ромашка');
+        $org1 = $this->persistOrganizationWithEmail('ООО Ромашка', 'romashka@example.com');
         $this->em()->persist(new OrgGroupMembership($org1, $group));
         $this->em()->flush();
 
         $campaign = $this->persistCampaign('Рассылка');
         $existing = new CampaignRecipient($campaign, $org1);
         $this->em()->persist($existing);
-        $org2 = $this->persistOrganization('ООО Вектор');
+        $org2 = $this->persistOrganizationWithEmail('ООО Вектор', 'vector@example.com');
         $this->em()->persist(new OrgGroupMembership($org2, $group));
         $this->em()->flush();
         $campaignId = $campaign->id;
@@ -738,7 +774,10 @@ final class CampaignControllerTest extends DatabaseWebTestCase
         );
 
         $this->assertResponseIsSuccessful();
-        self::assertSame(['added' => 1, 'skipped' => 1], json_decode((string) $this->client->getResponse()->getContent(), true));
+        self::assertSame(
+            ['added' => 1, 'skipped' => 1, 'no_email' => 0],
+            json_decode((string) $this->client->getResponse()->getContent(), true),
+        );
         $this->em()->clear();
         self::assertCount(2, $this->findCampaign('Рассылка')->recipients);
     }
@@ -760,8 +799,41 @@ final class CampaignControllerTest extends DatabaseWebTestCase
         ]);
 
         $this->assertResponseRedirects();
+        $this->client->followRedirect();
+        $this->assertSelectorTextContains('.alert', 'В группе «Пустая» нет организаций — добавлять нечего');
         $this->em()->clear();
         self::assertCount(0, $this->findCampaign('Рассылка')->recipients);
+    }
+
+    public function testBulkAddAllDiscardsNoEmailOrganizationsInMessage(): void
+    {
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $group = (new OrganizationGroup())->setName('Группа А')->setCreatedBy($manager);
+        $this->em()->persist($group);
+
+        $withEmail = $this->persistOrganizationWithEmail('ООО Ромашка', 'romashka@example.com');
+        $noEmail1 = $this->persistOrganization('ООО Без Почты');
+        $noEmail2 = $this->persistOrganization('ООО Тишина');
+        $this->em()->persist(new OrgGroupMembership($withEmail, $group));
+        $this->em()->persist(new OrgGroupMembership($noEmail1, $group));
+        $this->em()->persist(new OrgGroupMembership($noEmail2, $group));
+        $this->em()->flush();
+
+        $campaign = $this->persistCampaign('Рассылка');
+        $campaignId = $campaign->id;
+        $this->login($manager);
+
+        $token = $this->formToken($campaignId);
+        $this->client->request('POST', '/campaigns/' . $campaignId . '/recipients/bulk', [
+            '_csrf_token' => $token,
+        ]);
+
+        $this->assertResponseRedirects();
+        $this->client->followRedirect();
+        $this->assertSelectorTextContains('.alert', 'Добавлено: 1, пропущено: 2 (в том числе нет e-mail: 2)');
+
+        $this->em()->clear();
+        self::assertCount(1, $this->findCampaign('Рассылка')->recipients);
     }
 
     private function storage(): CampaignAttachmentStorage
@@ -812,6 +884,17 @@ final class CampaignControllerTest extends DatabaseWebTestCase
         $this->em()->flush();
 
         return $campaign;
+    }
+
+    private function persistOrganizationWithEmail(string $name, string $email): Organization
+    {
+        $organization = $this->persistOrganization($name);
+        $this->em()->persist(
+            (new Contact())->setOrganization($organization)->setName('Контакт')->setEmail($email)
+        );
+        $this->em()->flush();
+
+        return $organization;
     }
 
     private function persistOrganization(string $name): Organization

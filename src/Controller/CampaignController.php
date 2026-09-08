@@ -388,6 +388,7 @@ class CampaignController extends AbstractController
 
         $available = $this->availableOrganizations($campaign);
         $added = 0;
+        $noEmail = 0;
         foreach ($available as $organization) {
             $exists = $this->em->getRepository(CampaignRecipient::class)->findOneBy([
                 'campaign' => $campaign,
@@ -398,6 +399,7 @@ class CampaignController extends AbstractController
             }
             // Доменная проверка: организации без e-mail пропускаются.
             if (!$this->organizationHasEmail($organization)) {
+                ++$noEmail;
                 continue;
             }
             $this->em->persist(new CampaignRecipient($campaign, $organization));
@@ -405,7 +407,7 @@ class CampaignController extends AbstractController
         }
         $this->em->flush();
 
-        $this->addFlash('success', sprintf('Добавлено: %d, пропущено: %d', $added, count($available) - $added));
+        $this->addFlash('success', $this->bulkResultMessage($added, count($available) - $added, $noEmail));
 
         if ($request->headers->get('X-Requested-With') === 'XMLHttpRequest') {
             return $this->json([
@@ -817,6 +819,20 @@ class CampaignController extends AbstractController
     }
 
     /**
+     * Сообщение о результате массового добавления адресатов: причины
+     * пропуска раскрываются только когда они были (spec: campaigns).
+     */
+    private function bulkResultMessage(int $added, int $skipped, int $noEmail): string
+    {
+        $message = sprintf('Добавлено: %d, пропущено: %d', $added, $skipped);
+        if ($noEmail > 0) {
+            $message .= sprintf(' (в том числе нет e-mail: %d)', $noEmail);
+        }
+
+        return $message;
+    }
+
+    /**
      * Первый e-mail из контактов организации (для flash-сообщения).
      */
     private function firstOrganizationEmail(Organization $organization): ?string
@@ -893,10 +909,20 @@ class CampaignController extends AbstractController
         }
 
         if ($request->isXmlHttpRequest()) {
-            return $this->json($result);
+            return $this->json([
+                'added' => $result['added'],
+                'skipped' => $result['skipped'],
+                'no_email' => $result['no_email'],
+            ]);
         }
 
-        $this->addFlash('success', sprintf('Добавлено: %d, пропущено: %d', $result['added'], $result['skipped']));
+        if (0 === $result['total']) {
+            $this->addFlash('notice', sprintf('В группе «%s» нет организаций — добавлять нечего.', $group->name));
+
+            return $this->redirectToRoute('app_campaign_recipients', ['id' => $campaign->id]);
+        }
+
+        $this->addFlash('success', $this->bulkResultMessage($result['added'], $result['skipped'], $result['no_email']));
 
         return $this->redirectToRoute('app_campaign_recipients', ['id' => $campaign->id]);
     }

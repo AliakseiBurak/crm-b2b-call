@@ -3,6 +3,7 @@
 namespace App\Tests\Functional\Controller;
 
 use App\Entity\Enum\UserRole;
+use App\Entity\GroupAssignment;
 use App\Entity\OrgGroupMembership;
 use App\Entity\Organization;
 use App\Entity\OrganizationGroup;
@@ -304,6 +305,130 @@ final class GroupControllerTest extends DatabaseWebTestCase
 
         $group = $this->em()->find(OrganizationGroup::class, $groupId);
         self::assertCount(0, $group->memberships);
+    }
+
+    // --- Assigned groups are read-only for managers (task 9.4) ---
+
+    public function testAssignedGroupRowHasNoEditLink(): void
+    {
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $admin = $this->makeUser('admin@b2b-crm.loc', UserRole::Admin);
+        $ownGroup = $this->makeGroup('My Group', $manager);
+        $assignedGroup = $this->makeGroup('Assigned Group', $admin);
+        $this->em()->persist($ownGroup);
+        $this->em()->persist($assignedGroup);
+        $this->em()->flush();
+        $this->em()->persist(new GroupAssignment($manager, $assignedGroup));
+        $this->em()->flush();
+
+        $this->login($manager);
+        $crawler = $this->client->request('GET', '/groups');
+
+        $this->assertResponseIsSuccessful();
+        self::assertSame(
+            0,
+            $crawler->filter('a[href="/groups/' . $assignedGroup->id . '/edit"]')->count(),
+            'Назначенная группа не должна предлагать правку',
+        );
+        self::assertSame(
+            1,
+            $crawler->filter('a[href="/groups/' . $assignedGroup->id . '/members"]')->count(),
+            'Назначенная группа должна быть доступна на просмотр',
+        );
+        $this->assertSelectorTextContains('body', 'только просмотр');
+        self::assertSame(
+            1,
+            $crawler->filter('a[href="/groups/' . $ownGroup->id . '/edit"]')->count(),
+            'Своя группа остаётся доступной для правки',
+        );
+    }
+
+    public function testManagerSeesAssignedGroupMembersReadOnly(): void
+    {
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $admin = $this->makeUser('admin@b2b-crm.loc', UserRole::Admin);
+        $group = $this->makeGroup('Assigned Group', $admin);
+        $this->em()->persist($group);
+
+        $org = new Organization()->setName('Org1')->setIndustry('IT');
+        $this->em()->persist($org);
+        $this->em()->flush();
+        $this->em()->persist(new OrgGroupMembership($org, $group));
+        $this->em()->persist(new GroupAssignment($manager, $group));
+        $this->em()->flush();
+        $this->em()->clear();
+
+        $this->login($manager);
+        $this->client->request('GET', '/groups/' . $group->id . '/members');
+
+        $this->assertResponseIsSuccessful();
+        $this->assertSelectorTextContains('body', 'Org1');
+        $this->assertSelectorNotExists('input[name="organizations[]"]');
+        $this->assertSelectorNotExists('.group-members-form');
+    }
+
+    public function testManagerCannotUpdateMembersOfAssignedGroup(): void
+    {
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $admin = $this->makeUser('admin@b2b-crm.loc', UserRole::Admin);
+        $assignedGroup = $this->makeGroup('Assigned Group', $admin);
+        $ownGroup = $this->makeGroup('My Group', $manager);
+        $this->em()->persist($assignedGroup);
+        $this->em()->persist($ownGroup);
+
+        $org = new Organization()->setName('Org1')->setIndustry('IT');
+        $this->em()->persist($org);
+        $this->em()->flush();
+        $this->em()->persist(new GroupAssignment($manager, $assignedGroup));
+        $this->em()->flush();
+        $assignedGroupId = $assignedGroup->id;
+
+        $this->login($manager);
+        // Токен берётся со страницы участников своей группы: отказ должен быть
+        // по правам доступа, а не из-за CSRF.
+        $token = $this->client->request('GET', '/groups/' . $ownGroup->id . '/members')
+            ->filter('input[name="_csrf_token"]')
+            ->first()
+            ->attr('value');
+
+        $this->client->request('POST', '/groups/' . $assignedGroupId . '/members', [
+            '_csrf_token' => $token,
+            'organizations' => [$org->id],
+        ]);
+
+        $this->assertResponseStatusCodeSame(403);
+        $this->em()->clear();
+        $group = $this->em()->find(OrganizationGroup::class, $assignedGroupId);
+        self::assertCount(0, $group->memberships);
+    }
+
+    public function testGroupDeletePageKeepsOrganizations(): void
+    {
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $group = $this->makeGroup('My Group', $manager);
+        $this->em()->persist($group);
+
+        $org = new Organization()->setName('Org1')->setIndustry('IT');
+        $this->em()->persist($org);
+        $this->em()->flush();
+        $this->em()->persist(new OrgGroupMembership($org, $group));
+        $this->em()->flush();
+        $this->em()->clear();
+        $groupId = $group->id;
+        $orgId = $org->id;
+
+        $this->login($manager);
+        $this->client->request('GET', '/groups/' . $groupId . '/delete');
+
+        $this->assertResponseIsSuccessful();
+        $this->assertSelectorTextContains('body', 'Организации (1) останутся в системе');
+
+        $this->client->submitForm('Удалить', []);
+        $this->assertResponseRedirects('/groups');
+
+        $this->em()->clear();
+        self::assertNull($this->em()->find(OrganizationGroup::class, $groupId));
+        self::assertNotNull($this->em()->find(Organization::class, $orgId));
     }
 
     // --- Admin group management (task 3.4) ---
