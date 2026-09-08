@@ -25,7 +25,7 @@ for an administrator SHALL skip groups entirely.
 - **THEN** он видит все организации без проверки групп
 
 ### Requirement: Администратор управляет custom-группами
-The administrator SHALL be able to create, modify, and delete ALL custom groups (including manager-owned groups), with a name, an optional description, and an optional hex color, and add organizations to groups. Assignment of groups to managers (`GroupAssignment` management UI) is out of scope for this change and is delivered by the follow-up `organization-group-assignment` change. Adding an organization to a group SHALL NOT remove it from other groups: an organization MAY belong to several groups at once.
+The administrator SHALL be able to create, modify, and delete ALL custom groups (including manager-owned groups), with a name, an optional description, and an optional hex color, and add organizations to groups. The administrator SHALL assign groups to managers through the assignment interface. Adding an organization to a group SHALL NOT remove it from other groups: an organization MAY belong to several groups at once.
 
 #### Scenario: Админ создаёт custom-группу
 - **WHEN** аутентифицированный администратор создаёт custom-группу "Минский регион" с описанием "Организации Минской области" и цветом "#3b82f6"
@@ -45,6 +45,24 @@ The administrator SHALL be able to create, modify, and delete ALL custom groups 
 - **WHEN** организация "ООО Ромашка" состоит в группах "Минский регион" и "Южный регион"
 - **AND** администратор удаляет её из группы "Минский регион"
 - **THEN** организация "ООО Ромашка" продолжает состоять в группе "Южный регион"
+
+#### Scenario: Администратор видит все группы
+- **WHEN** администратор открывает список групп
+- **THEN** он видит все группы всех менеджеров
+
+#### Scenario: Администратор может редактировать группу менеджера
+- **WHEN** администратор редактирует группу менеджера
+- **THEN** изменения сохраняются
+
+#### Scenario: Назначение группы менеджеру
+- **WHEN** администратор открывает страницу назначения группы
+- **THEN** он видит список всех менеджеров с флажками
+- **AND** флажок менеджера установлен, если группа уже назначена ему (GroupAssignment)
+
+#### Scenario: Сохранение назначений
+- **WHEN** администратор изменяет флажки менеджеров и нажимает «Сохранить»
+- **THEN** состав менеджеров группы обновляется
+- **AND** менеджеры получают доступ к организациям группы
 
 ### Requirement: Членство организации в группах является many-to-many
 An organization SHALL be able to belong to several groups at once through `OrgGroupMembership`, and one group MAY be assigned to several managers through `GroupAssignment`.

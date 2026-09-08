@@ -19,4 +19,4 @@ The `GroupAssignment` entity exists (many-to-many between `User` and `Organizati
 
 **Database**: No changes — `group_assignment` table and `GroupAssignment` entity already exist.
 
-**Files**: New template `group/assignment.html.twig`, new controller actions in `GroupController`.
+**Files**: New templates `group/assign.html.twig` and `user/assign.html.twig`, new controller actions in `GroupController` and `UserController`.
