@@ -17,5 +17,5 @@
 
 ## 4. Tests
 
-- [ ] 4.1 Add group-side assignment tests to GroupControllerTest — admin sees all managers with correct checkboxes, admin can assign/unassign, manager gets 403; verify all tests pass
-- [ ] 4.2 Add user-side assignment tests to UserControllerTest — admin sees all groups with correct checkboxes, admin can assign/unassign, manager gets 403; verify all tests pass
+- [x] 4.1 Add group-side assignment tests to GroupControllerTest — admin sees all managers with correct checkboxes, admin can assign/unassign, manager gets 403; verify all tests pass
+- [x] 4.2 Add user-side assignment tests to UserControllerTest — admin sees all groups with correct checkboxes, admin can assign/unassign, manager gets 403; verify all tests pass

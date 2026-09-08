@@ -150,9 +150,10 @@ test('manager can delete their own group', async ({ page }) => {
   
   await expect(page).toHaveURL(/\/groups$/);
   
-  // Find and delete the group
+  // Find and delete the group (ссылка «Удалить» — на форме правки)
   const groupRow = page.locator('[data-group-row]', { hasText: groupName }).first();
-  await groupRow.locator('a:has-text("Удалить")').click();
+  await groupRow.locator('a:has-text("Редактировать")').click();
+  await page.click('a:has-text("Удалить")');
   
   await expect(page.locator('h1', { hasText: 'Удаление группы' })).toBeVisible();
   
@@ -367,9 +368,10 @@ test('admin can delete manager with group reassign/delete choices', async ({ pag
   await expect(page.locator('[data-group-row]', { hasText: groupA }).first()).toBeVisible();
   await expect(page.locator('[data-group-row]', { hasText: groupB })).toHaveCount(0);
 
-  // Уборка: админ удаляет переназначенную группу
+  // Уборка: админ удаляет переназначенную группу (ссылка «Удалить» — на форме правки)
   const rowA = page.locator('[data-group-row]', { hasText: groupA }).first();
-  await rowA.locator('a:has-text("Удалить")').click();
+  await rowA.locator('a:has-text("Редактировать")').click();
+  await page.click('a:has-text("Удалить")');
   await page.locator('button:has-text("Удалить")').click();
   await expect(page).toHaveURL(/\/groups$/);
   await expect(page.locator('[data-group-row]', { hasText: groupA })).toHaveCount(0);

@@ -587,6 +587,221 @@ final class GroupControllerTest extends DatabaseWebTestCase
         $this->assertSelectorTextContains('h1', 'Мои группы');
     }
 
+    // --- Group-side assignment (change organization-group-assignment) ---
+
+    public function testAdminSeesAssignPageWithManagersAndCheckboxState(): void
+    {
+        $admin = $this->makeUser('admin@b2b-crm.loc', UserRole::Admin);
+        $manager1 = $this->makeUser('manager1@b2b-crm.loc', UserRole::Manager);
+        $manager2 = $this->makeUser('manager2@b2b-crm.loc', UserRole::Manager);
+        $group = $this->makeGroup('Assign Group', $admin);
+        $this->em()->persist($group);
+        $this->em()->flush();
+        $this->em()->persist(new GroupAssignment($manager1, $group));
+        $this->em()->flush();
+
+        $this->login($admin);
+        $crawler = $this->client->request('GET', '/groups/' . $group->id . '/assign');
+
+        $this->assertResponseIsSuccessful();
+        $this->assertSelectorTextContains('h1', 'Назначение группы');
+
+        // Все менеджеры в списке, администратора нет (design D5).
+        self::assertSame(1, $crawler->filter('input[name="managers[]"][value="' . $manager1->id . '"]')->count());
+        self::assertSame(1, $crawler->filter('input[name="managers[]"][value="' . $manager2->id . '"]')->count());
+        self::assertSame(0, $crawler->filter('input[name="managers[]"][value="' . $admin->id . '"]')->count());
+
+        // Отмечен только назначенный менеджер (spec: Назначение группы менеджеру).
+        self::assertSame(1, $crawler->filter('input[name="managers[]"]:checked')->count());
+        self::assertSame(1, $crawler->filter('input[name="managers[]"][value="' . $manager1->id . '"]:checked')->count());
+    }
+
+    public function testAdminAssignsManagersToGroup(): void
+    {
+        $admin = $this->makeUser('admin@b2b-crm.loc', UserRole::Admin);
+        $manager1 = $this->makeUser('manager1@b2b-crm.loc', UserRole::Manager);
+        $manager2 = $this->makeUser('manager2@b2b-crm.loc', UserRole::Manager);
+        $group = $this->makeGroup('Assign Group', $admin);
+        $this->em()->persist($group);
+        $this->em()->flush();
+        $groupId = $group->id;
+
+        // POST напрямую: DomCrawler раскладывает значения чекбоксов
+        // позиционно, поэтому подмена состава флажков — через request().
+        $this->login($admin);
+        $token = $this->client->request('GET', '/groups/' . $groupId . '/assign')
+            ->filter('input[name="_csrf_token"]')
+            ->first()
+            ->attr('value');
+
+        $this->client->request('POST', '/groups/' . $groupId . '/assign', [
+            '_csrf_token' => $token,
+            'managers' => [$manager1->id, $manager2->id],
+        ]);
+
+        $this->assertResponseRedirects('/groups');
+        $this->em()->clear();
+
+        $assignments = $this->em()->getRepository(GroupAssignment::class)->findBy(['group' => $groupId]);
+        self::assertCount(2, $assignments);
+    }
+
+    public function testAdminUnassignsManagerFromGroup(): void
+    {
+        $admin = $this->makeUser('admin@b2b-crm.loc', UserRole::Admin);
+        $manager1 = $this->makeUser('manager1@b2b-crm.loc', UserRole::Manager);
+        $manager2 = $this->makeUser('manager2@b2b-crm.loc', UserRole::Manager);
+        $group = $this->makeGroup('Assign Group', $admin);
+        $this->em()->persist($group);
+        $this->em()->flush();
+        $this->em()->persist(new GroupAssignment($manager1, $group));
+        $this->em()->flush();
+        $groupId = $group->id;
+
+        // Diff-based save (design D2): снимаем manager1, добавляем manager2.
+        // POST напрямую — DomCrawler раскладывает значения чекбоксов позиционно.
+        $this->login($admin);
+        $token = $this->client->request('GET', '/groups/' . $groupId . '/assign')
+            ->filter('input[name="_csrf_token"]')
+            ->first()
+            ->attr('value');
+
+        $this->client->request('POST', '/groups/' . $groupId . '/assign', [
+            '_csrf_token' => $token,
+            'managers' => [$manager2->id],
+        ]);
+
+        $this->assertResponseRedirects('/groups');
+        $this->em()->clear();
+
+        $assignments = $this->em()->getRepository(GroupAssignment::class)->findBy(['group' => $groupId]);
+        self::assertCount(1, $assignments);
+        self::assertSame($manager2->id, $assignments[0]->user->id);
+    }
+
+    public function testAdminUnassignsAllManagersFromGroup(): void
+    {
+        $admin = $this->makeUser('admin@b2b-crm.loc', UserRole::Admin);
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $group = $this->makeGroup('Assign Group', $admin);
+        $this->em()->persist($group);
+        $this->em()->flush();
+        $this->em()->persist(new GroupAssignment($manager, $group));
+        $this->em()->flush();
+        $groupId = $group->id;
+
+        // POST напрямую: пустой managers[] = «все флажки сняты».
+        $this->login($admin);
+        $token = $this->client->request('GET', '/groups/' . $groupId . '/assign')
+            ->filter('input[name="_csrf_token"]')
+            ->first()
+            ->attr('value');
+
+        $this->client->request('POST', '/groups/' . $groupId . '/assign', [
+            '_csrf_token' => $token,
+            'managers' => [],
+        ]);
+
+        $this->assertResponseRedirects('/groups');
+        $this->em()->clear();
+        self::assertCount(0, $this->em()->getRepository(GroupAssignment::class)->findBy(['group' => $groupId]));
+    }
+
+    public function testGroupAssignIgnoresSubmittedAdminId(): void
+    {
+        $admin = $this->makeUser('admin@b2b-crm.loc', UserRole::Admin);
+        $group = $this->makeGroup('Assign Group', $admin);
+        $this->em()->persist($group);
+        $this->em()->flush();
+        $groupId = $group->id;
+
+        // Прямой POST: id администратора не должен создать GroupAssignment
+        // (admin видит все группы без назначений, ADR-0008).
+        $this->login($admin);
+        $token = $this->client->request('GET', '/groups/' . $groupId . '/assign')
+            ->filter('input[name="_csrf_token"]')
+            ->first()
+            ->attr('value');
+
+        $this->client->request('POST', '/groups/' . $groupId . '/assign', [
+            '_csrf_token' => $token,
+            'managers' => [$admin->id],
+        ]);
+
+        $this->assertResponseRedirects('/groups');
+        $this->em()->clear();
+        self::assertCount(0, $this->em()->getRepository(GroupAssignment::class)->findBy(['group' => $groupId]));
+    }
+
+    public function testManagerCannotAccessGroupAssignPage(): void
+    {
+        $admin = $this->makeUser('admin@b2b-crm.loc', UserRole::Admin);
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $group = $this->makeGroup('Admin Group', $admin);
+        $this->em()->persist($group);
+        $this->em()->flush();
+
+        $this->login($manager);
+        $this->client->request('GET', '/groups/' . $group->id . '/assign');
+
+        $this->assertResponseStatusCodeSame(403);
+    }
+
+    public function testManagerCannotPostGroupAssign(): void
+    {
+        $admin = $this->makeUser('admin@b2b-crm.loc', UserRole::Admin);
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $group = $this->makeGroup('Admin Group', $admin);
+        $this->em()->persist($group);
+        $this->em()->flush();
+
+        $this->login($manager);
+        $this->client->request('POST', '/groups/' . $group->id . '/assign', [
+            'managers' => [$manager->id],
+        ]);
+
+        $this->assertResponseStatusCodeSame(403);
+        $this->em()->clear();
+        self::assertCount(0, $this->em()->getRepository(GroupAssignment::class)->findBy(['group' => $group->id]));
+    }
+
+    public function testAdminSeesAssignButtonInGroupList(): void
+    {
+        $admin = $this->makeUser('admin@b2b-crm.loc', UserRole::Admin);
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $managerGroup = $this->makeGroup('Manager Group', $manager);
+        $this->em()->persist($managerGroup);
+        $this->em()->flush();
+
+        $this->login($admin);
+        $crawler = $this->client->request('GET', '/groups');
+
+        $this->assertResponseIsSuccessful();
+        self::assertSame(
+            1,
+            $crawler->filter('a[href="/groups/' . $managerGroup->id . '/assign"]')->count(),
+            'Администратор видит «Назначить» у чужой группы',
+        );
+    }
+
+    public function testManagerDoesNotSeeAssignButtonInGroupList(): void
+    {
+        $manager = $this->makeUser('manager@b2b-crm.loc', UserRole::Manager);
+        $group = $this->makeGroup('My Group', $manager);
+        $this->em()->persist($group);
+        $this->em()->flush();
+
+        $this->login($manager);
+        $crawler = $this->client->request('GET', '/groups');
+
+        $this->assertResponseIsSuccessful();
+        self::assertSame(
+            0,
+            $crawler->filter('a[href="/groups/' . $group->id . '/assign"]')->count(),
+            'Кнопка «Назначить» доступна только администратору',
+        );
+    }
+
     private function makeUser(string $email, UserRole $role): User
     {
         $user = new User()
