@@ -156,7 +156,7 @@ class UserController extends AbstractController
 
         $this->em->flush();
 
-        // Now delete the user (personal groups will be removed by cascade)
+        // Теперь удаляем пользователя: группы уже обработаны выше (ADR-0011)
         $this->em->remove($user);
         $this->em->flush();
 

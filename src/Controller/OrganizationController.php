@@ -180,7 +180,7 @@ class OrganizationController extends AbstractController
 
     /**
      * Организация в области доступа пользователя: менеджеру — только
-     * организации личной и назначенных групп (ADR-0007), администратору —
+     * организации созданных и назначенных ему групп (ADR-0011), администратору —
      * все (ADR-0008, группы не проверяются).
      */
     private function accessibleOrganization(int $id): Organization

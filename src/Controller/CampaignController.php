@@ -745,7 +745,7 @@ class CampaignController extends AbstractController
 
     /**
      * Организация для добавления адресатом с проверкой области доступа
-     * (ADR-0007): менеджеру — только организации личной и назначенных групп,
+     * (ADR-0011): менеджеру — только организации созданных и назначенных ему групп,
      * администратору — все (ADR-0008, группы не проверяются).
      */
     private function accessibleOrganizationForRecipient(int $id): Organization
