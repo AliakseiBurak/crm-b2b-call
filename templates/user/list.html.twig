@@ -35,7 +35,7 @@
                     </thead>
                     <tbody>
                         {% for user in users %}
-                            <tr>
+                            <tr data-user-row>
                                 <td>{{ user.email }}</td>
                                 <td>{{ user.name|default('—') }}</td>
                                 <td>{{ user.surname|default('—') }}</td>

@@ -886,12 +886,17 @@ class CampaignController extends AbstractController
 
         try {
             $result = $this->recipientService->bulkAddByGroup($campaign, $group, $this->getUser());
-            $this->addFlash('success', sprintf('Добавлено: %d, пропущено: %d', $result['added'], $result['skipped']));
-        } catch (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $e) {
-            $this->addFlash('error', $e->getMessage());
         } catch (\InvalidArgumentException $e) {
             $this->addFlash('error', $e->getMessage());
+
+            return $this->redirectToRoute('app_campaign_recipients', ['id' => $campaign->id]);
         }
+
+        if ($request->isXmlHttpRequest()) {
+            return $this->json($result);
+        }
+
+        $this->addFlash('success', sprintf('Добавлено: %d, пропущено: %d', $result['added'], $result['skipped']));
 
         return $this->redirectToRoute('app_campaign_recipients', ['id' => $campaign->id]);
     }

@@ -34,7 +34,7 @@
                     </thead>
                     <tbody>
                         {% for group in groups %}
-                            <tr>
+                            <tr data-group-row>
                                 <td>{{ group.name }}</td>
                                 <td>
                                     {% if group.color %}
@@ -55,7 +55,6 @@
                                 <td style="white-space:nowrap">
                                     <a href="{{ path('app_group_edit', { id: group.id }) }}" class="btn btn--secondary btn--sm">Редактировать</a>
                                     <a href="{{ path('app_group_members', { id: group.id }) }}" class="btn btn--secondary btn--sm">Участники</a>
-                                    <a href="{{ path('app_group_delete', { id: group.id }) }}" class="btn btn--secondary btn--sm">Удалить</a>
                                 </td>
                             </tr>
                         {% endfor %}

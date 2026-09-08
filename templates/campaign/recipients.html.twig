@@ -38,7 +38,9 @@
                                     variant: 'secondary',
                                     text: group.name,
                                     sm: true,
-                                    attr: group.color ? { style: 'background:' ~ group.color ~ ';color:#fff;border-color:' ~ group.color } : {},
+                                    attr: { 'data-group-id': group.id }
+                                        |merge(group.color ? { style: 'background:' ~ group.color ~ ';color:#fff;border-color:' ~ group.color } : {})
+                                        |merge(group.description ? { title: group.description } : {}),
                                 }) }}
                             </form>
                         {% endfor %}

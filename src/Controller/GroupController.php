@@ -15,6 +15,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
+use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route('/groups')]
 class GroupController extends AbstractController
@@ -23,6 +24,7 @@ class GroupController extends AbstractController
         private readonly OrganizationGroupRepository $groups,
         private readonly OrganizationRepository $organizations,
         private readonly EntityManagerInterface $em,
+        private readonly ValidatorInterface $validator,
     ) {
     }
 
@@ -60,12 +62,19 @@ class GroupController extends AbstractController
         $description = trim((string) $request->request->get('description', '')) ?: null;
         $color = trim((string) $request->request->get('color', '')) ?: null;
 
+        $group = new OrganizationGroup();
+        $group->setName($name);
+        $group->setDescription($description);
+        $group->setColor($color);
+
         $errors = [];
         if ('' === $name) {
             $errors['name'] = 'Название обязательно';
         }
-        if (null !== $color && !preg_match('/^#[0-9a-fA-F]{6}$/', $color)) {
-            $errors['color'] = 'Неверный формат цвета (используйте #rrggbb)';
+        foreach ($this->validator->validate($group) as $violation) {
+            if ('color' === $violation->getPropertyPath()) {
+                $errors['color'] = $violation->getMessage();
+            }
         }
 
         if ([] !== $errors) {
@@ -78,10 +87,6 @@ class GroupController extends AbstractController
             ], new Response(null, Response::HTTP_UNPROCESSABLE_ENTITY));
         }
 
-        $group = new OrganizationGroup();
-        $group->setName($name);
-        $group->setDescription($description);
-        $group->setColor($color);
         $group->setCreatedBy($this->getUser());
 
         $this->em->persist($group);
@@ -117,11 +122,20 @@ class GroupController extends AbstractController
         if ('' === $name) {
             $errors['name'] = 'Название обязательно';
         }
-        if (null !== $color && !preg_match('/^#[0-9a-fA-F]{6}$/', $color)) {
-            $errors['color'] = 'Неверный формат цвета (используйте #rrggbb)';
+
+        $group->setName($name);
+        $group->setDescription($description);
+        $group->setColor($color);
+
+        foreach ($this->validator->validate($group) as $violation) {
+            if ('color' === $violation->getPropertyPath()) {
+                $errors['color'] = $violation->getMessage();
+            }
         }
 
         if ([] !== $errors) {
+            $this->em->clear(OrganizationGroup::class);
+
             return $this->render('group/form.html.twig', [
                 'group' => $group,
                 'errors' => $errors,
@@ -130,10 +144,6 @@ class GroupController extends AbstractController
                 'color' => $color,
             ], new Response(null, Response::HTTP_UNPROCESSABLE_ENTITY));
         }
-
-        $group->setName($name);
-        $group->setDescription($description);
-        $group->setColor($color);
 
         $this->em->flush();
 

@@ -12,6 +12,7 @@ use App\Repository\CampaignRecipientRepository;
 use App\Repository\OrganizationGroupRepository;
 use App\Repository\OrganizationRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 
 /**
  * Сервис управления адресатами рассылок (change organization-groups).
@@ -49,7 +50,7 @@ final class CampaignRecipientService
                 }
             }
             if (!$hasAccess) {
-                throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException('Группа вне области доступа');
+                throw new AccessDeniedHttpException('Группа вне области доступа');
             }
         }
 

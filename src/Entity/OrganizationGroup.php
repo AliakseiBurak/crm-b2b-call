@@ -6,6 +6,7 @@ use App\Repository\OrganizationGroupRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: OrganizationGroupRepository::class)]
 #[ORM\Table(name: 'organization_group')]
@@ -23,6 +24,10 @@ class OrganizationGroup
     public private(set) ?string $description = null;
 
     #[ORM\Column(length: 7, nullable: true)]
+    #[Assert\Regex(
+        pattern: '/^#[0-9a-fA-F]{6}$/',
+        message: 'Неверный формат цвета (используйте #rrggbb)',
+    )]
     public private(set) ?string $color = null;
 
     #[ORM\ManyToOne(targetEntity: User::class)]

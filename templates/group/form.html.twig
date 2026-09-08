@@ -49,6 +49,17 @@
                     {% endif %}
                 </div>
 
+                {% if group and group.id %}
+                    <div class="group-form__members-row" style="margin-top: 24px;">
+                        {{ include('components/button.html.twig', {
+                            variant: 'secondary',
+                            text: 'Участники',
+                            href: path('app_group_members', { id: group.id }),
+                            type: 'button',
+                        }) }}
+                    </div>
+                {% endif %}
+
                 <div class="group-form__actions" style="margin-top: 24px;">
                     {{ include('components/button.html.twig', {
                         variant: 'primary',
@@ -60,6 +71,15 @@
                         href: path('app_group_list'),
                         type: 'button',
                     }) }}
+                    {% if group and group.id %}
+                        {{ include('components/button.html.twig', {
+                            variant: 'secondary',
+                            text: 'Удалить',
+                            href: path('app_group_delete', { id: group.id }),
+                            type: 'button',
+                            attr: { class: 'group-form__delete' },
+                        }) }}
+                    {% endif %}
                 </div>
             </form>
         </div>
