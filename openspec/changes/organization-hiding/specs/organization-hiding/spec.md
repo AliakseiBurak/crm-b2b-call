@@ -40,18 +40,18 @@ action.
 
 ### Requirement: Администратор возвращает видимость организации
 The system SHALL allow an administrator to delete a hide record for a specific
-manager and to delete all hide records of an organization in a single action
-(«Показать всем»). After deletion, the manager SHALL see the organization
-again.
+manager. After deletion, the manager SHALL see the organization again.
+The administrator SHALL be able to remove all hide records by clicking
+«Показать» on each individual hide row.
 
 #### Scenario: Возврат видимости одному менеджеру
 - **WHEN** существует запись скрытия организации "ООО Ромашка" от менеджера "Иван Петров"
 - **AND** администратор удаляет эту запись
 - **THEN** менеджер "Иван Петров" снова видит организацию "ООО Ромашка"
 
-#### Scenario: Показать всем
+#### Scenario: Показать всем — построчно
 - **WHEN** организация "ООО Ромашка" скрыта от нескольких менеджеров
-- **AND** администратор выбирает действие «Показать всем» для организации "ООО Ромашка"
+- **AND** администратор нажимает «Показать» на каждой записи скрытия организации "ООО Ромашка"
 - **THEN** все записи скрытия организации "ООО Ромашка" удаляются
 - **AND** все менеджеры снова видят организацию "ООО Ромашка"
 

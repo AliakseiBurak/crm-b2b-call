@@ -87,31 +87,41 @@ keep working unchanged. Group joins are removed from the gateway.
 
 ### 3. Hide service
 
-**Decision**: `OrganizationHideService` with idempotent operations:
+**Decision**: `OrganizationHideService` with idempotent operations and shared validation:
 
+- `validateHideTargets(array $managerIds): string[]` — checks that all IDs are
+  managers; returns invalid IDs for error reporting. Reused by both the
+  registry controller and any future hide endpoint.
+- `findDuplicateTargets(Organization $org, array $managers): User[]` — returns
+  managers already hidden from the org (for conflict reporting). Reused by
+  both controllers.
 - `hide(Organization $org, array $managers): int` — create missing rows,
   skip existing pairs, return created count.
 - `hideFromAllManagers(Organization $org): int` — one row per current
   manager (role=manager), skip existing.
 - `unhide(Organization $org, User $manager): void` — delete the row.
-- `showAll(Organization $org): int` — delete all rows of the org.
 
 The UNIQUE constraint is the final guard; the service pre-checks to avoid
-constraint-violation exceptions.
+constraint-violation exceptions. Validation and duplicate-check logic live in
+the service, not in individual controllers, to keep behavior consistent across
+the registry and org-card entry points.
 
 ### 4. Admin UI
 
 **Decision**: two entry points, both ROLE_ADMIN:
 
-- Registry section «Скрытые организации»: list of hide records
-  (organization, manager, hidden at) with «Показать» per row and «Показать
-  всем» per organization; hide form with organization select, manager
-  multi-select, and «Все менеджеры» checkbox.
-- Action «Скрыть от менеджеров» on the organization card, opening the same
-  form with the organization pre-selected.
+- Registry section «Скрытые организации» (`/admin/hides`): list of hide
+  records (organization, manager, hidden at) with «Показать» per row
+  (unhide one manager); inline hide form with organization select and
+  manager select (single-select: specific manager or "— скрыть от всех
+  менеджеров —" default option).
+- Organization card edit page (`/organizations/{id}/edit`): admin-only
+  «Скрыто от менеджеров» section with existing hides and unhide buttons;
+  hide functionality lives in the registry, not the card.
 
-Routes under `/admin/hides` (list, new, delete, show-all). Navigation entry
-in the admin section.
+Routes under `/admin/hides` (list, new, delete). Navigation entry «Скрытые
+организации» in the admin section. The unhide action within the org edit
+form is protected by `isGranted('ROLE_ADMIN')` check inside `update()`.
 
 ### 5. Read-path filtering
 
@@ -149,8 +159,8 @@ indexes on `manager_id` and `organization_id`. No data backfill
 |             | ROLE_ADMIN                   | ROLE_MANAGER     |
 |             v                              v                  |
 |  +-----------------------------------------------+           |
-|  | OrganizationHideService (hide/hideAll/        |           |
-|  |  unhide/showAll)                              |           |
+|  | OrganizationHideService (validate/       |           |
+|  |  hide/hideAll/unhide)                    |           |
 |  +--------------------+--------------------------+           |
 |                       |                                      |
 |             +---------+---------+                            |
@@ -182,8 +192,8 @@ indexes on `manager_id` and `organization_id`. No data backfill
   intent (exceptions, repointing work), no per-org ACL tiers introduced.
 
 [Risk] «Скрыть от всех» creates N rows that can go stale.
-→ Mitigation: rows cascade on manager deletion; «Показать всем» removes them
-  in one action; new managers are intentionally unaffected (product decision).
+→ Mitigation: rows cascade on manager deletion; per-record unhide via the
+  registry; new managers are intentionally unaffected (product decision).
 
 [Risk] NOT IN subquery cost grows with many organizations.
 → Mitigation: index on `manager_id`; per-manager row sets are small in
