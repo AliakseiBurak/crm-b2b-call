@@ -41,9 +41,10 @@ class OrganizationRepository extends ServiceEntityRepository
     }
 
     /**
-     * Возвращает ID организаций, доступных менеджеру (созданные и
-     * назначенные группы). Администратору и гостю возвращается null —
-     * полный доступ ко всем организациям.
+     * Возвращает ID организаций, доступных пользователю (ADR-0012: модель
+     * default-open с deny-list). Менеджер видит все организации, кроме
+     * скрытых от него записями organization_hide. Администратору и гостю
+     * возвращается null — полный доступ ко всем организациям.
      *
      * @return int[]|null
      */
@@ -55,25 +56,24 @@ class OrganizationRepository extends ServiceEntityRepository
 
         $rows = $this->createQueryBuilder('o')
             ->select('o.id')
-            ->distinct()
-            ->join('App\Entity\OrgGroupMembership', 'm', 'WITH', 'm.organization = o')
-            ->join('m.group', 'g')
-            ->where('g.createdBy = :user')
-            ->orWhere('EXISTS (SELECT a FROM App\Entity\GroupAssignment a WHERE a.group = m.group AND a.user = :user)')
+            ->where('o.id NOT IN (
+                SELECT IDENTITY(h.organization) FROM App\Entity\OrganizationHide h
+                WHERE h.manager = :user
+            )')
             ->setParameter('user', $user)
             ->getQuery()
             ->getScalarResult();
 
-        return array_values(array_unique(array_map(
+        return array_values(array_map(
             static fn (array $row): int => (int) $row['id'],
             $rows
-        )));
+        ));
     }
 
     /**
      * Организации в области доступа пользователя для выпадающего списка
      * формы создания контакта: администратору — все (ADR-0008), менеджеру —
-     * организации созданных и назначенных ему групп (ADR-0011), по имени А–Я.
+     * все, кроме скрытых (ADR-0012), по имени А–Я.
      *
      * @return Organization[]
      */

@@ -53,8 +53,14 @@
                     <div class="group-form__members-row" style="margin-top: 24px;">
                         {{ include('components/button.html.twig', {
                             variant: 'secondary',
-                            text: 'Участники',
+                            text: 'Состав',
                             href: path('app_group_members', { id: group.id }),
+                            type: 'button',
+                        }) }}
+                        {{ include('components/button.html.twig', {
+                            variant: 'secondary',
+                            text: 'Назначить менеджеров',
+                            href: path('app_group_assign', { id: group.id }),
                             type: 'button',
                         }) }}
                     </div>

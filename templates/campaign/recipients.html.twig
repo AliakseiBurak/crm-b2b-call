@@ -90,7 +90,7 @@
                 </script>
             {% endif %}
 
-            {% if campaign.recipients is not empty %}
+            {% if recipients is not empty %}
                 <div class="table-wrap">
                     <table class="table campaign-recipients__table">
                         <thead>
@@ -103,7 +103,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for recipient in campaign.recipients %}
+                            {% for recipient in recipients %}
                                 <tr>
                                     <td>
                                         <a href="{{ path('app_organization_edit', { id: recipient.organization.id }) }}">{{ recipient.organization.name }}</a>

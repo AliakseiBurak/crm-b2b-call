@@ -374,6 +374,11 @@
         display: flex;
         align-items: center;
         gap: 12px;
+
+        .field__input {
+            width: auto;
+            flex: 1;
+        }
     }
 
     &__table {

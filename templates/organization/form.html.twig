@@ -4,7 +4,7 @@
     дизайн-системы), ошибки валидации — под полем на русском.
     Ожидает: organization (?Organization), errors (array<string, string>),
     errorRecipients (CampaignRecipient[]|null), groups (OrganizationGroup[]),
-    groupIds (int[]).
+    groupIds (int[]), hides (OrganizationHide[]).
 #}
 {% extends 'base.html.twig' %}
 
@@ -42,7 +42,7 @@
 
                 {% if groups is defined and groups is not empty %}
                     <div class="field">
-                        <label class="field__label">Группы</label>
+                        <label class="field__label organization-section-title">Группы</label>
                         <div class="group-chips">
                             {% for group in groups %}
                                 <label
@@ -65,7 +65,7 @@
 
                 {% if isEdit %}
                     <div class="organization-form__contacts">
-                        <h2>Контакты</h2>
+                        <h2 class="organization-section-title">Контакты</h2>
                         {% if organization.contacts is not empty %}
                             <ul class="organization-contacts__list">
                                 {% for contact in organization.contacts %}
@@ -123,6 +123,27 @@
                                     {% endfor %}
                                 </tbody>
                             </table>
+                        </div>
+                    {% endif %}
+
+                    {% if is_granted('ROLE_ADMIN') %}
+                        <div class="organization-form__hides">
+                            <h2 class="organization-section-title">Скрыто от менеджеров</h2>
+                            {% if hides is not empty %}
+                                <ul class="organization-hides__list">
+                                    {% for hide in hides %}
+                                        <li class="organization-hides__item">
+                                            <span class="organization-hides__name">
+                                                {% set managerName = (hide.manager.name|default('') ~ ' ' ~ hide.manager.surname|default(''))|trim %}
+                                                {{ managerName ?: hide.manager.email }}
+                                            </span>
+                                            <button type="submit" name="unhide" value="{{ hide.id }}" class="btn btn--secondary btn--sm">Показать</button>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="organization-hides__empty">Не скрыта ни от одного менеджера.</p>
+                            {% endif %}
                         </div>
                     {% endif %}
                 {% endif %}

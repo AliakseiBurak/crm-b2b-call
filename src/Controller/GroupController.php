@@ -34,15 +34,36 @@ class GroupController extends AbstractController
 
     #[Route('', name: 'app_group_list', methods: ['GET'])]
     #[IsGranted('ROLE_MANAGER')]
-    public function list(): Response
+    public function list(Request $request): Response
     {
         $user = $this->getUser();
         $isAdmin = UserRole::Admin === $user->role;
 
+        $groups = $isAdmin
+            ? $this->groups->findAllGroups()
+            : $this->groups->findForManager($user);
+
+        $sort = $request->query->get('sort', 'name');
+        $direction = strtoupper($request->query->get('dir', 'ASC'));
+
+        $groupsArray = $groups instanceof \Traversable ? iterator_to_array($groups) : $groups;
+        usort(
+            $groupsArray,
+            static function (OrganizationGroup $a, OrganizationGroup $b) use ($sort, $direction): int {
+                $cmp = match ($sort) {
+                    'creator' => strcmp(
+                        (string) ($a->createdBy?->email ?? ''),
+                        (string) ($b->createdBy?->email ?? ''),
+                    ),
+                    default => strcmp((string) $a->name, (string) $b->name),
+                };
+
+                return 'DESC' === $direction ? -$cmp : $cmp;
+            },
+        );
+
         return $this->render('group/list.html.twig', [
-            'groups' => $isAdmin
-                ? $this->groups->findAllGroups()
-                : $this->groups->findForManager($user),
+            'groups' => $groupsArray,
             // null — доступна правка всех групп (админ, ADR-0008); иначе — id
             // групп, созданных менеджером (spec: organization-groups).
             'manageableIds' => $isAdmin
@@ -51,6 +72,8 @@ class GroupController extends AbstractController
                     static fn (OrganizationGroup $g): int => $g->id,
                     $this->groups->findCreatedBy($user),
                 ),
+            'sort' => $sort,
+            'direction' => $direction,
         ]);
     }
 
@@ -201,14 +224,25 @@ class GroupController extends AbstractController
         if (!$canEdit) {
             // Назначенная группа доступна только на просмотр (spec:
             // organization-groups): состав показывается без формы изменения.
+            // Скрытые организации не отображаются менеджеру (ADR-0012);
+            // администратор видит всех участников.
+            $members = array_map(
+                static fn (OrgGroupMembership $m): Organization => $m->organization,
+                $group->memberships->toArray(),
+            );
+            $accessibleIds = $this->organizations->findAccessibleIds($this->getUser());
+            if (null !== $accessibleIds) {
+                $members = array_values(array_filter(
+                    $members,
+                    static fn (Organization $o): bool => \in_array($o->id, $accessibleIds, true),
+                ));
+            }
+
             return $this->render('group/members.html.twig', [
                 'group' => $group,
                 'canEdit' => false,
                 'organizations' => [],
-                'members' => array_map(
-                    static fn (OrgGroupMembership $m): Organization => $m->organization,
-                    $group->memberships->toArray(),
-                ),
+                'members' => $members,
                 'memberIds' => $memberIds,
             ]);
         }
@@ -234,15 +268,21 @@ class GroupController extends AbstractController
         $selectedIds = array_map('intval', $request->request->all('organizations'));
 
         // Менеджер может добавлять в группу только организации своей области
-        // доступа (ADR-0007); администратору доступны все (ADR-0008).
+        // доступа (ADR-0012); администратору доступны все (ADR-0008).
         $accessibleIds = $this->organizations->findAccessibleIds($this->getUser());
         if (null !== $accessibleIds) {
             $selectedIds = array_values(array_intersect($selectedIds, $accessibleIds));
         }
 
-        // Remove existing memberships not in selection
+        // Remove existing memberships not in selection,
+        // but preserve memberships of organizations not in the current
+        // user's accessible set (they may be hidden from this manager
+        // but still belong to the group for other managers — ADR-0012).
         foreach ($group->memberships as $membership) {
             if (!in_array($membership->organization->id, $selectedIds, true)) {
+                if (null !== $accessibleIds && !\in_array($membership->organization->id, $accessibleIds, true)) {
+                    continue; // preserve hidden org membership
+                }
                 $group->memberships->removeElement($membership);
                 $this->em->remove($membership);
             }

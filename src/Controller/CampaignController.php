@@ -367,11 +367,24 @@ class CampaignController extends AbstractController
             );
         }
 
+        // Строки адресатов скрытых организаций не отображаются менеджеру
+        // (ADR-0012); администратор видит все строки (spec
+        // organization-hiding: «Администратор видит все записи скрытия»).
+        $recipients = $campaign->recipients->toArray();
+        $accessibleIds = $this->organizations->findAccessibleIds($user);
+        if (null !== $accessibleIds) {
+            $recipients = array_values(array_filter(
+                $recipients,
+                static fn (CampaignRecipient $r): bool => \in_array($r->organization->id, $accessibleIds, true),
+            ));
+        }
+
         return $this->render('campaign/recipients.html.twig', [
             'campaign' => $campaign,
             'availableOrganizations' => $available,
             'availableGroups' => $availableGroups,
             'contactsByOrg' => $contactsByOrg,
+            'recipients' => $recipients,
         ]);
     }
 

@@ -53,6 +53,21 @@
                     <p>Менеджеров нет.</p>
                 {% endif %}
 
+                <div class="group-form__members-row" style="margin-top: 24px;">
+                    {{ include('components/button.html.twig', {
+                        variant: 'secondary',
+                        text: 'Редактировать',
+                        href: path('app_group_edit', { id: group.id }),
+                        type: 'button',
+                    }) }}
+                    {{ include('components/button.html.twig', {
+                        variant: 'secondary',
+                        text: 'Состав',
+                        href: path('app_group_members', { id: group.id }),
+                        type: 'button',
+                    }) }}
+                </div>
+
                 <div class="group-assign-form__actions" style="margin-top: 24px;">
                     {{ include('components/button.html.twig', {
                         variant: 'primary',

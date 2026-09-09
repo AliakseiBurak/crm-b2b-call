@@ -65,10 +65,23 @@ final class CampaignRecipientService
             $organizations[] = $membership->organization;
         }
 
+        $total = $group->memberships->count();
         $added = 0;
         $skipped = 0;
         $noEmail = 0;
-        $total = $group->memberships->count();
+
+        // Скрытые организации не становятся адресатами (ADR-0012): менеджеру
+        // доступны только организации его области доступа; администратору —
+        // все (null). Отфильтрованные считаются пропущенными.
+        $accessibleIds = $this->organizations->findAccessibleIds($user);
+        if (null !== $accessibleIds) {
+            $before = \count($organizations);
+            $organizations = array_values(array_filter(
+                $organizations,
+                static fn (Organization $o): bool => \in_array($o->id, $accessibleIds, true),
+            ));
+            $skipped += $before - \count($organizations);
+        }
 
         foreach ($organizations as $organization) {
             // Check if recipient already exists

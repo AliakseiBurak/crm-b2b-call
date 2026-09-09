@@ -11,23 +11,23 @@
 .group-chip {
     display: inline-flex;
     align-items: center;
-    gap: 0.55em;
-    min-height: 44px;
-    padding: 0.55em 1.25em;
+    gap: 0.45em;
+    min-height: 36px;
+    padding: 0.35em 1em;
     border: 2px solid var(--chip-color);
     border-radius: $radius-pill;
     background: color-mix(in srgb, var(--chip-color) 12%, #fff);
     color: var(--chip-color);
     font-family: $font-heading;
     font-weight: 700;
-    font-size: 0.95rem;
+    font-size: 0.82rem;
     line-height: 1.2;
     cursor: pointer;
     transition: background-color 0.15s ease, color 0.15s ease;
 
     input[type='checkbox'] {
-        width: 18px;
-        height: 18px;
+        width: 15px;
+        height: 15px;
         margin: 0;
         flex: 0 0 auto;
         accent-color: var(--chip-color);

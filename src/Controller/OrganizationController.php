@@ -9,7 +9,9 @@ use App\Entity\OrganizationGroup;
 use App\Entity\User;
 use App\Repository\CampaignRecipientRepository;
 use App\Repository\OrganizationGroupRepository;
+use App\Repository\OrganizationHideRepository;
 use App\Repository\OrganizationRepository;
+use App\Service\OrganizationHideService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -17,6 +19,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 
 #[Route(requirements: ['id' => '\d+'])]
@@ -26,6 +29,8 @@ class OrganizationController extends AbstractController
         private readonly OrganizationRepository $organizations,
         private readonly OrganizationGroupRepository $groups,
         private readonly CampaignRecipientRepository $campaignRecipients,
+        private readonly OrganizationHideRepository $hides,
+        private readonly OrganizationHideService $hideService,
         private readonly EntityManagerInterface $em,
     ) {
     }
@@ -55,6 +60,7 @@ class OrganizationController extends AbstractController
                 'errors' => $errors,
                 'groups' => $this->availableGroupsFor($this->getUser()),
                 'groupIds' => $selectedGroupIds,
+                'hides' => [],
             ], new Response(null, Response::HTTP_UNPROCESSABLE_ENTITY));
         }
 
@@ -79,12 +85,15 @@ class OrganizationController extends AbstractController
             $organization->groupMemberships->toArray()
         );
 
+        $hides = $this->hides->findForOrganization($organization);
+
         return $this->render('organization/form.html.twig', [
             'organization' => $organization,
             'errors' => [],
             'errorRecipients' => $this->campaignRecipients->findErrorRecipientsForOrganization($organization),
             'groups' => $groups,
             'groupIds' => $groupIds,
+            'hides' => $hides,
         ]);
     }
 
@@ -96,6 +105,24 @@ class OrganizationController extends AbstractController
 
         // Токен приходит из формы (FormData) или заголовком X-CSRF-Token.
         $this->assertCsrfToken($request);
+
+        // Кнопка «Показать» (unhide) внутри формы редактирования: обрабатываем
+        // до валидации, чтобы «Показать» не падал на пустом названии.
+        // Только администратор может возвращать видимость (ADR-0012).
+        $unhideId = $request->request->get('unhide');
+        if (null !== $unhideId && $organization->id) {
+            if (!$this->isGranted('ROLE_ADMIN')) {
+                throw new AccessDeniedHttpException('Только администратор может управлять скрытием');
+            }
+
+            $hide = $this->hides->find((string) $unhideId);
+            if (null !== $hide && $hide->organization->id === $organization->id) {
+                $this->hideService->unhide($hide->organization, $hide->manager);
+                $this->addFlash('success', 'Организация снова видна менеджеру');
+            }
+
+            return $this->redirectToRoute('app_organization_edit', ['id' => $id]);
+        }
 
         $errors = $this->applyRequest($request, $validator, $organization);
         $selectedGroupIds = $this->normalizeGroupSelection($request, $this->getUser());
@@ -109,6 +136,7 @@ class OrganizationController extends AbstractController
                 'errors' => $errors,
                 'groups' => $this->availableGroupsFor($this->getUser()),
                 'groupIds' => $selectedGroupIds,
+                'hides' => $organization->id ? $this->hides->findForOrganization($organization) : [],
             ], new Response(null, Response::HTTP_UNPROCESSABLE_ENTITY));
         }
 
@@ -179,9 +207,9 @@ class OrganizationController extends AbstractController
     }
 
     /**
-     * Организация в области доступа пользователя: менеджеру — только
-     * организации созданных и назначенных ему групп (ADR-0011), администратору —
-     * все (ADR-0008, группы не проверяются).
+     * Организация в области доступа пользователя: менеджеру — все
+     * организации, кроме скрытых (ADR-0012); администратору — все
+     * организации без ограничений (ADR-0008).
      */
     private function accessibleOrganization(int $id): Organization
     {
@@ -213,7 +241,7 @@ class OrganizationController extends AbstractController
     /**
      * Выбранные в форме группы, ограниченные областью доступа пользователя:
      * администратору — все, менеджеру — только созданные и назначенные
-     * (ADR-0007/0008). Недоступные группы игнорируются.
+     * (ADR-0011). Недоступные группы игнорируются.
      *
      * @return int[]
      */
@@ -230,7 +258,7 @@ class OrganizationController extends AbstractController
 
     /**
      * Группы, доступные для выбора при создании/редактировании организации:
-     * администратору — все, менеджеру — созданные и назначенные (ADR-0007/0008).
+     * администратору — все, менеджеру — созданные и назначенные (ADR-0011).
      *
      * @return OrganizationGroup[]
      */

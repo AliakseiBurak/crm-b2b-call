@@ -1,0 +1,100 @@
+{#
+    Реестр «Скрытые организации» (change organization-hiding).
+    Встроенная форма добавления (дропдаун организации + дропдаун менеджера)
+    и таблица записей скрытия с действиями «Показать».
+    Ожидает: grouped, organizations (Organization[]), managers (User[]),
+    sort (string), direction (string).
+#}
+{% extends 'base.html.twig' %}
+
+{% block title %}Скрытые организации{% endblock %}
+
+{% block body %}
+    <section class="section section--white">
+        <div class="container">
+            <h1>Скрытые организации</h1>
+
+            <div class="campaign-recipients__add" style="margin-bottom: 24px;">
+                <form method="post" action="{{ path('app_organization_hide_list') }}" class="campaign-recipients__add-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token('hide') }}">
+                    <select class="field__input" name="organization" required>
+                        <option value="">Выберите организацию…</option>
+                        {% for org in organizations %}
+                            <option value="{{ org.id }}">{{ org.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <select class="field__input" name="managers[]">
+                        <option value="">— скрыть от всех менеджеров —</option>
+                        {% for manager in managers %}
+                            <option value="{{ manager.id }}">
+                                {% set managerName = (manager.name|default('') ~ ' ' ~ manager.surname|default(''))|trim %}
+                                {{ managerName ?: manager.email }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    {{ include('components/button.html.twig', {
+                        variant: 'primary',
+                        text: 'Добавить',
+                        sm: true,
+                    }) }}
+                </form>
+            </div>
+
+            {% set flash_error = app.flashes('error')|first %}
+            {% if flash_error %}
+                <div class="flash flash--error" style="margin-bottom: 16px; padding: 12px; background: #fee; border: 1px solid #c00; border-radius: 4px;">
+                    {{ flash_error }}
+                </div>
+            {% endif %}
+
+{% macro sort_url(route, field, currentSort, currentDir) -%}
+    {{ path(route, { sort: field, dir: currentSort == field and currentDir == 'ASC' ? 'DESC' : 'ASC' }) }}
+{%- endmacro %}
+
+{% macro sort_header(route, label, field, currentSort, currentDir) -%}
+    {% if currentSort == field %}
+        <a class="table__sortable table__sortable--active" href="{{ _self.sort_url(route, field, currentSort, currentDir) }}">
+            {{ label }}{{ currentDir == 'DESC' ? ' ↓' : ' ↑' }}
+        </a>
+    {% else %}
+        <a class="table__sortable" href="{{ _self.sort_url(route, field, currentSort, currentDir) }}">{{ label }}</a>
+    {% endif %}
+{%- endmacro %}
+
+            {% if grouped is not empty %}
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>{{ _self.sort_header('app_organization_hide_list', 'Название', 'name', sort, direction) }}</th>
+                            <th>{{ _self.sort_header('app_organization_hide_list', 'Создатель', 'manager', sort, direction) }}</th>
+                            <th>Скрыта</th>
+                            <th style="white-space:nowrap"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in grouped %}
+                            {% for hide in entry.hides %}
+                                <tr data-hide-row data-hide-id="{{ hide.id }}">
+                                    <td><a href="{{ path('app_organization_edit', { id: entry.organization.id }) }}">{{ entry.organization.name }}</a></td>
+                                    <td>
+                                        {% set managerName = (hide.manager.name|default('') ~ ' ' ~ hide.manager.surname|default(''))|trim %}
+                                        {{ managerName ?: hide.manager.email }}
+                                    </td>
+                                    <td>{{ hide.hiddenAt|date('d.m.Y H:i') }}</td>
+                                    <td>
+                                        <form method="post" action="{{ path('app_organization_hide_delete', { id: hide.id }) }}" style="display:inline">
+                                            <input type="hidden" name="_csrf_token" value="{{ csrf_token('hide') }}">
+                                            <button type="submit" class="btn btn--secondary btn--sm">Показать</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>Скрытых организаций нет.</p>
+            {% endif %}
+        </div>
+    </section>
+{% endblock %}

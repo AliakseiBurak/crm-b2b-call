@@ -13,6 +13,7 @@ use App\Entity\GroupAssignment;
 use App\Entity\OrgGroupMembership;
 use App\Entity\Organization;
 use App\Entity\OrganizationGroup;
+use App\Entity\OrganizationHide;
 use App\Entity\User;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
@@ -131,6 +132,11 @@ class AppFixtures extends Fixture
         $manager->persist(new OrgGroupMembership($organizations[5], $group1)); // Закат — с контактом, без звонков
         $manager->persist(new OrgGroupMembership($organizations[6], $group1)); // Парус — просрочки/частичные обзвоны
 
+        // Скрытие организаций (change organization-hiding, ADR-0012):
+        // «Конкурент» скрыт от manager1 — default-open, менеджер видит все
+        // организации, кроме записей скрытия.
+        $manager->persist(new OrganizationHide($organizations[3], $manager1));
+
         $contacts = [];
         $index = 0;
         foreach ($organizations as $orgIndex => $organization) {
@@ -172,7 +178,7 @@ class AppFixtures extends Fixture
         $make($organizations[0], null, $today->modify('-3 days')->setTime(12, 0), 'Нет ответа, перезвонить завтра'); // Ромашка: только заметка
         $make($organizations[1], $contacts[2], $today->modify('-3 days')->setTime(12, 0), 'Уточнить состав группы');
 
-        // Вне области менеджера (ООО "Конкурент" — только в группе manager2)
+        // Скрыт от менеджера (ООО "Конкурент" — запись organization_hide)
         $manager->persist(new Call()
             ->setOrganization($organizations[3])
             ->setContact($contacts[7])
@@ -236,7 +242,7 @@ class AppFixtures extends Fixture
         $bare($organizations[1], $today->setTime(0, 5), false); // Вектор: план сегодня (исключён фактом из «Ожидают»)
         $plan($organizations[1], null, $yesterday->setTime(11, 0), null); // Вектор: просрочка вчера
         $bare($organizations[2], $today->modify('-20 days')->setTime(14, 0), false); // Сидоров: просрочка за 30 дней
-        $bare($organizations[3], $today->modify('-5 days')->setTime(12, 0), false); // Конкурент: просрочка вне области менеджера
+        $bare($organizations[3], $today->modify('-5 days')->setTime(12, 0), false); // Конкурент: просрочка скрыта от менеджера
         for ($i = 0; $i < 5; ++$i) {
             // Парус: 5 планов на вчера — 3 совершены (план + факт), 2 нет
             $call = new Call()

@@ -77,6 +77,37 @@
     margin-left: auto;
 }
 
+.organization-section-title {
+    font-size: 1.1rem;
+    margin-bottom: 12px;
+}
+
+.organization-form__hides {
+    margin-top: 24px;
+}
+
+.organization-hides__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.organization-hides__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+
+.organization-hides__name {
+    font-weight: 500;
+}
+
+.organization-hides__empty {
+    color: #888;
+}
+
 .organization-delete__warning {
     max-width: 560px;
     color: $color-text-body;

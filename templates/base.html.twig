@@ -22,6 +22,7 @@
         {% set baseMenu = baseMenu|merge([
             { label: 'Группы', href: path('app_group_list') },
             { label: 'Пользователи', href: path('app_user_list') },
+            { label: 'Скрытые организации', href: path('app_organization_hide_list') },
         ]) %}
     {% endif %}
     {% if app.user %}

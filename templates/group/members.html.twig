@@ -1,5 +1,5 @@
 {#
-    Участники группы (change organization-groups).
+    Состав группы (change organization-groups).
     canEdit=true: чекбоксы для добавления/удаления организаций из группы.
     canEdit=false: только просмотр состава (назначенная группа — право
     изменения остаётся у создателя или администратора).
@@ -8,12 +8,12 @@
 #}
 {% extends 'base.html.twig' %}
 
-{% block title %}Участники группы «{{ group.name }}»{% endblock %}
+{% block title %}Состав группы «{{ group.name }}»{% endblock %}
 
 {% block body %}
     <section class="section section--white">
         <div class="container">
-            <h1>Участники группы «{{ group.name }}»</h1>
+            <h1>Состав группы «{{ group.name }}»</h1>
 
             {% if not canEdit %}
                 <p class="group-members__readonly">
@@ -87,6 +87,21 @@
                     {% else %}
                         <p>Нет доступных организаций.</p>
                     {% endif %}
+
+                    <div class="group-form__members-row" style="margin-top: 24px;">
+                        {{ include('components/button.html.twig', {
+                            variant: 'secondary',
+                            text: 'Редактировать',
+                            href: path('app_group_edit', { id: group.id }),
+                            type: 'button',
+                        }) }}
+                        {{ include('components/button.html.twig', {
+                            variant: 'secondary',
+                            text: 'Назначить менеджеров',
+                            href: path('app_group_assign', { id: group.id }),
+                            type: 'button',
+                        }) }}
+                    </div>
 
                     <div class="group-members-form__actions" style="margin-top: 24px;">
                         {{ include('components/button.html.twig', {

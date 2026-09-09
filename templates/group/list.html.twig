@@ -2,11 +2,26 @@
     Список групп менеджера (change organization-groups).
     Таблица с названием, описанием, цветом и действиями.
     Ожидает: groups (OrganizationGroup[]), manageableIds (int[]|null) —
-    null означает доступ на изменение для всех групп (администратор).
+    null означает доступ на изменение для всех групп (администратор),
+    sort (string), direction (string).
 #}
 {% extends 'base.html.twig' %}
 
 {% block title %}{% if is_granted('ROLE_ADMIN') %}Группы{% else %}Мои группы{% endif %}{% endblock %}
+
+{% macro sort_url(route, field, currentSort, currentDir) -%}
+    {{ path(route, { sort: field, dir: currentSort == field and currentDir == 'ASC' ? 'DESC' : 'ASC' }) }}
+{%- endmacro %}
+
+{% macro sort_header(route, label, field, currentSort, currentDir) -%}
+    {% if currentSort == field %}
+        <a class="table__sortable table__sortable--active" href="{{ _self.sort_url(route, field, currentSort, currentDir) }}">
+            {{ label }}{{ currentDir == 'DESC' ? ' ↓' : ' ↑' }}
+        </a>
+    {% else %}
+        <a class="table__sortable" href="{{ _self.sort_url(route, field, currentSort, currentDir) }}">{{ label }}</a>
+    {% endif %}
+{%- endmacro %}
 
 {% block body %}
     <section class="section section--white">
@@ -26,10 +41,10 @@
                 <table class="table">
                     <thead>
                         <tr>
-                            <th>Название</th>
+                            <th>{{ _self.sort_header('app_group_list', 'Название', 'name', sort, direction) }}</th>
                             <th>Цвет</th>
                             <th>Описание</th>
-                            <th>Создатель</th>
+                            <th>{{ _self.sort_header('app_group_list', 'Создатель', 'creator', sort, direction) }}</th>
                             <th style="white-space:nowrap"></th>
                         </tr>
                     </thead>
@@ -56,13 +71,13 @@
                                 <td style="white-space:nowrap">
                                     {% if manageableIds is null or group.id in manageableIds %}
                                         <a href="{{ path('app_group_edit', { id: group.id }) }}" class="btn btn--secondary btn--sm">Редактировать</a>
-                                        <a href="{{ path('app_group_members', { id: group.id }) }}" class="btn btn--secondary btn--sm">Участники</a>
+                                        <a href="{{ path('app_group_members', { id: group.id }) }}" class="btn btn--secondary btn--sm">Состав</a>
                                     {% else %}
-                                        <a href="{{ path('app_group_members', { id: group.id }) }}" class="btn btn--secondary btn--sm">Участники</a>
+                                        <a href="{{ path('app_group_members', { id: group.id }) }}" class="btn btn--secondary btn--sm">Состав</a>
                                         <span class="group-list__readonly">только просмотр</span>
                                     {% endif %}
                                     {% if is_granted('ROLE_ADMIN') %}
-                                        <a href="{{ path('app_group_assign', { id: group.id }) }}" class="btn btn--secondary btn--sm">Назначить</a>
+                                        <a href="{{ path('app_group_assign', { id: group.id }) }}" class="btn btn--secondary btn--sm">Назначить менеджеров</a>
                                     {% endif %}
                                 </td>
                             </tr>
