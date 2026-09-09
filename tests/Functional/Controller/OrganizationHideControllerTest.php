@@ -253,8 +253,10 @@ final class OrganizationHideControllerTest extends DatabaseWebTestCase
         $crawler = $this->client->request('GET', '/dashboard');
 
         $this->assertResponseIsSuccessful();
-        // Пункт меню рендерится в шапке и подвале страницы.
-        self::assertSame(2, $crawler->filter('a[href="/admin/hides"]')->count());
+        // Админские страницы ушли из основной навигации в выпадающий
+        // список «⚙ Админ» (change menu-header-footer).
+        self::assertSame(0, $crawler->filter('.header__nav a[href="/admin/hides"]')->count());
+        self::assertSame(1, $crawler->filter('.header-admin__menu a[href="/admin/hides"]')->count());
     }
 
     public function testManagerNavHasNoHidesEntry(): void

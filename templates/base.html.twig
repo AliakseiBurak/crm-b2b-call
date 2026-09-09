@@ -8,31 +8,21 @@
     {% block stylesheets %}{{ encore_entry_link_tags('app') }}{% endblock %}
 </head>
 <body>
-    {% set baseMenu = app.user
+    {% set navItems = app.user
         ? [
             { label: 'Панель', href: path('app_dashboard') },
             { label: 'Рассылки', href: path('app_campaign_index') },
         ]
-        : []
+        : [{ label: 'Войти', href: path('app_login') }]
     %}
     {% if app.user and is_granted('ROLE_MANAGER') and not is_granted('ROLE_ADMIN') %}
-        {% set baseMenu = baseMenu|merge([{ label: 'Мои группы', href: path('app_group_list') }]) %}
+        {% set navItems = navItems|merge([{ label: 'Мои группы', href: path('app_group_list') }]) %}
     {% endif %}
     {% if app.user and is_granted('ROLE_ADMIN') %}
-        {% set baseMenu = baseMenu|merge([
-            { label: 'Группы', href: path('app_group_list') },
-            { label: 'Пользователи', href: path('app_user_list') },
-            { label: 'Скрытые организации', href: path('app_organization_hide_list') },
-        ]) %}
+        {% set navItems = navItems|merge([{ label: 'Группы', href: path('app_group_list') }]) %}
     {% endif %}
-    {% if app.user %}
-        {% set baseMenu = baseMenu|merge([{ label: 'Выйти', href: path('app_logout') }]) %}
-    {% else %}
-        {% set baseMenu = [{ label: 'Войти', href: path('app_login') }] %}
-    {% endif %}
-    {% set menu = baseMenu %}
 
-    {{ include('components/header.html.twig', { menu: menu }) }}
+    {{ include('components/header.html.twig', { menu: navItems, user: app.user }) }}
 
     {% block flashes %}
         {% for label, messages in app.flashes %}
@@ -48,7 +38,7 @@
         {% block body %}{% endblock %}
     </main>
 
-    {{ include('components/footer.html.twig', { menu: menu }) }}
+    {{ include('components/footer.html.twig') }}
 
     {% block javascripts %}{{ encore_entry_script_tags('app') }}{% endblock %}
 </body>

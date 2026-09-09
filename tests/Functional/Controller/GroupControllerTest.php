@@ -70,7 +70,7 @@ final class GroupControllerTest extends DatabaseWebTestCase
         $this->client->request('GET', '/groups/new');
         $this->assertResponseIsSuccessful();
 
-        $this->client->submitForm('Создать', [
+        $this->submitFormByButton('Создать', [
             'name' => 'Новая группа',
             'description' => 'Описание',
             'color' => '#ff0000',
@@ -96,7 +96,7 @@ final class GroupControllerTest extends DatabaseWebTestCase
         $this->login($manager);
         $this->client->request('GET', '/groups/new');
 
-        $this->client->submitForm('Создать', [
+        $this->submitFormByButton('Создать', [
             'name' => 'Новая группа',
             'color' => 'not-a-color',
         ]);
@@ -113,7 +113,7 @@ final class GroupControllerTest extends DatabaseWebTestCase
         $this->login($manager);
         $this->client->request('GET', '/groups/new');
 
-        $this->client->submitForm('Создать', [
+        $this->submitFormByButton('Создать', [
             'name' => '',
         ]);
 
@@ -505,7 +505,7 @@ final class GroupControllerTest extends DatabaseWebTestCase
         $this->login($admin);
         $this->client->request('GET', '/groups/new');
 
-        $this->client->submitForm('Создать', [
+        $this->submitFormByButton('Создать', [
             'name' => 'Admin Group',
             'description' => 'Created by admin',
             'color' => '#00ff00',

@@ -53,11 +53,23 @@ abstract class DatabaseWebTestCase extends WebTestCase
     /**
      * Отправляет форму страницы кнопкой (CSRF-токен берётся из разметки).
      *
+     * Кнопка ищется только внутри форм, чтобы не конфликтовать с кнопками
+     * шапки («Создать», «⚙ Админ»), которые лежат вне форм.
+     *
      * @param array<string, string> $fields
      */
     protected function submitFormByButton(string $buttonText, array $fields): void
     {
-        $this->client->submitForm($buttonText, $fields);
+        $buttons = $this->client->getCrawler()->filter('form button');
+        $match = $buttons->reduce(
+            static fn (Crawler $button) => trim($button->text()) === trim($buttonText),
+        );
+
+        if ($match->count() === 0) {
+            throw new \LogicException(sprintf('Форма с кнопкой «%s» не найдена.', $buttonText));
+        }
+
+        $this->client->submit($match->first()->form(), $fields);
     }
 
     /**
