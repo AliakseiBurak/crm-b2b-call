@@ -196,9 +196,9 @@ test('manager can add organizations to their group', async ({ page }) => {
   
   // Find and go to group members page
   const groupRow = page.locator('[data-group-row]', { hasText: groupName }).first();
-  await groupRow.locator('a:has-text("Участники")').click();
+  await groupRow.locator('a:has-text("Состав")').click();
   
-  await expect(page.locator('h1', { hasText: 'Участники группы' })).toBeVisible();
+  await expect(page.locator('h1', { hasText: 'Состав группы' })).toBeVisible();
   
   // Select some organizations
   await page.locator('input[name="organizations[]"]').first().check();
@@ -208,7 +208,7 @@ test('manager can add organizations to their group', async ({ page }) => {
   
   // Verify the membership persisted: reopen members, a checkbox is checked
   const groupRowAfter = page.locator('[data-group-row]', { hasText: groupName }).first();
-  await groupRowAfter.locator('a:has-text("Участники")').click();
+  await groupRowAfter.locator('a:has-text("Состав")').click();
   await expect(page.locator('input[name="organizations[]"]:checked').first()).toBeChecked();
 });
 
@@ -229,9 +229,9 @@ test('manager can remove organizations from their group', async ({ page }) => {
   
   // Go to group members page
   const groupRow = page.locator('[data-group-row]', { hasText: groupName }).first();
-  await groupRow.locator('a:has-text("Участники")').click();
+  await groupRow.locator('a:has-text("Состав")').click();
   
-  await expect(page.locator('h1', { hasText: 'Участники группы' })).toBeVisible();
+  await expect(page.locator('h1', { hasText: 'Состав группы' })).toBeVisible();
   
   // Add an organization first, then remove it again
   await page.locator('input[name="organizations[]"]').first().check();
@@ -239,7 +239,7 @@ test('manager can remove organizations from their group', async ({ page }) => {
   await expect(page).toHaveURL(/\/groups$/);
 
   const groupRowAgain = page.locator('[data-group-row]', { hasText: groupName }).first();
-  await groupRowAgain.locator('a:has-text("Участники")').click();
+  await groupRowAgain.locator('a:has-text("Состав")').click();
 
   const checkboxes = page.locator('input[name="organizations[]"]');
   const count = await checkboxes.count();
@@ -252,7 +252,7 @@ test('manager can remove organizations from their group', async ({ page }) => {
 
   // Reopen members: nothing is checked anymore
   const groupRowAfter = page.locator('[data-group-row]', { hasText: groupName }).first();
-  await groupRowAfter.locator('a:has-text("Участники")').click();
+  await groupRowAfter.locator('a:has-text("Состав")').click();
   await expect(page.locator('input[name="organizations[]"]:checked')).toHaveCount(0);
 });
 
@@ -266,7 +266,7 @@ test('manager can bulk add organizations from group to campaign recipients', asy
   // Create a group with at least one organization
   await createGroup(page, groupName);
   const groupRow = page.locator('[data-group-row]', { hasText: groupName }).first();
-  await groupRow.locator('a:has-text("Участники")').click();
+  await groupRow.locator('a:has-text("Состав")').click();
   await page.locator('input[name="organizations[]"]').first().check();
   await page.click('button:has-text("Сохранить")');
   await expect(page).toHaveURL(/\/groups$/);

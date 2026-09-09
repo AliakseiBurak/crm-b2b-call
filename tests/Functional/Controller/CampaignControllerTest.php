@@ -10,6 +10,7 @@ use App\Entity\Enum\CampaignStatus;
 use App\Entity\Enum\UserRole;
 use App\Entity\Organization;
 use App\Entity\OrganizationGroup;
+use App\Entity\OrganizationHide;
 use App\Entity\OrgGroupMembership;
 use App\Entity\User;
 use App\Service\CampaignAttachmentStorage;
@@ -339,6 +340,9 @@ final class CampaignControllerTest extends DatabaseWebTestCase
     public function testManagerCannotAddInaccessibleOrganizationAsRecipient(): void
     {
         [$manager1, , $romashka, $zavod] = $this->makeTwoManagersWithOrganizations();
+        // Недоступность задаётся скрытием организации (ADR-0012).
+        $this->em()->persist(new OrganizationHide($zavod, $manager1));
+        $this->em()->flush();
         $campaign = $this->persistCampaign('Акция');
         $this->login($manager1);
 
@@ -356,7 +360,11 @@ final class CampaignControllerTest extends DatabaseWebTestCase
 
     public function testManagerAddsAccessibleOrganizationAsRecipient(): void
     {
-        [$manager1] = $this->makeTwoManagersWithOrganizations();
+        [$manager1, , $romashka, $zavod] = $this->makeTwoManagersWithOrganizations();
+        // «ООО Завод» скрыта от менеджера (ADR-0012): в списке организаций
+        // формы её нет.
+        $this->em()->persist(new OrganizationHide($zavod, $manager1));
+        $this->em()->flush();
         $campaign = $this->persistCampaign('Акция');
         $this->login($manager1);
 

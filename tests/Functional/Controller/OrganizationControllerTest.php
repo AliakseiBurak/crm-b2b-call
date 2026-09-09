@@ -8,6 +8,7 @@ use App\Entity\Enum\UserRole;
 use App\Entity\OrgGroupMembership;
 use App\Entity\Organization;
 use App\Entity\OrganizationGroup;
+use App\Entity\OrganizationHide;
 use App\Entity\User;
 use App\Tests\DatabaseWebTestCase;
 
@@ -251,11 +252,14 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
     {
         [$manager1] = $this->makeTwoManagersWithOrganizations();
         $inaccessible = $this->findOrganization('ООО Завод');
+        // Недоступность задаётся скрытием организации (ADR-0012).
+        $this->em()->persist(new OrganizationHide($inaccessible, $manager1));
+        $this->em()->flush();
 
         $this->login($manager1);
         $this->open('/organizations/' . $inaccessible->id . '/edit');
 
-        // Организация отсутствует в области доступа менеджера (ADR-0007).
+        // Организация скрыта от менеджера (ADR-0012).
         $this->assertResponseStatusCodeSame(403);
     }
 
@@ -263,9 +267,11 @@ final class OrganizationControllerTest extends DatabaseWebTestCase
     {
         [$manager1] = $this->makeTwoManagersWithOrganizations();
         $inaccessible = $this->findOrganization('ООО Завод');
+        $this->em()->persist(new OrganizationHide($inaccessible, $manager1));
+        $this->em()->flush();
 
         $this->login($manager1);
-        // Токен берём со своей формы создания — он не даёт доступа к чужой организации.
+        // Токен берём со своей формы создания — он не даёт доступа к скрытой организации.
         $this->submitOrganizationAjax(
             '/organizations/' . $inaccessible->id . '/edit',
             '/organizations/new',

@@ -7,6 +7,7 @@ use App\Entity\GroupAssignment;
 use App\Entity\OrgGroupMembership;
 use App\Entity\Organization;
 use App\Entity\OrganizationGroup;
+use App\Entity\OrganizationHide;
 use App\Entity\User;
 use App\Tests\DatabaseWebTestCase;
 
@@ -278,7 +279,8 @@ final class GroupControllerTest extends DatabaseWebTestCase
         $group = $this->makeGroup('My Group', $manager1);
         $this->em()->persist($group);
 
-        // Организация manager2 вне области доступа manager1 (ADR-0007).
+        // Организация скрыта от manager1 (ADR-0012) — добавить её в группу
+        // он не может, хотя группа создана им.
         $inaccessibleOrg = (new Organization())
             ->setName('Чужой Орг')
             ->setIndustry('IT');
@@ -286,6 +288,7 @@ final class GroupControllerTest extends DatabaseWebTestCase
         $this->em()->persist($manager2Group);
         $this->em()->persist($inaccessibleOrg);
         $this->em()->persist(new OrgGroupMembership($inaccessibleOrg, $manager2Group));
+        $this->em()->persist(new OrganizationHide($inaccessibleOrg, $manager1));
         $this->em()->flush();
         $groupId = $group->id;
 

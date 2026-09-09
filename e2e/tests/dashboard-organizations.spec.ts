@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
 // Организации на панели (change dashboard-orgs-contacts):
-// таблица области доступа, поиск, сортировка, аккордеон контактов,
+// таблица области доступа (default-open: всё, кроме скрытого — organization-hiding),
+// поиск, сортировка, аккордеон контактов,
 // звонки организаций, кнопки-заглушки действий (404).
 
 const loginSubmit = 'form[action="/login"] button[type="submit"]';
@@ -18,7 +19,7 @@ async function orgNames(page: Page): Promise<string[]> {
   return page.locator('.org-table__name').allTextContents();
 }
 
-test('менеджер видит таблицу организаций только своей области доступа', async ({ page }) => {
+test('менеджер видит все организации, кроме скрытых от него', async ({ page }) => {
   await login(page, 'manager@b2b-crm.loc', 'manager123');
   await page.goto('/dashboard');
 
@@ -26,6 +27,7 @@ test('менеджер видит таблицу организаций толь
   const names = await orgNames(page);
   expect(names.some((n) => n.includes('Ромашка'))).toBe(true);
   expect(names.some((n) => n.includes('Вектор'))).toBe(true);
+  // «Конкурент» скрыт от менеджера фикстурой organization_hide.
   expect(names.some((n) => n.includes('Конкурент'))).toBe(false);
 });
 

@@ -11,6 +11,7 @@ use App\Entity\Enum\UserRole;
 use App\Entity\OrgGroupMembership;
 use App\Entity\Organization;
 use App\Entity\OrganizationGroup;
+use App\Entity\OrganizationHide;
 use App\Entity\User;
 use App\Tests\DatabaseWebTestCase;
 
@@ -323,16 +324,20 @@ final class CallControllerTest extends DatabaseWebTestCase
     public function testManagerCannotCreateCallInInaccessibleOrganization(): void
     {
         [$manager1, , , $zavod] = $this->makeTwoManagersWithOrganizations();
+        // Недоступность теперь задаётся скрытием (ADR-0012): скрытая
+        // организация недоступна менеджеру во всех разделах.
+        $this->em()->persist(new OrganizationHide($zavod, $manager1));
+        $this->em()->flush();
         $this->login($manager1);
 
-        // Токен берём со своей формы создания — он не даёт доступа к чужой организации.
+        // Токен берём со своей формы создания — он не даёт доступа к скрытой организации.
         $this->submitCallAjax('/calls/new', '/calls/new', [
             'organization' => (string) $zavod->id,
             'is_future_call' => '1',
             'scheduled_at' => new \DateTimeImmutable('+5 days')->format('Y-m-d\TH:i'),
         ], ajax: false);
 
-        // Организация отсутствует в области доступа менеджера (ADR-0007).
+        // Организация скрыта от менеджера (ADR-0012).
         $this->assertResponseStatusCodeSame(403);
         $this->em()->clear();
         self::assertNull($this->findOrganizationCall($zavod));
@@ -382,12 +387,13 @@ final class CallControllerTest extends DatabaseWebTestCase
     {
         [$manager1, , , $zavod] = $this->makeTwoManagersWithOrganizations();
         $foreignCall = $this->makeCallFor($zavod);
+        $this->em()->persist(new OrganizationHide($zavod, $manager1));
         $this->em()->flush();
         $this->login($manager1);
 
         $this->open('/calls/' . $foreignCall->id . '/edit');
 
-        // Звонок чужой организации вне области доступа менеджера (ADR-0007).
+        // Звонок скрытой организации недоступен менеджеру (ADR-0012).
         $this->assertResponseStatusCodeSame(403);
     }
 
@@ -395,6 +401,7 @@ final class CallControllerTest extends DatabaseWebTestCase
     {
         [$manager1, , , $zavod] = $this->makeTwoManagersWithOrganizations();
         $foreignCall = $this->makeCallFor($zavod);
+        $this->em()->persist(new OrganizationHide($zavod, $manager1));
         $this->em()->flush();
         $this->login($manager1);
 
@@ -406,7 +413,7 @@ final class CallControllerTest extends DatabaseWebTestCase
 
         $this->assertResponseStatusCodeSame(403);
         $this->em()->clear();
-        // Чужой звонок не изменён и новых звонков не появилось.
+        // Звонок скрытой организации не изменён и новых звонков не появилось.
         $calls = $this->em()->getRepository(Call::class)->findBy(['organization' => $zavod]);
         self::assertCount(1, $calls);
         self::assertSame($foreignCall->id, $calls[0]->id);
@@ -641,6 +648,8 @@ final class CallControllerTest extends DatabaseWebTestCase
     public function testManagerCannotLoadContactsOfInaccessibleOrganization(): void
     {
         [$manager1, , , $zavod] = $this->makeTwoManagersWithOrganizations();
+        $this->em()->persist(new OrganizationHide($zavod, $manager1));
+        $this->em()->flush();
         $this->login($manager1);
 
         $this->client->request('GET', '/organizations/' . $zavod->id . '/contacts.json');

@@ -7,6 +7,7 @@ use App\Entity\Enum\UserRole;
 use App\Entity\OrgGroupMembership;
 use App\Entity\Organization;
 use App\Entity\OrganizationGroup;
+use App\Entity\OrganizationHide;
 use App\Entity\User;
 use App\Tests\DatabaseWebTestCase;
 
@@ -67,9 +68,12 @@ final class ContactControllerTest extends DatabaseWebTestCase
     public function testManagerCannotCreateContactInInaccessibleOrganization(): void
     {
         [$manager1, , , $zavod] = $this->makeTwoManagersWithOrganizations();
+        // Недоступность задаётся скрытием организации (ADR-0012).
+        $this->em()->persist(new OrganizationHide($zavod, $manager1));
+        $this->em()->flush();
         $this->login($manager1);
 
-        // Токен берём со своей формы создания — он не даёт доступа к чужой организации.
+        // Токен берём со своей формы создания — он не даёт доступа к скрытой организации.
         $this->submitContactAjax(
             '/contacts/new',
             '/contacts/new',
@@ -80,7 +84,7 @@ final class ContactControllerTest extends DatabaseWebTestCase
             ajax: false,
         );
 
-        // Организация отсутствует в области доступа менеджера (ADR-0007).
+        // Организация скрыта от менеджера (ADR-0012).
         $this->assertResponseStatusCodeSame(403);
         $this->em()->clear();
         self::assertNull($this->findContact('Иван Петров'));
@@ -200,12 +204,13 @@ final class ContactControllerTest extends DatabaseWebTestCase
     {
         [$manager1, , , $zavod] = $this->makeTwoManagersWithOrganizations();
         $zavodContact = $this->makeContact($zavod, 'Заводской контакт');
+        $this->em()->persist(new OrganizationHide($zavod, $manager1));
         $this->em()->flush();
         $this->login($manager1);
 
         $this->open('/contacts/' . $zavodContact->id . '/edit');
 
-        // Контакт принадлежит организации вне области доступа (ADR-0007).
+        // Контакт принадлежит организации, скрытой от менеджера (ADR-0012).
         $this->assertResponseStatusCodeSame(403);
     }
 
@@ -213,6 +218,7 @@ final class ContactControllerTest extends DatabaseWebTestCase
     {
         [$manager1, , , $zavod] = $this->makeTwoManagersWithOrganizations();
         $zavodContact = $this->makeContact($zavod, 'Заводской контакт');
+        $this->em()->persist(new OrganizationHide($zavod, $manager1));
         $this->em()->flush();
         $this->login($manager1);
 
