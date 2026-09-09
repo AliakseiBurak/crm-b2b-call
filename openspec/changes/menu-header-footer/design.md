@@ -41,13 +41,14 @@ The header component (`templates/components/header.html.twig`) currently renders
 
 ### 3. CSS approach: absolute positioning
 
-**Decision:** Dropdown menu positioned absolutely below the button, right-aligned (`right: 0`). Uses existing design tokens (`$color-bg-band-blue` for border, `$radius-modal` for radius, `$font-heading` for font).
+**Decision:** Dropdown menu positioned absolutely below the button, right-aligned (`right: 0`). Uses existing design tokens (`$color-bg-band-blue` for border, `$radius-modal` for radius, `$font-heading` for font). The toggle buttons are styled like the navigation links (`.header__menu-link`: `$font-heading`, `$font-size-body`, info-blue, hover orange), distinguished only by the caret — per post-apply feedback.
 
-**Why:** Standard dropdown pattern. Right-aligned because the button is in the header's right section.
+**Why:** Standard dropdown pattern. Right-aligned because the button is in the header's right section. Nav-link look keeps the header visually uniform; the caret alone signals "dropdown".
 
 **Alternatives considered:**
 - Fixed positioning — unnecessary complexity
 - Popover API — not widely supported yet
+- Pill buttons (`btn--secondary` style) — visually heavier than the nav links; rejected per feedback
 
 ### 4. Role-based visibility in Twig
 
@@ -71,11 +72,12 @@ The header component (`templates/components/header.html.twig`) currently renders
 
 ### 6. User dropdown: Twig-rendered, same JS pattern
 
-**Decision:** Render a `<button>` with `data-header-user` attribute containing `app.user.name` + caret. Dropdown menu with "Выйти" link. JS uses the same click-toggle + outside-click pattern as the create dropdown.
+**Decision:** Render a `<button>` with `data-header-user` attribute containing the label «Профиль» + caret. Dropdown menu with the user info (name + surname if present, email) as the first item and the «Выйти» link. JS uses the same click-toggle + outside-click pattern as the create dropdown.
 
-**Why:** Reuses the same JS pattern. Server-side rendering of user name avoids passing data to client. Twig's `app.user` is always available for authenticated users.
+**Why:** Reuses the same JS pattern. Server-side rendering of user info avoids passing data to client. Twig's `app.user` is always available for authenticated users.
 
 **Alternatives considered:**
+- Button with the user's name — name can be long and null; a stable «Профиль» label is cleaner
 - Pass user name via data attribute — unnecessary indirection
 - CSS-only dropdown (`:hover`) — unreliable on touch devices
 

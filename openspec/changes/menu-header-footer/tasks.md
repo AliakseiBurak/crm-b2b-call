@@ -6,6 +6,7 @@
 - [ ] 1.4 Add user dropdown: button with `app.user.name` + caret + dropdown menu with "Выйти" link
 - [ ] 1.5 Add hamburger button (hidden on desktop, visible ≤768px)
 - [ ] 1.6 Add mobile sidebar markup: nav items + create dropdown + user block
+- [ ] 1.7 User dropdown: label «Профиль» + first menu item with name/surname (if present) and email, then «Выйти»
 
 ## 2. CSS
 

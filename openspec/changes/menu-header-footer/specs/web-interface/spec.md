@@ -4,10 +4,14 @@
 The system SHALL render a white header: the logo «B2B Call CRM» on the left
 as a link to the home page, navigation links in the center-right section,
 and — for authenticated users — action buttons on the far right: «Создать ▾»
-for all users, «⚙ Админ ▾» for admin, user name dropdown. The create
+for all users, «⚙ Админ ▾» for admin, «Профиль ▾» user dropdown. The
+dropdown buttons SHALL be styled like the navigation links, distinguished
+only by a downward caret. The create
 dropdown SHALL show short labels: Организацию, Контакт, Звонок, Рассылку;
 Группу for `ROLE_MANAGER`; Пользователя for `ROLE_ADMIN`. A user dropdown
-SHALL show the user's name with a caret and contain the «Выйти» link. All
+SHALL show the label «Профиль» with a caret; its menu SHALL contain as the
+first item the user's name and surname (if present) and email, followed by
+the «Выйти» link. All
 dropdowns SHALL open on click and close when clicking outside. On screens
 ≤768px, the header SHALL collapse navigation into a hamburger button (☰)
 that opens a slide-in sidebar from the left. The footer SHALL render on the
@@ -48,8 +52,9 @@ line «© YYYY B2B Call CRM» centered.
 
 #### Scenario: Выпадающий список пользователя
 - **WHEN** вошедший пользователь открывает страницу с шапкой
-- **THEN** справа отображается кнопка с именем пользователя и символом ▾
+- **THEN** справа отображается кнопка «Профиль» с символом ▾
 - **AND** при нажатии на кнопку открывается выпадающий список
+- **AND** первым пунктом списка отображаются имя и фамилия пользователя (если указаны) и email
 - **AND** в списке отображается ссылка «Выйти»
 
 #### Scenario: Закрытие выпадающего списка пользователя
