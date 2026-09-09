@@ -29,7 +29,7 @@
 
             {# --- Форма установки пароля --- #}
             <form id="setup-password-form" method="post" action="{{ path('app_setup_password') }}" style="display:none">
-                {{ include('components/form_field.html.twig', { name: 'email', label: 'Email', type: 'email', value: last_username|default(''), required: true }, with_context = false) }}
+                {{ include('components/form_field.html.twig', { name: 'email', label: 'Email', type: 'email', value: setup_email|default(''), required: true }, with_context = false) }}
                 {{ include('components/form_field.html.twig', { name: 'new_password', label: 'Новый пароль', type: 'password', required: true }, with_context = false) }}
                 {{ include('components/form_field.html.twig', { name: 'confirm_password', label: 'Повторите пароль', type: 'password', required: true }, with_context = false) }}
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token('setup-password') }}">
@@ -78,6 +78,15 @@
             toggleBack.addEventListener('change', function() {
                 if (this.checked) { showSetup(); } else { showLogin(); }
             });
+
+            {# После ошибки установки пароля форма возвращается открытой
+               с сохранённым email (last_username не перезаписывает его). #}
+            {% if setup_email|default('') is not empty %}
+            loginForm.style.display = 'none';
+            setupForm.style.display = '';
+            toggle.checked = true;
+            toggleBack.checked = true;
+            {% endif %}
         })();
     </script>
 {% endblock %}

@@ -19,7 +19,7 @@ class SecurityController extends AbstractController
     }
 
     #[Route('/login', name: 'app_login')]
-    public function login(AuthenticationUtils $authenticationUtils): Response
+    public function login(Request $request, AuthenticationUtils $authenticationUtils): Response
     {
         if ($this->getUser()) {
             return $this->redirectToRoute('app_home');
@@ -28,9 +28,18 @@ class SecurityController extends AbstractController
         $error = $authenticationUtils->getLastAuthenticationError();
         $lastUsername = $authenticationUtils->getLastUsername();
 
+        // Email, введённый в форме установки пароля: сохраняется при
+        // редиректе на /login после ошибки валидации (PRG).
+        $session = $request->getSession();
+        $setupEmail = $session->has('setup_password_email')
+            ? (string) $session->get('setup_password_email')
+            : '';
+        $session->remove('setup_password_email');
+
         return $this->render('security/login.html.twig', [
             'last_username' => $lastUsername,
             'error' => $error,
+            'setup_email' => $setupEmail,
         ]);
     }
 
@@ -71,6 +80,9 @@ class SecurityController extends AbstractController
         }
 
         if ([] !== $errors) {
+            if ('' !== $email) {
+                $request->getSession()->set('setup_password_email', $email);
+            }
             $this->addFlash('error', implode(' ', $errors));
 
             return $this->redirectToRoute('app_login');
