@@ -83,7 +83,7 @@ The system SHALL NOT create a `CampaignRecipient` when the organization has no d
 ## MODIFIED Requirements
 
 ### Requirement: Формирование адресатов (колонка «Повторно» и кнопка сброса ✕)
-The column header for `replacementCount` SHALL be labeled «Повторно*» with a footnote below the table: «* В случае повторного добавления организации/контакта в запущенную рассылку велика вероятность, что эл. письмо будет отправлено повторно.» The reset action for `failed` and `bounced` recipients SHALL be rendered as an ✕ emoji button inside the status cell, to the right of the status label, not in a separate actions column.
+The column header for `replacementCount` SHALL be labeled «Повторно*» with a footnote below the table: «* В случае повторного добавления организации/контакта в статусе отличном от "Ожидает", эл. письмо будет отправлено повторно.» The reset action for `failed` and `bounced` recipients SHALL be rendered as an ✕ emoji button inside the status cell, to the right of the status label, not in a separate actions column.
 
 #### Scenario: Страница адресатов — колонка Повторно и кнопка ✕
 - **WHEN** менеджер открывает страницу адресатов рассылки

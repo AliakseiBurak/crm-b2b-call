@@ -35,4 +35,4 @@
 
 ## 5. Документация
 
-- [ ] 5.1 Обновить `openspec/specs/campaigns/spec.md` при архивировании
+- [x] 5.1 Обновить `openspec/specs/campaigns/spec.md` при архивировании
