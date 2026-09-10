@@ -159,6 +159,76 @@ class CampaignRecipientRepository extends ServiceEntityRepository
     }
 
     /**
+     * Агрегат статистики по всем рассылкам: delivered (delivered+opened), total
+     * и статус для каждой кампании, у которой есть хотя бы один получатель.
+     *
+     * @return list<array{campaignId: int, delivered: int, total: int, status: string, label: string}>
+     */
+    public function statsForAllCampaigns(): array
+    {
+        $rows = $this->createQueryBuilder('cr')
+            ->select(
+                'IDENTITY(cr.campaign) AS campaignId',
+                'c.status AS campaignStatus',
+                'COUNT(cr.id) AS total',
+                "SUM(CASE WHEN cr.status IN (:delivered) THEN 1 ELSE 0 END) AS delivered",
+            )
+            ->innerJoin('cr.campaign', 'c')
+            ->groupBy('cr.campaign')
+            ->addOrderBy('c.id', 'ASC')
+            ->setParameter('delivered', [
+                RecipientStatus::Delivered->value,
+                RecipientStatus::Opened->value,
+            ])
+            ->getQuery()
+            ->getArrayResult();
+
+        $result = [];
+        foreach ($rows as $row) {
+            $enum = $row['campaignStatus'] instanceof CampaignStatus
+                ? $row['campaignStatus']
+                : CampaignStatus::from($row['campaignStatus']);
+            $result[] = [
+                'campaignId' => (int) $row['campaignId'],
+                'delivered' => (int) $row['delivered'],
+                'total' => (int) $row['total'],
+                'status' => $enum->value,
+                'label' => $enum->label(),
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Статусы всех адресатов рассылки с лейблами из RecipientStatus.
+     *
+     * @return list<array{recipientId: int, status: string, label: string}>
+     */
+    public function findStatusesForCampaign(int $campaignId): array
+    {
+        $rows = $this->createQueryBuilder('cr')
+            ->select('cr.id AS recipientId', 'cr.status')
+            ->where('IDENTITY(cr.campaign) = :campaignId')
+            ->setParameter('campaignId', $campaignId)
+            ->orderBy('cr.id', 'ASC')
+            ->getQuery()
+            ->getArrayResult();
+
+        $result = [];
+        foreach ($rows as $row) {
+            $enum = $row['status'] instanceof RecipientStatus ? $row['status'] : RecipientStatus::from($row['status']);
+            $result[] = [
+                'recipientId' => (int) $row['recipientId'],
+                'status' => $enum->value,
+                'label' => $enum->label(),
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
      * Есть ли у контакта bounced в неархивной рассылке (для отметки на дашборде).
      */
     public function hasBouncedForContact(Contact $contact): bool

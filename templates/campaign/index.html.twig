@@ -145,5 +145,26 @@
         }
 
         bindActions(document);
+
+        (function() {
+            var statsCache = {};
+            setInterval(function() {
+                fetch('/campaigns/statuses')
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        data.forEach(function(item) {
+                            var prev = statsCache[item.campaignId];
+                            if (prev && prev.delivered === item.delivered && prev.total === item.total) {
+                                return;
+                            }
+                            statsCache[item.campaignId] = item;
+                            var row = document.getElementById('campaign-' + item.campaignId);
+                            if (!row) return;
+                            var cell = row.querySelector('.campaign-table__stats-cell');
+                            if (cell) cell.textContent = item.delivered + ' из ' + item.total;
+                        });
+                    });
+            }, 1900);
+        })();
     </script>
 {% endblock %}

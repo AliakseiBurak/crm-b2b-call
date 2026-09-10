@@ -104,7 +104,7 @@
                         </thead>
                         <tbody>
                             {% for recipient in recipients %}
-                                <tr>
+                                <tr data-recipient-id="{{ recipient.id }}">
                                     <td>
                                         <a href="{{ path('app_organization_edit', { id: recipient.organization.id }) }}">{{ recipient.organization.name }}</a>
                                         {% if recipient.errorMessage %}
@@ -145,7 +145,7 @@
                             {% endfor %}
                         </tbody>
                     </table>
-                    <p class="campaign-recipients__footnote">* В случае повторного добавления организации/контакта в запущенную рассылку велика вероятность, что эл. письмо будет отправлено повторно.</p>
+                    <p class="campaign-recipients__footnote">* В случае повторного добавления организации/контакта в статусе отличном от "Ожидает", эл. письмо будет отправлено повторно.</p>
                 </div>
             {% else %}
                 <p class="campaign-recipients__empty">Адресатов пока нет.</p>
@@ -161,4 +161,33 @@
             </div>
         </div>
     </section>
+
+    <script>
+        (function() {
+            var campaignId = {{ campaign.id }};
+            var statusCache = {};
+            var currentClasses = {};
+            setInterval(function() {
+                fetch('/campaigns/' + campaignId + '/recipients/statuses')
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        data.forEach(function(item) {
+                            var prev = statusCache[item.recipientId];
+                            if (prev === item.status) return;
+                            statusCache[item.recipientId] = item.status;
+                            var row = document.querySelector('tr[data-recipient-id="' + item.recipientId + '"]');
+                            if (!row) return;
+                            var badge = row.querySelector('.campaign-recipients__status');
+                            if (!badge) return;
+                            badge.textContent = item.label;
+                            var oldClass = currentClasses[item.recipientId];
+                            if (oldClass) badge.classList.remove(oldClass);
+                            var newClass = 'campaign-recipients__status--' + item.status;
+                            badge.classList.add(newClass);
+                            currentClasses[item.recipientId] = newClass;
+                        });
+                    });
+            }, 1100);
+        })();
+    </script>
 {% endblock %}

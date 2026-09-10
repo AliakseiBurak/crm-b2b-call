@@ -116,8 +116,14 @@ class CampaignController extends AbstractController
     {
         $campaign = $this->campaign($id);
 
+        $statusLabels = [];
+        foreach (CampaignStatus::cases() as $case) {
+            $statusLabels[$case->value] = $case->label();
+        }
+
         return $this->render('campaign/show.html.twig', [
             'campaign' => $campaign,
+            'statusLabels' => $statusLabels,
         ]);
     }
 

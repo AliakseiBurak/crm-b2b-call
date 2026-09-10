@@ -175,4 +175,45 @@
             </article>
         </div>
     </section>
+
+    <script>
+        (function() {
+            var campaignId = {{ campaign.id }};
+            var statusLabels = {{ statusLabels|json_encode|raw }};
+            var statsCache = {};
+            var currentStatus = {{ campaign.status.value|json_encode|raw }};
+            var progressEl = document.getElementById('campaign-progress');
+            var statusEl = document.getElementById('campaign-status');
+            function updateVisibility(status) {
+                if (!progressEl) return;
+                if (status === 'launched' || status === 'failed') {
+                    progressEl.style.display = '';
+                } else {
+                    progressEl.style.display = 'none';
+                }
+            }
+            setInterval(function() {
+                fetch('/campaigns/statuses')
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        var found = null;
+                        for (var i = 0; i < data.length; i++) {
+                            if (data[i].campaignId === campaignId) { found = data[i]; break; }
+                        }
+                        if (!found) return;
+                        if (found.status !== currentStatus) {
+                            currentStatus = found.status;
+                            if (statusEl) statusEl.textContent = found.label;
+                            updateVisibility(found.status);
+                        }
+                        var prev = statsCache[campaignId];
+                        if (prev && prev.delivered === found.delivered && prev.total === found.total) return;
+                        statsCache[campaignId] = found;
+                        if (progressEl) {
+                            progressEl.textContent = 'обработано ' + found.delivered + ' из ' + found.total;
+                        }
+                    });
+            }, 1900);
+        })();
+    </script>
 {% endblock %}
